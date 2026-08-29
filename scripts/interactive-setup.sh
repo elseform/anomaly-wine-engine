@@ -392,7 +392,6 @@ export LANG="en_US.UTF-8"
 case "\$GAMMA_GRAPHICS_BACKEND" in
   d3dmetal | default)
     if [[ -f "\$ENGINE_DIR/lib/external/libd3dshared.dylib" ]]; then
-      export CX_APPLEGPT_LIBD3DSHARED_PATH="\$ENGINE_DIR/lib/external/libd3dshared.dylib"
       export CX_APPLEGPTK_LIBD3DSHARED_PATH="\$ENGINE_DIR/lib/external/libd3dshared.dylib"
     fi
     if [[ -d "\$ENGINE_DIR/lib/external/D3DMetal.framework" ]]; then
