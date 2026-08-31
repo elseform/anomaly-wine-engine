@@ -76,6 +76,14 @@ case "$BACKEND_CHOICE" in
     ;;
 esac
 
+echo ""
+read -r -p "Enable Retina/HiDPI mode (CrossOver's Retina toggle equivalent)? [y/N]: " retina_choice || true
+if [[ "${retina_choice:-N}" =~ ^[Yy] ]]; then
+  RETINA_MODE=Y
+else
+  RETINA_MODE=N
+fi
+
 APP_SUPPORT="$HOME/Library/Application Support/$APP_NAME"
 WINEPREFIX="$APP_SUPPORT/prefix"
 ENGINE_DIR="$APP_PATH/Contents/Resources/engine"
@@ -149,6 +157,7 @@ wine_reg() {
 }
 wine_reg "HKEY_CURRENT_USER\Software\Wine\Drivers" /v Graphics /t REG_SZ /d mac /f
 wine_reg "HKEY_CURRENT_USER\Software\Wine\Mac Driver" /v AllowSetGamma /t REG_DWORD /d 0 /f
+wine_reg "HKEY_CURRENT_USER\Software\Wine\Mac Driver" /v RetinaMode /t REG_SZ /d "$RETINA_MODE" /f
 
 # d3d11/dxgi/d3d12 deliberately get no registry DllOverrides here: cxcompatdb.so
 # activates the selected backend by prepending its directory to the DLL search
@@ -229,131 +238,66 @@ if [[ -f "$CONFIG_FILE" ]]; then
 else
   cat > "$CONFIG_FILE" << EOF
 # $APP_NAME runtime configuration — edit freely, no rebuild needed.
-#
-# This file is sourced by the launcher on every start, before its own defaults,
-# so anything set here wins. It lives outside the .app bundle, so editing it
-# never invalidates the bundle signature.
-#
-# To see which backend actually activated, launch from a terminal and look for
-#   gamma-cxcompatdb:info: graphics backend=... path=...
-# on stderr (WINEDEBUG=-all does not suppress it).
+# Sourced by the launcher on every start, before its own defaults, so
+# anything set here wins. Backend that activated: check stderr for
+# "gamma-cxcompatdb:info: graphics backend=... path=..." (survives WINEDEBUG=-all).
 
-# ---------------------------------------------------------------------------
-# Backend selection
-# ---------------------------------------------------------------------------
-# d3dmetal  Apple D3DMetal, D3D11/12 via Metal. 64-bit only — 32-bit processes
-#           fall back, since GPTK ships no i386 payload.
-# dxmt      DXMT, D3D11/10 via Metal. The only Metal backend for 32-bit.
-# dxvk      DXVK, D3D11/10/9 via Vulkan. Needs an engine built --with-vulkan;
-#           falls back to wined3d otherwise.
-# wined3d   Wine's OpenGL renderer.
-# default   Try d3dmetal, then dxmt, then wined3d.
+# --- Backend --- d3dmetal | dxmt | dxvk | wined3d | default
 export GAMMA_GRAPHICS_BACKEND=$GRAPHICS_BACKEND
 
-# ---------------------------------------------------------------------------
-# General
-# ---------------------------------------------------------------------------
-# Windows path to the executable launched by Wine. If you point this at an
-# executable in another directory, update EXE_RUN_DIR below as well so local
-# DLL and configuration lookups still work.
-export EXE_PATH='$EXE_WIN_PATH'
-export EXE_RUN_DIR='$EXE_RUN_DIR'
+# --- General ---
+export EXE_PATH='$EXE_WIN_PATH'          # Windows path launched by Wine
+export EXE_RUN_DIR='$EXE_RUN_DIR'        # keep in sync with EXE_PATH's dir
+export MTL_HUD_ENABLED=1                 # Metal perf HUD             0 | 1
+export WINEMSYNC=1                       # Darwin Mach semaphore sync 0 | 1
+export WINEESYNC=0                       #                            0 | 1
+export ROSETTA_ADVERTISE_AVX=1           #                            0 | 1
+export WINEDEBUG="-all"                  # "fixme-all" middle ground
+export DEFAULT_GAME_ARGS=""              # used only with no CLI args
 
-export MTL_HUD_ENABLED=1          # Metal performance HUD (both backends)
-export WINEMSYNC=1                # Darwin Mach semaphore sync
-export WINEESYNC=0
-export ROSETTA_ADVERTISE_AVX=1
-export WINEDEBUG="-all"           # fixme-all for a middle ground
+# --- Retina / HiDPI (Wine Mac Driver, CrossOver's Retina toggle) ---
+export GAMMA_RETINA_MODE=$RETINA_MODE    # Y | N — synced every launch
+#export GAMMA_RETINA_LOGPIXELS=          # DPI, e.g. 216/254 — needs Y
 
-# Extra arguments passed to the game when launched from Finder or the Dock.
-# Arguments given on the command line override these.
-export DEFAULT_GAME_ARGS=""
+# --- D3DMetal (GAMMA_GRAPHICS_BACKEND=d3dmetal) ---
+export D3DM_ENABLE_METALFX=0             # MetalFX upscaling          0 | 1
+export D3DM_MAX_FPS=60                   # frame cap                 fps
+#export D3DM_SHOW_HUD_STATS=1            # D3DMetal's own HUD         0 | 1
+#export D3DM_LOD_BIAS=-0.5               # texture LOD bias           float
+#export D3DM_MIN_LOD_CLAMP=0             # texture LOD floor          float
+#export D3DM_SUPPORT_DXR=1               # advertise DXR raytracing   0 | 1
+#export D3DM_MTL4=1                      # use Metal 4 backend path   0 | 1
+export D3DM_POSITION_INVARIANCE=1        # fixes z-fighting/shimmer   0 | 1
+export D3DM_SAMPLE_NAN_TO_ZERO=1         # clamp NaN texels to 0      0 | 1
+export D3DM_FLUSH_POS_INF_TO_NAN=1       # float-edge-case fixup      0 | 1
+#export D3DM_IGNORE_D3D11_RENDER_BARRIERS=1  # faster, can corrupt    0 | 1
+#export D3DM_BOUNDS_CHECK=1              # debug bounds checking      0 | 1
+#export D3DM_ERROR_MODE=1                # strictness on API misuse  integer
+#export D3DM_LOGLEVEL_INFO=1             # verbose D3DMetal logging   0 | 1
+#export D3DM_NVNGX_PATH=                 # dir with NVNGX/DLSS files  path
+#export D3DM_VENDOR_ID=0x10de            # spoof GPU vendor    0x10de NVIDIA, 0x1002 AMD, 0x8086 Intel
+#export D3DM_DEVICE_ID=0x2684            # spoof GPU device id        hex
+#export D3DM_DEVICE_DESCRIPTION="NVIDIA GeForce RTX 4090"  # spoof GPU name
+#export D3DM_DEVICE_REVISION=0           # spoof PCI revision        integer
+#export D3DM_DEVICE_SUBSYS=0             # spoof PCI subsystem id    integer
 
-# ---------------------------------------------------------------------------
-# D3DMetal  (GAMMA_GRAPHICS_BACKEND=d3dmetal)
-# ---------------------------------------------------------------------------
-# Variable names below were read out of the shipped libd3dshared.dylib and
-# D3DMetal.framework, so they exist in this build. Apple documents almost none
-# of them, so the value notes are the usual convention (flags are 0/1) — treat
-# anything beyond on/off as worth verifying by launching from a terminal.
-# The launcher already points D3DMetal at the in-bundle engine, so
-# CX_D3DMETALPATH and CX_APPLEGPTK_LIBD3DSHARED_PATH do not belong here.
-#
-export D3DM_ENABLE_METALFX=0     # MetalFX upscaling.            0 | 1
-export D3DM_MAX_FPS=60          # Frame cap.                    integer fps
-#export D3DM_SHOW_HUD_STATS=1     # D3DMetal's own stats overlay. 0 | 1
-#                                 #   (separate from MTL_HUD_ENABLED above)
-#export D3DM_LOD_BIAS=-0.5        # Texture LOD bias. Negative = sharper and
-#                                 #   more aliased.               float
-#export D3DM_MIN_LOD_CLAMP=0      # Floor for texture LOD.        float
-#export D3DM_SUPPORT_DXR=1        # Advertise DXR raytracing.     0 | 1
-#export D3DM_MTL4=1               # Use the Metal 4 backend path. 0 | 1
-export D3DM_POSITION_INVARIANCE=1 # Force invariant vertex positions across
-#                                 #   passes; fixes z-fighting and shadow
-#                                 #   shimmer in some titles.     0 | 1
-export D3DM_SAMPLE_NAN_TO_ZERO=1 # Clamp NaN texels to 0; fixes black or
-#                                 #   flickering textures.        0 | 1
-export D3DM_FLUSH_POS_INF_TO_NAN=1 # Related float-edge-case fixup. 0 | 1
-#export D3DM_IGNORE_D3D11_RENDER_BARRIERS=1
-#                                 # Skip D3D11 render barriers. Faster, can
-#                                 #   corrupt rendering.          0 | 1
-#export D3DM_BOUNDS_CHECK=1       # Debug bounds checking; slow.  0 | 1
-#export D3DM_ERROR_MODE=1         # How hard to fail on API misuse; higher is
-#                                 #   stricter.                   integer
-#export D3DM_LOGLEVEL_INFO=1      # Verbose D3DMetal logging.     0 | 1
-#export D3DM_NVNGX_PATH=          # Directory holding NVNGX/DLSS payloads.
-#                                 #                               path
-#
-# Adapter spoofing — some games gate features or quality presets on the
-# reported GPU. Values are what the game will see reported.
-#export D3DM_VENDOR_ID=0x10de           # 0x10de NVIDIA, 0x1002 AMD, 0x8086 Intel
-#export D3DM_DEVICE_ID=0x2684           # PCI device id             hex
-#export D3DM_DEVICE_DESCRIPTION="NVIDIA GeForce RTX 4090"  # string
-#export D3DM_DEVICE_REVISION=0          # PCI revision              integer
-#export D3DM_DEVICE_SUBSYS=0            # PCI subsystem id          integer
-
-# ---------------------------------------------------------------------------
-# DXMT  (GAMMA_GRAPHICS_BACKEND=dxmt)
-# ---------------------------------------------------------------------------
-# Names read out of the shipped winemetal.so and DXMT d3d11.dll.
-#
-export DXMT_METALFX_SPATIAL_SWAPCHAIN=0
-#                                 # MetalFX spatial upscaling on the
-#                                 #   swapchain.                  0 | 1
-#                                 #   Pair with d3d11.metalSpatialUpscaleFactor
-#export DXMT_LOG_LEVEL=info       # trace | debug | info | warn | error
-#                                 #   (trace/debug/error confirmed in binary)
-#export DXMT_LOG_PATH=            # Directory for the log file.   path
-#export DXMT_SHADER_CACHE=1       # Persist compiled shaders; big win on
-#                                 #   repeat launches.            0 | 1
-#export DXMT_SHADER_CACHE_PATH=   # Where to keep that cache.     path
-#export DXMT_CAPTURE_FRAME=       # Capture this frame index for Metal
-#                                 #   debugging.                  integer
-#export DXMT_CAPTURE_EXECUTABLE=  # Only capture for this exe.    name
-#
-# Fine-grained options. Either a semicolon-separated list here, or point
-# DXMT_CONFIG_FILE at a dxmt.conf holding one key=value per line.
+# --- DXMT (GAMMA_GRAPHICS_BACKEND=dxmt) ---
+export DXMT_METALFX_SPATIAL_SWAPCHAIN=0  # MetalFX spatial upscaling  0 | 1
+#export DXMT_LOG_LEVEL=info              # trace|debug|info|warn|error
+#export DXMT_LOG_PATH=                   # log file dir               path
+#export DXMT_SHADER_CACHE=1              # persist compiled shaders   0 | 1
+#export DXMT_SHADER_CACHE_PATH=          # cache dir                  path
+#export DXMT_CAPTURE_FRAME=              # frame index to capture    integer
+#export DXMT_CAPTURE_EXECUTABLE=         # only capture this exe      name
+# Fine-grained: DXMT_CONFIG (semicolon list) or DXMT_CONFIG_FILE (key=value lines).
 #export DXMT_CONFIG="d3d11.metalSpatialUpscaleFactor=1.0;d3d11.preferredMaxFrameRate=60;d3d11.sampleNaNToZero=true;dxgi.handleAltTab=true;d3d11.defuseFma=true;d3d11.maxFeatureLevel=11_1"
 #export DXMT_CONFIG_FILE=
-#
-# Recognized keys in this build:
-#   d3d11.metalSpatialUpscaleFactor  Render below output and upscale.
-#                                    float, 1.0 = off, 1.5 / 2.0 typical
-#   d3d11.preferredMaxFrameRate      Frame cap.               integer fps
-#   d3d11.maxFeatureLevel            Cap reported D3D level.
-#                                    10_0 | 10_1 | 11_0 | 11_1 | 12_0 | 12_1
-#   d3d11.defuseFma                  Split fused multiply-add; fixes shader
-#                                    precision mismatches.    true | false
-#   d3d11.ignoreMapFlagNoWait        Ignore MAP_FLAG_DO_NOT_WAIT; trades
-#                                    stutter for throughput.  true | false
-#   d3d11.sampleNaNToZero            Clamp NaN texels to 0.   true | false
-#   d3d11.loH                        Level-of-detail heuristic tweak.
-#   dxmt.shaderMetalVersion          Force a Metal shader language version.
-#   dxgi.customVendorId              Spoof adapter vendor.    hex
-#   dxgi.customDeviceId              Spoof adapter device.    hex
-#   dxgi.customDeviceDesc            Spoof adapter name.      string
-#   dxgi.forceSDR                    Disable HDR output.      true | false
-#   dxgi.handleAltTab                Let DXMT handle alt-tab. true | false
+# Keys: d3d11.metalSpatialUpscaleFactor float(1.0=off) | d3d11.preferredMaxFrameRate fps
+#       d3d11.maxFeatureLevel 10_0|10_1|11_0|11_1|12_0|12_1 | d3d11.defuseFma true|false
+#       d3d11.ignoreMapFlagNoWait true|false | d3d11.sampleNaNToZero true|false
+#       d3d11.loH | dxmt.shaderMetalVersion | dxgi.customVendorId hex
+#       dxgi.customDeviceId hex | dxgi.customDeviceDesc string
+#       dxgi.forceSDR true|false | dxgi.handleAltTab true|false
 EOF
   echo "  Wrote settings: $CONFIG_FILE"
 fi
@@ -399,6 +343,16 @@ case "\$GAMMA_GRAPHICS_BACKEND" in
     fi
     ;;
 esac
+
+GAMMA_RETINA_MODE="\${GAMMA_RETINA_MODE:-N}"
+WINEPREFIX="\$WINEPREFIX" arch -x86_64 "\$ENGINE_DIR/bin/wine" reg add \\
+  "HKEY_CURRENT_USER\\Software\\Wine\\Mac Driver" /v RetinaMode /t REG_SZ /d "\$GAMMA_RETINA_MODE" /f \\
+  >/dev/null 2>&1 || true
+if [[ "\$GAMMA_RETINA_MODE" == "Y" && -n "\${GAMMA_RETINA_LOGPIXELS:-}" ]]; then
+  WINEPREFIX="\$WINEPREFIX" arch -x86_64 "\$ENGINE_DIR/bin/wine" reg add \\
+    "HKEY_CURRENT_USER\\Software\\Wine\\Mac Driver" /v LogPixels /t REG_DWORD /d "\$GAMMA_RETINA_LOGPIXELS" /f \\
+    >/dev/null 2>&1 || true
+fi
 
 EXE_PATH="\${EXE_PATH:-$EXE_WIN_PATH}"
 EXE_RUN_DIR="\${EXE_RUN_DIR:-$EXE_RUN_DIR}"
