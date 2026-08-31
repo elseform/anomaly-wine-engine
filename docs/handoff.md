@@ -31,11 +31,13 @@ docs referenced below).
   `AnomalyDX11.exe` lives) — this is Checkpoint B from the working plan,
   now passed. 32-bit subprocess correctly falls through to DXMT instead
   (GPTK ships no i386 payload — expected, documented).
-- **Not yet done: an actual game launch.** Setup-time Wine processes
-  (winecfg, wineboot, msiexec) all correctly resolved to d3dmetal — that's
-  strong evidence, not proof the game itself launches clean or clears the
-  Options-menu repro from the original investigation. **This is the next
-  concrete step.**
+- **Game launch confirmed under D3DMetal b1.** In-game, working. Checkpoint
+  C passed.
+- **DXMT retested, still broken — crashes on game load.** Consistent with
+  the unresolved startup crash already documented in `renderers.md`
+  (status as of 2026-08-26), not a new bug and not the savegame bug. The
+  rebuild/engine patches did not fix it. D3DMetal b1 remains the only
+  working backend for this engine.
 
 ## Fixed this session (all pushed, `origin/main` at `10cbb02`)
 
@@ -73,46 +75,35 @@ reports exit 0 — read the actual log).
 
 ## Real next steps, roughly in order
 
-1. **Launch the actual game** via
-   `~/Applications/GAMMA.app/Contents/MacOS/launcher` (or `open
-   ~/Applications/GAMMA.app`), confirm it reaches the main menu, then
-   specifically retest the original Options-menu crash repro under
-   D3DMetal now that b1 + the rebuilt/staged tree are both confirmed
-   correct.
-2. Also retest the DXMT path explicitly
-   (`GAMMA_GRAPHICS_BACKEND=dxmt` in `app.env`) — this engine's own
-   patches (Rosetta write-buffer fix, the deliberately-excluded maplestory
-   message-wait patch) may fix DXMT's startup crash independent of which
-   backend is chosen. Don't assume "b1 D3DMetal works" means DXMT is
-   still broken — recheck it for real.
-3. Phase 4 (not started): Whisky-compatible packaging — map
-   `install/wine-cx26-x86_64/` into Whisky's `Libraries/` shape. Open
-   question, not yet checked: whether Whisky's own backend picker can even
-   select D3DMetal via a supplied `Libraries/` folder.
-4. **Macports sanity check** (user's idea, explicitly deferred, not
+1. **Macports sanity check** (user's idea, explicitly deferred, not
    started): try `Gcenx/macports-wine` as a completely separate build path
    — prebuilt Wine 11.0/11.16 + CrossOver 26.3.0 + GPTK 1.1 via MacPorts —
    purely to see if it happens to have DXMT + D3DMetal 4.0b1 *and* b2 all
    working out of the box. Low-effort, "would be funny if it just worked,"
    not a real expectation.
-5. `docs/things-to-try.md` has a running list of env vars, patches, and
+2. `docs/things-to-try.md` has a running list of env vars, patches, and
    ideas gathered from official docs, blog posts, and WineForge source —
    not bug-fixing, just experience-improvement ideas for b1. Worth
    revisiting when there's time to actually test some of them (the
    `GPTK_ROOT` shortcut env var is already confirmed real and useful —
    see that file's top entry).
-6. `d3dx11-safe-shim` isn't auto-installed by `interactive-setup.sh` —
-   still a manual `bash build.sh && bash install.sh "$WINEPREFIX"` step if
-   wanted as a defense-in-depth safety net. Worth deciding whether to wire
-   it into the setup script automatically, given it's confirmed harmless.
+3. `d3dx11-safe-shim`: confirmed unnecessary on b1 — savegame thumbnails
+   work fine as-is, the null-texture-pointer bug it guards against was
+   only ever observed on b2. Not wiring into `interactive-setup.sh`. Kept
+   in `runtime/d3dx11-safe-shim/` as reference only, in case a future GPTK
+   update reintroduces the underlying bug. Was: manual
+   `bash build.sh && bash install.sh "$WINEPREFIX"` step, still available
+   if ever needed, just not part of the standard setup path.
 
 ## Prompt to paste next session
 
 > Resume gamma-wine-engine work. Read `docs/handoff.md` first for current
-> state — rebuild's done, b1's confirmed working with D3DMetal actually
-> activating (see the setup log), `~/Applications/GAMMA.app` exists with a
-> fresh prefix. Next real step is launching the actual game and rechecking
-> the Options-menu crash repro under both D3DMetal and DXMT now that the
-> engine's rebuilt correctly. Don't re-derive anything already confirmed
-> in this doc or in `docs/d3dmetal-savegame-crash.md` — start from where
-> it left off.
+> state — core investigation is closed: D3DMetal b1 confirmed working
+> end-to-end (launch, in-game, savegame thumbnail all fine),
+> `~/Applications/GAMMA.app` exists with a working prefix, DXMT confirmed
+> still broken (crashes on game load, matches `renderers.md`'s existing
+> unresolved entry), `d3dx11-safe-shim` confirmed unnecessary on b1. What's
+> left is low-priority/optional: the Macports sanity check and picking
+> items from `docs/things-to-try.md` to test. Don't re-derive anything
+> already confirmed in this doc, `docs/d3dmetal-savegame-crash.md`, or
+> `docs/renderers.md` — start from where it left off.

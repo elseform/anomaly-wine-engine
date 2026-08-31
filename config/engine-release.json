@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "engineId": "cx26.3-w11-gamma005",
-  "versionLabel": "CX26.3.0-W11-Gamma005",
-  "artifactBasename": "CX26W11Gamma005",
+  "engineId": "cx26.3-w11-gamma086",
+  "versionLabel": "CX26.3.0-W11-Gamma086",
+  "artifactBasename": "CX26W11Gamma086",
   "base": {
     "crossover": "26.3.0",
     "wine": "11.0"
@@ -34,5 +34,5 @@
     "runtime/cxcompatdb/cxcompatdb.c",
     "runtime/redist"
   ],
-  "notes": "gamma-wine-engine provides a standalone Wine 11.0 / CX26 engine with Apple D3DMetal (GPTK 4.0b1) and DXMT."
+  "notes": "gamma-wine-engine provides a standalone Wine 11.0 / CX26 engine with Apple D3DMetal (GPTK 4.0b1), DXMT, and DXVK (Vulkan/MoltenVK, sourced from CrossOver) as a fallback backend."
 }

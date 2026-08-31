@@ -27,7 +27,7 @@ echo "GAMMA Wine Engine — Interactive Setup"
 echo "=========================================================="
 
 # 1. Collect paths
-DEFAULT_ARTIFACT="$(ls -t "$REPO_ROOT"/dist/artifacts/*.tar.xz 2>/dev/null | head -n 1 || true)"
+DEFAULT_ARTIFACT="$(ls -t "$REPO_ROOT"/dist/artifacts/*.tar.zst 2>/dev/null | head -n 1 || true)"
 while true; do
   ARTIFACT_PATH="$(prompt_path "Path to engine tar.xz" "${DEFAULT_ARTIFACT:-$REPO_ROOT/dist/artifacts/engine.tar.xz}")"
   ARTIFACT_PATH="${ARTIFACT_PATH/#\~/$HOME}"
@@ -46,7 +46,7 @@ GAMMA_ROOT="$(prompt_path "Path to game root (G: drive)" "$HOME/gamma")"
 GAMMA_ROOT="${GAMMA_ROOT/#\~/$HOME}"
 
 while true; do
-  EXE_REL_PATH="$(prompt_path "Path to .exe, relative to game root" "3dss5/bin/AnomalyDX11AVX.exe")"
+  EXE_REL_PATH="$(prompt_path "Path to .exe, relative to game root" "sss23/bin/AnomalyDX11AVX.exe")"
   EXE_REL_PATH="${EXE_REL_PATH#/}"
   [[ -f "$GAMMA_ROOT/$EXE_REL_PATH" ]] && break
   echo "  Not found: $GAMMA_ROOT/$EXE_REL_PATH"
