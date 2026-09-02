@@ -72,114 +72,12 @@ wined3d instead of failing the process.
 
 ## Known issue: DXMT crashes during startup
 
-**Status: unresolved as of 2026-08-26.** DXMT activates correctly but the game
-dies partway through startup. D3DMetal is unaffected and remains the default.
-
-### Symptom
-
-The game reaches material loading, then dies where a working run would continue
-into font/texture creation. Compare the two logs at the same point:
-
-```
-# working (D3DMetal)              # DXMT
-[material_pairs.ltx] ... id 2277  [material_pairs.ltx] ... id 2277
-* [font] h=1080 [hud_font_medium] ! Can't find texture 'pfx\pfx_yawm_flake_grid'
-* [font] h=1080 [hud_font_di]     FATAL ERROR
-...                               [error]Function : invalid_parameter_handler
-```
-
-X-Ray then shows its own crash dialog and logs:
-
-```
-FATAL ERROR
-[error]Function      : invalid_parameter_handler
-[error]File          : C:\Users\sam\projects\xray-monolith\src\xrCore\xrDebugNew.cpp
-[error]Line          : 1100
-[error]Description   : invalid parameter
-```
-
-### The saved backtrace is the crash handler, not the fault
-
-X-Ray's "save stack trace" writes `backtrace.txt` into the game's `bin/`. Read
-it bottom-up — the frames are a *second* crash inside the handler:
-
-```
-15..11  concrt140                      ConcRT worker thread
- 9,8    ucrtbase                       CRT detects an invalid parameter
- 6      invalid_parameter_handler      xrDebugNew.cpp:1091
- 5      UnhandledFilter                xrDebugNew.cpp:821
- 4      save_mini_dump                 xrDebugNew.cpp:701
- 3      CScriptStorage::do_file        script_storage.cpp:823
- 2..0   luaL_traceback                 lj_debug.c:602-604   <- faults here
-```
-
-The reported `c0000005` (page fault on read of `0x2205`, instruction
-`cmpl 8(%rcx),%eax` with `rcx=0x21fd`) happens in `luaL_traceback`: the handler
-tries to build a Lua traceback from a worker thread that has no valid
-`lua_State`. **That is a downstream artifact.** The real fault is whichever CRT
-call received invalid arguments on the ConcRT worker, and that frame has not
-been identified yet.
-
-Note the crash runs on a `concrt140` thread — X-Ray's parallel loader — which is
-why concurrency is the leading suspicion.
-
-### Ruled out
-
-| Suspect | Evidence against |
-|---|---|
-| msync / esync | Reproduces with `WINEMSYNC=0 WINEESYNC=0` |
-| Missing `winemetal.dll` | Loads fine; `cxcompatdb` logs `backend=dxmt` every launch |
-| `DXMT_CONFIG` tuning | Reproduces with the whole `app.env` bypassed |
-| `concrt140` resolving to Wine's builtin | Set to `native` (no builtin fallback); identical crash |
-| Backend not activating | `graphics backend=dxmt machine=x86_64-windows path=.../lib/dxmt` on every process |
-
-### Unexplained observation
-
-One run with `DXMT_LOG_LEVEL=trace` reached the main menu and stayed up until
-the test harness killed it; runs at `debug` crashed at ~21s. Trace logging
-slows the D3D path, which would fit a race — but this is a single observation
-and has not been repeated. Do not treat it as established.
-
-DXMT's trace output shows the concurrent work in flight at the time:
-interleaved `staging map block` / `staging map ready` against
-`Start compiling 1 PSO` / `Compiled 1 PSO`, while X-Ray's async loader creates
-textures.
-
-### Next steps
-
-1. **Name the faulting frame.** The game ships `AnomalyDX11AVX.pdb` (197 MB)
-   next to the exe, and the llvm-symbolizer in `build/llvm-mingw-*/bin` reads
-   PE+PDB directly:
-
-   ```bash
-   SYM=build/llvm-mingw-*/bin/llvm-symbolizer
-   "$SYM" --obj=~/gamma/3dss5/bin/AnomalyDX11AVX.exe \
-          --relative-address --demangle --inlines 0xbc6410
-   ```
-
-   Frame 10 (`+0xbc6410`) is the game code that called into `ucrtbase`.
-   Nearest-symbol resolution returned an implausible name for it
-   (`light::'scalar deleting dtor'`), so it needs a proper lookup — the frames
-   that did resolve cleanly are listed above.
-2. **Get the primary exception instead of the handler's.** Suppress X-Ray's
-   unhandled-exception filter so the original fault reaches Wine's `err:seh`
-   and yields a first-chance backtrace.
-3. **Settle the race question.** Repeat runs at `trace` vs `debug` verbosity;
-   if the correlation holds, the fault is in X-Ray's async texture loading
-   against DXMT's staging-map path.
-
-### Reproducing
-
-```bash
-# in ~/Library/Application Support/<App>/app.env
-export GAMMA_GRAPHICS_BACKEND=dxmt
-export WINEDEBUG="fixme-all,err+all"
-export DXMT_LOG_LEVEL=debug
-```
-
-Launch from a terminal so stderr is visible. The game's own log is at
-`~/gamma/3dss5/appdata/logs/xray_<winuser>.log` and is only flushed on exit, so
-it is empty while the process is alive.
+**Status: unresolved.** DXMT activates correctly but the game dies partway
+through startup, during font/texture creation, with an
+`invalid_parameter_handler` fatal error on a `concrt140` worker thread.
+D3DMetal is unaffected and remains the default; use it for now. Full
+investigation history (backtraces, ruled-out causes, next steps) is tracked
+privately, not in this repo.
 
 ## DXVK: staged but not active
 
