@@ -15,10 +15,14 @@ under Rosetta 2, packed as a tarball rooted at `wswine.bundle/`, with the
 graphics backends baked in.
 
 ```
-dist/artifacts/CX26W11Gamma003.tar.xz
-                              .sha256
-                              .manifest.json
+dist/artifacts/<artifactBasename>.tar.xz
+                                   .sha256
+                                   .manifest.json
 ```
+
+`<artifactBasename>` is derived from the version label (e.g.
+`CX26W11-Gamma086` from `CX26.3.0-W11-Gamma086`) — see
+[Versioning Policy](versioning-policy.md).
 
 The `wswine.bundle/` root is not cosmetic — it is what `gamma-setup-tool`'s
 `installEngine()` expects to find when it extracts an engine.
@@ -167,10 +171,14 @@ fallback everywhere it used to exist, so engines and tooling from before the
 rename keep working: `${GAMMA_X:-${CYDER_X:-default}}`. New variables should be
 `GAMMA_*` only.
 
-**Versioning.** `config/engine-version.txt` and `config/engine-release.json`
-hold the label (`CX26.3.0-W11-Gamma003`). `artifactBasename` in the JSON
-controls the output filename independently, so the archive can be named
-`CX26W11Gamma003.tar.xz` without contorting the label.
+**Versioning.** `config/engine-version.txt` is the single source of truth for
+the version label (e.g. `CX26.3.0-W11-Gamma086` at time of writing);
+`config/engine-release.json`'s `versionLabel` mirrors it. The compact
+artifact basename (e.g. `CX26W11-Gamma086`) used for the output filename is
+no longer a separately hand-typed field — `gamma_engine_artifact_basename` in
+`scripts/engine-common.sh` derives it mechanically from the label. See
+[Versioning Policy](versioning-policy.md) for the exact format and what
+triggers a bump.
 
 **Signing.** Ad-hoc (`-`) by default, which is what local development and
 end-user re-signing need. Release builds export

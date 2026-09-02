@@ -112,14 +112,37 @@ gamma_engine_version_from_tarball() {
   printf '%s\n' "$ver"
 }
 
-# Explicit artifact basename (no extension). Order of precedence:
-#   GAMMA_ENGINE_ARTIFACT_BASENAME -> artifactBasename in engine-release.json
-#   -> empty, meaning "fall back to the version-derived name".
+# Compact basename derived mechanically from a version label, e.g.
+# "CX26.3.0-W11-Gamma086" -> "CX26W11-Gamma086". This used to be a separate,
+# hand-typed field (artifactBasename in engine-release.json) that had to be
+# kept in sync with versionLabel/engine-version.txt by hand and could drift;
+# it is now always computed from the label, so there is exactly one place a
+# version number is typed. See docs/versioning-policy.md.
+gamma_engine_artifact_basename_from_label() {
+  local label
+  label="$(gamma_engine_version_label_trim "${1:-}")"
+  if [[ "$label" =~ ^CX([0-9]+)(\.[0-9]+)*-W([0-9]+)-Gamma([0-9]+)$ ]]; then
+    printf 'CX%sW%s-Gamma%s\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[4]}"
+    return 0
+  fi
+  return 1
+}
+
+# Artifact basename (no extension) for a version label. Order of precedence:
+#   GAMMA_ENGINE_ARTIFACT_BASENAME (explicit override, e.g. a one-off build)
+#   -> derived from the given label (or the resolved current version label)
+#   -> empty, meaning "fall back to the version-derived long name".
 gamma_engine_artifact_basename() {
-  local config="${GAMMA_ENGINE_RELEASE_CONFIG:-${CYDER_ENGINE_RELEASE_CONFIG:-$ENGINE_PROJECT_ROOT/config/engine-release.json}}"
+  local label="${1:-}"
   local name="${GAMMA_ENGINE_ARTIFACT_BASENAME:-}"
-  if [[ -z "$name" && -f "$config" ]]; then
-    name="$(sed -n 's/.*"artifactBasename"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$config" | head -n 1)"
+  if [[ -z "$name" ]]; then
+    if [[ -z "$label" ]]; then
+      label="${GAMMA_ENGINE_VERSION_LABEL:-${CYDER_ENGINE_VERSION_LABEL:-}}"
+    fi
+    if [[ -z "$label" && -f "$ENGINE_PROJECT_ROOT/config/engine-version.txt" ]]; then
+      label="$(head -n 1 "$ENGINE_PROJECT_ROOT/config/engine-version.txt" 2>/dev/null || true)"
+    fi
+    [[ -n "$label" ]] && name="$(gamma_engine_artifact_basename_from_label "$label" 2>/dev/null || true)"
   fi
   printf '%s\n' "$name"
 }
@@ -129,7 +152,7 @@ gamma_engine_archive_path_for_format() {
   local dir="${2:-$(gamma_engine_artifacts_dir)}"
   local format="${3:-xz}"
   local base
-  base="$(gamma_engine_artifact_basename)"
+  base="$(gamma_engine_artifact_basename "$ver")"
   if [[ -n "$base" ]]; then
     case "$format" in
       zst | zstd) printf '%s/%s.tar.zst\n' "$dir" "$base" ; return 0 ;;

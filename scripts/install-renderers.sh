@@ -8,7 +8,11 @@
 #                        builtin too, and wineboot needs the PE present to
 #                        create the system32 fake DLL or DXMT's d3d11 fails
 #                        to load with STATUS_DLL_NOT_FOUND)
-#   lib/d3dmetal/        Apple GPTK D3DMetal   (x86_64 only)
+#   lib/d3dmetal/        Apple GPTK D3DMetal, active beta (x86_64 only) —
+#                        selected at launch by select-gptk-beta.sh, which
+#                        copies from lib/gptk40b1/ or lib/gptk40b2/ below
+#   lib/gptk40b1/        Apple GPTK D3DMetal beta 1, bundled source copy
+#   lib/gptk40b2/        Apple GPTK D3DMetal beta 2, bundled source copy
 #   lib/dxmt/            DXMT                  (x86_64 + i386)
 #   lib/dxvk/            DXVK                  (x86_64 + i386)
 #
@@ -90,8 +94,9 @@ backend_owns() {
 sanitize_wine_dir x86_64-windows
 sanitize_wine_dir i386-windows
 
-# D3DMetal's unix bridges are symlinks into lib/external; Wine ships no unix
-# libraries for these modules, so any such link is ours to remove.
+# D3DMetal's unix bridges are symlinks into a backend's own external/ dir;
+# Wine ships no unix libraries for these modules, so any such link is ours
+# to remove.
 UNIX_DIR="$WINE_INSTALL/lib/wine/x86_64-unix"
 if [[ -d "$UNIX_DIR" ]]; then
   for module in "${BACKEND_MODULES[@]}"; do
@@ -135,6 +140,11 @@ fi
 
 # ---------------------------------------------------------------------------
 # 3. D3DMetal (Apple GPTK) -> lib/d3dmetal + lib/external
+#    This is the "active" copy cxcompatdb.so actually activates — plain,
+#    unmodified activation logic, exactly as before. Which beta occupies it
+#    is decided at launch by scripts/interactive-setup.sh's generated
+#    select-gptk-beta.sh, from the bundled source copies in 3b below —
+#    cxcompatdb never learns about beta names at all.
 # ---------------------------------------------------------------------------
 if [[ -d "$GPTK_SRC" ]]; then
   echo "--> D3DMetal from $GPTK_SRC"
@@ -149,7 +159,7 @@ if [[ -d "$GPTK_SRC" ]]; then
   # tripping a __wine_syscall_dispatcher livelock (confirmed: savegame hang
   # under GPTK 4.0b2). scripts/interactive-setup.sh adds a per-app DllOverrides
   # entry pointing d3d10 at Wine's own independent implementation instead of
-  # this one. Keep this exclusion in sync with that script's matching one —
+  # this one. Keep this exclusion in sync with stage_gptk_beta() below —
   # see docs/d3dmetal-savegame-crash.md.
   for f in "$GPTK_SRC/wine/x86_64-windows/"*; do
     [[ "$(basename "$f")" == "d3d10.dll" ]] && continue
@@ -177,13 +187,9 @@ fi
 
 # ---------------------------------------------------------------------------
 # 3b. Named GPTK betas -> lib/gptk40b1 + lib/gptk40b2, staged unconditionally
-#     (independent of GPTK_SRC above). Lets GAMMA_GRAPHICS_BACKEND select a
-#     specific beta directly (gptk40b1 | gptk40b2), no separate version
-#     variable, no re-copy on switch — see docs/d3dmetal-savegame-crash.md.
-#     Same flat shape as lib/d3dmetal (x86_64-windows/x86_64-unix/external
-#     directly inside), which is what cxcompatdb's generic
-#     "root/lib/<backend>" fallback for any non-d3dmetal/dxmt backend name
-#     already expects with zero extra code.
+#     as bundled *source* copies for select-gptk-beta.sh to swap in at
+#     launch time (see docs/d3dmetal-savegame-crash.md) — cxcompatdb never
+#     resolves these paths itself.
 # ---------------------------------------------------------------------------
 stage_gptk_beta() {
   local beta="$1" src="$REPO_ROOT/sources/$1/d3dmetal" dst="$WINE_INSTALL/lib/$1"

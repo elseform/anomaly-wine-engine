@@ -3,9 +3,7 @@ build/
 install/
 dist/
 .brew-x86/
-
-# Upstream large source archives and local caches
-sources/
+reference
 
 # macOS metadata
 .DS_Store

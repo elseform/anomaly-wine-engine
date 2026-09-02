@@ -2,7 +2,6 @@
   "schemaVersion": 1,
   "engineId": "cx26.3-w11-gamma086",
   "versionLabel": "CX26.3.0-W11-Gamma086",
-  "artifactBasename": "CX26W11Gamma086",
   "base": {
     "crossover": "26.3.0",
     "wine": "11.0"

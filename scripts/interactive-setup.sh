@@ -22,11 +22,8 @@ prompt_path() {
   echo "${reply:-$default}"
 }
 
-# gptk40b1/gptk40b2 are first-class GAMMA_GRAPHICS_BACKEND values (alongside
-# plain "d3dmetal"), each picking a specific GPTK beta with no separate
-# variable — see docs/d3dmetal-savegame-crash.md.
 is_d3dmetal_family() {
-  case "$1" in d3dmetal|gptk40b1|gptk40b2) return 0 ;; *) return 1 ;; esac
+  case "$1" in d3dmetal) return 0 ;; *) return 1 ;; esac
 }
 
 echo "=========================================================="
@@ -65,24 +62,37 @@ EXE_RUN_DIR="$GAMMA_ROOT/$(dirname "$EXE_REL_PATH")"
 
 echo ""
 echo "Graphics backend:"
-echo "  1) gptk40b2  D3DMetal beta 2 — better perf/visual quality (recommended, 64-bit only)"
-echo "  2) gptk40b1  D3DMetal beta 1 — no d3d10 payload, slightly lower quality"
-echo "  3) dxmt      DXMT — D3D11/10 via Metal (works for 32-bit too)"
-echo "  4) dxvk      DXVK — D3D11/10/9 via Vulkan/MoltenVK (needs a Vulkan engine build)"
-echo "  5) wined3d   Wine's OpenGL renderer (fallback)"
-echo "  6) default   Let the engine pick (d3dmetal, then dxmt, then wined3d)"
+echo "  1) d3dmetal  Apple D3DMetal — D3D11/12 via Metal (default, 64-bit only)"
+echo "  2) dxmt      DXMT — D3D11/10 via Metal (works for 32-bit too)"
+echo "  3) dxvk      DXVK — D3D11/10/9 via Vulkan/MoltenVK (needs a Vulkan engine build)"
+echo "  4) wined3d   Wine's OpenGL renderer (fallback)"
+echo "  5) default   Let the engine pick (d3dmetal, then dxmt, then wined3d)"
 BACKEND_CHOICE="$(prompt_path "Select backend" "1")"
 case "$BACKEND_CHOICE" in
-  1|gptk40b2|beta2|b2) GRAPHICS_BACKEND=gptk40b2 ;;
-  2|gptk40b1|beta1|b1) GRAPHICS_BACKEND=gptk40b1 ;;
-  3|dxmt)              GRAPHICS_BACKEND=dxmt ;;
-  4|dxvk)              GRAPHICS_BACKEND=dxvk ;;
-  5|wined3d)           GRAPHICS_BACKEND=wined3d ;;
-  6|default)           GRAPHICS_BACKEND=default ;;
-  d3dmetal)            GRAPHICS_BACKEND=d3dmetal ;;
+  1|d3dmetal) GRAPHICS_BACKEND=d3dmetal ;;
+  2|dxmt)     GRAPHICS_BACKEND=dxmt ;;
+  3|dxvk)     GRAPHICS_BACKEND=dxvk ;;
+  4|wined3d)  GRAPHICS_BACKEND=wined3d ;;
+  5|default)  GRAPHICS_BACKEND=default ;;
   *)
-    echo "  Unrecognized choice '$BACKEND_CHOICE', using gptk40b2"
-    GRAPHICS_BACKEND=gptk40b2
+    echo "  Unrecognized choice '$BACKEND_CHOICE', using d3dmetal"
+    GRAPHICS_BACKEND=d3dmetal
+    ;;
+esac
+
+echo ""
+echo "D3DMetal (GPTK) version, used only when the launcher swaps files in at"
+echo "startup (see D3DMETAL_USER_BACKEND in app.env — changeable any time,"
+echo "no rebuild needed):"
+echo "  1) gptk40b2  better perf/visual quality (recommended)"
+echo "  2) gptk40b1  no d3d10 payload, slightly lower quality"
+GPTK_CHOICE="$(prompt_path "Select GPTK version" "1")"
+case "$GPTK_CHOICE" in
+  1|gptk40b2|beta2|b2) GPTK_USER_BACKEND=gptk40b2 ;;
+  2|gptk40b1|beta1|b1) GPTK_USER_BACKEND=gptk40b1 ;;
+  *)
+    echo "  Unrecognized choice '$GPTK_CHOICE', using gptk40b2"
+    GPTK_USER_BACKEND=gptk40b2
     ;;
 esac
 
@@ -130,9 +140,6 @@ arch -x86_64 "$ENGINE_DIR/bin/wine" --version
 ENGINE_VERSION="$(head -n 1 "$ENGINE_DIR/version" 2>/dev/null || echo "1.0.0")"
 
 # Warn early when the selected backend is not actually present in the engine.
-# gptk40b1/gptk40b2/d3dmetal payloads are all staged unconditionally by
-# install-renderers.sh into the engine artifact ahead of time — nothing to
-# copy here, just check the directory made it into this artifact.
 if is_d3dmetal_family "$GRAPHICS_BACKEND"; then
   [[ -d "$ENGINE_DIR/lib/$GRAPHICS_BACKEND" ]] || echo "  Warning: engine has no lib/$GRAPHICS_BACKEND" >&2
 else
@@ -273,9 +280,7 @@ else
 # anything set here wins. Backend that activated: check stderr for
 # "gamma-cxcompatdb:info: graphics backend=... path=..." (survives WINEDEBUG=-all).
 
-# --- Backend --- gptk40b2 | gptk40b1 | d3dmetal | dxmt | dxvk | wined3d | default
-# gptk40b2/gptk40b1 pick a specific D3DMetal GPTK beta directly, no separate
-# version variable — see docs/d3dmetal-savegame-crash.md.
+# --- Backend --- d3dmetal | dxmt | dxvk | wined3d | default
 export GAMMA_GRAPHICS_BACKEND=$GRAPHICS_BACKEND
 
 # --- General ---
@@ -293,6 +298,9 @@ export GAMMA_RETINA_MODE=$RETINA_MODE    # Y | N — synced every launch
 #export GAMMA_RETINA_LOGPIXELS=          # DPI, e.g. 216/254 — needs Y
 
 # --- D3DMetal (GAMMA_GRAPHICS_BACKEND=d3dmetal) ---
+export D3DMETAL_USER_BACKEND=$GPTK_USER_BACKEND  # gptk40b1 | gptk40b2 — swapped in
+                                          # by select-gptk-beta.sh at every
+                                          # launch, no rebuild needed
 export D3DM_ENABLE_METALFX=0             # MetalFX upscaling          0 | 1
 export D3DM_MAX_FPS=60                   # frame cap                 fps
 #export D3DM_SHOW_HUD_STATS=1            # D3DMetal's own HUD         0 | 1
@@ -362,23 +370,25 @@ export WINEBOOT_HIDE_DIALOG=1
 export LC_ALL="en_US.UTF-8"
 export LANG="en_US.UTF-8"
 
+# Swap which GPTK beta occupies lib/d3dmetal + lib/external before wine
+# ever starts — cxcompatdb.so stays completely unaware of beta names, it
+# only ever sees the plain "d3dmetal" backend it's always known. See
+# docs/d3dmetal-savegame-crash.md.
+if [[ "\$GAMMA_GRAPHICS_BACKEND" == "d3dmetal" ]]; then
+  "\$APP_DIR/Contents/Resources/select-gptk-beta.sh" "\$ENGINE_DIR" || true
+fi
+
 # D3DMetal needs its framework and shared library located explicitly. Only
 # export them when D3DMetal can actually be selected: cxcompatdb.so sets
-# CX_APPLEGPTK_LIBD3DSHARED_PATH itself once a backend is active (this is
-# just a fallback for the activation-failure path), and forcing these for a
-# DXMT or DXVK run points the process at the wrong renderer. Derived from
-# lib/\$GAMMA_GRAPHICS_BACKEND so it's correct for whichever GPTK beta
-# (gptk40b1/gptk40b2) or plain d3dmetal is actually active — each has its
-# own external/ payload, not a shared top-level one.
+# CX_APPLEGPTK_LIBD3DSHARED_PATH itself once a backend is active, and forcing
+# these for a DXMT or DXVK run points the process at the wrong renderer.
 case "\$GAMMA_GRAPHICS_BACKEND" in
-  d3dmetal | gptk40b1 | gptk40b2 | default)
-    GPTK_LIB_DIR="\$ENGINE_DIR/lib/\${GAMMA_GRAPHICS_BACKEND:-d3dmetal}"
-    [[ "\$GAMMA_GRAPHICS_BACKEND" == "default" ]] && GPTK_LIB_DIR="\$ENGINE_DIR/lib/d3dmetal"
-    if [[ -f "\$GPTK_LIB_DIR/external/libd3dshared.dylib" ]]; then
-      export CX_APPLEGPTK_LIBD3DSHARED_PATH="\$GPTK_LIB_DIR/external/libd3dshared.dylib"
+  d3dmetal | default)
+    if [[ -f "\$ENGINE_DIR/lib/external/libd3dshared.dylib" ]]; then
+      export CX_APPLEGPTK_LIBD3DSHARED_PATH="\$ENGINE_DIR/lib/external/libd3dshared.dylib"
     fi
-    if [[ -d "\$GPTK_LIB_DIR/external/D3DMetal.framework" ]]; then
-      export CX_D3DMETALPATH="\$GPTK_LIB_DIR/external/D3DMetal.framework"
+    if [[ -d "\$ENGINE_DIR/lib/external/D3DMetal.framework" ]]; then
+      export CX_D3DMETALPATH="\$ENGINE_DIR/lib/external/D3DMetal.framework"
     fi
     ;;
 esac
@@ -413,6 +423,28 @@ fi
 exec taskpolicy -l 0 -t 0 arch -x86_64 "\$ENGINE_DIR/bin/wine" "\$EXE_PATH" "\$@"
 EOF
 
+cat > "$APP_PATH/Contents/Resources/select-gptk-beta.sh" << 'EOF'
+#!/usr/bin/env bash
+# Swaps which GPTK beta occupies lib/d3dmetal + lib/external, driven by
+# D3DMETAL_USER_BACKEND (gptk40b1 | gptk40b2, from app.env). Runs before
+# every launch when GAMMA_GRAPHICS_BACKEND=d3dmetal. cxcompatdb.so never
+# learns about beta names — see docs/d3dmetal-savegame-crash.md.
+set -euo pipefail
+ENGINE_DIR="$1"
+BETA="${D3DMETAL_USER_BACKEND:-gptk40b2}"
+SRC="$ENGINE_DIR/lib/$BETA"
+[[ -d "$SRC/external" ]] || exit 0
+rm -rf "$ENGINE_DIR/lib/external" "$ENGINE_DIR/lib/d3dmetal"
+mkdir -p "$ENGINE_DIR/lib/external" \
+         "$ENGINE_DIR/lib/d3dmetal/x86_64-windows" \
+         "$ENGINE_DIR/lib/d3dmetal/x86_64-unix"
+cp -R "$SRC/external/." "$ENGINE_DIR/lib/external/"
+cp -R "$SRC/x86_64-windows/." "$ENGINE_DIR/lib/d3dmetal/x86_64-windows/"
+cp -R "$SRC/x86_64-unix/." "$ENGINE_DIR/lib/d3dmetal/x86_64-unix/"
+ln -sfn ../external "$ENGINE_DIR/lib/d3dmetal/external"
+EOF
+chmod +x "$APP_PATH/Contents/Resources/select-gptk-beta.sh"
+
 chmod +x "$APP_PATH/Contents/MacOS/launcher"
 
 # 5. Ad-hoc sign the bundle. The engine payload is already signed by
@@ -437,6 +469,7 @@ echo "  Prefix:   $WINEPREFIX"
 echo "  Settings: $CONFIG_FILE"
 echo "  Backend:  $GRAPHICS_BACKEND  (change it in app.env, no rebuild needed)"
 if is_d3dmetal_family "$GRAPHICS_BACKEND"; then
+  echo "  GPTK:     $GPTK_USER_BACKEND (change D3DMETAL_USER_BACKEND in app.env, no rebuild needed)"
   echo "            d3d10.dll/.so excluded from payload, d3d10=builtin override"
   echo "            added for $(basename "$EXE_REL_PATH")"
 fi

@@ -6,7 +6,7 @@
 
 ## Overview
 
-`gamma-wine-engine` provides a standalone, relocatable Wine 11 runtime and packages the production `wswine.bundle` tarball (`gamma-wine-x86_64-CX26-3-0-W11-Gamma001.tar.xz`) used by `gamma-setup-tool`.
+`gamma-wine-engine` provides a standalone, relocatable Wine 11 runtime and packages the production `wswine.bundle` tarball (named `<artifactBasename>.tar.xz`, derived from `config/engine-version.txt` by `gamma_engine_artifact_basename` in `scripts/engine-common.sh` — e.g. `CX26W11-Gamma086.tar.xz` at time of writing; see [Versioning Policy](docs/versioning-policy.md)) used by `gamma-setup-tool`.
 
 ### Documentation
 
@@ -17,6 +17,7 @@
 | [Graphics Backends](docs/renderers.md) | Renderer layout, switching, DXVK status |
 | [Patch Set](patches/README.md) | What each patch does and why one is excluded |
 | [Why deps build from source](docs/why-no-prebuilt-deps.md) | The `.brew-x86` situation |
+| [Versioning Policy](docs/versioning-policy.md) | Version-label / artifact-basename format, when to bump, CX/Wine base bumps |
 
 ### Key Features:
 - **Base Runtime**: CrossOver 26.3.0 built on **Wine 11.0** (`x86_64` under Rosetta 2 on Apple Silicon).
@@ -38,8 +39,8 @@
 | Type | Path | Purpose |
 |---|---|---|
 | **Development Staging Tree** | `install/wine-cx26-x86_64/` | Live uncompressed build tree (`bin/wine`, `bin/wineserver`, `lib/d3dmetal/`, `lib/dxmt/`, `lib/dxvk/`) |
-| **Packaged Release Tarball** | `dist/artifacts/gamma-wine-x86_64-CX26-3-0-W11-Gamma001.tar.xz` | Codesigned, stripped, standalone production archive (~86 MB) |
-| **Setup Tool Asset** | `gamma-setup-tool/sources/GAMMASetupTool/Resources/wine-engine/CX26-3W11-Gamma0-1.tar.xz` | Bundled asset embedded in `GAMMA Setup Tool.app` |
+| **Packaged Release Tarball** | `dist/artifacts/<artifactBasename>.tar.xz` — basename derived from `config/engine-version.txt`, e.g. `CX26W11-Gamma086.tar.xz` at time of writing | Codesigned, stripped, standalone production archive (~86 MB) |
+| **Setup Tool Asset** | `gamma-setup-tool/sources/GAMMASetupTool/Resources/wine-engine/CX26-3W11-Gamma0-1.tar.xz` | Bundled asset embedded in `GAMMA Setup Tool.app` — copied in manually, so it lags the latest `dist/artifacts/` build; check its filename against `config/engine-version.txt` before assuming it's current |
 
 ---
 

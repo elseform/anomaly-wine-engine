@@ -109,4 +109,4 @@ taken from it, always by copy:
 - `lib64/libMoltenVK.dylib` → `--vulkan-source crossover`
 - `lib/dxvk/` → the DXVK backend
 
-D3DMetal is **not** taken from CrossOver — it comes from `sources/gptk4.0b1`.
+D3DMetal is **not** taken from CrossOver — it comes from `sources/gptk40b1` (and `sources/gptk40b2` for the beta-2 variant `interactive-setup.sh` also offers).
