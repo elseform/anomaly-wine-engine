@@ -144,9 +144,22 @@ if [[ -d "$GPTK_SRC" ]]; then
   rm -rf "$WINE_INSTALL/lib/d3dmetal"
   mkdir -p "$WINE_INSTALL/lib/d3dmetal/x86_64-windows" \
            "$WINE_INSTALL/lib/d3dmetal/x86_64-unix"
-  cp -R "$GPTK_SRC/wine/x86_64-windows/"* "$WINE_INSTALL/lib/d3dmetal/x86_64-windows/"
-  cp -RP "$GPTK_SRC/wine/x86_64-unix/"* "$WINE_INSTALL/lib/d3dmetal/x86_64-unix/"
-  echo "  Staged D3DMetal x86_64 (no i386 payload exists upstream)"
+  # d3d10.dll/.so deliberately excluded: GPTK's own D3D10 stub round-trips
+  # through the same shared libd3dshared.dylib as d3d11, colliding with it and
+  # tripping a __wine_syscall_dispatcher livelock (confirmed: savegame hang
+  # under GPTK 4.0b2). scripts/interactive-setup.sh adds a per-app DllOverrides
+  # entry pointing d3d10 at Wine's own independent implementation instead of
+  # this one. Keep this exclusion in sync with that script's matching one —
+  # see docs/d3dmetal-savegame-crash.md.
+  for f in "$GPTK_SRC/wine/x86_64-windows/"*; do
+    [[ "$(basename "$f")" == "d3d10.dll" ]] && continue
+    cp -R "$f" "$WINE_INSTALL/lib/d3dmetal/x86_64-windows/"
+  done
+  for f in "$GPTK_SRC/wine/x86_64-unix/"*; do
+    [[ "$(basename "$f")" == "d3d10.so" ]] && continue
+    cp -RP "$f" "$WINE_INSTALL/lib/d3dmetal/x86_64-unix/"
+  done
+  echo "  Staged D3DMetal x86_64 (no i386 payload exists upstream), d3d10.dll/.so excluded"
 
   # Compatibility symlinks for Sikarugir / CrossOver legacy paths.
   # lib/apple_gptk must not survive as a real directory from a prior run: `ln -sfn`
@@ -161,6 +174,36 @@ if [[ -d "$GPTK_SRC" ]]; then
 else
   echo "  Skipping D3DMetal: $GPTK_SRC not found" >&2
 fi
+
+# ---------------------------------------------------------------------------
+# 3b. Named GPTK betas -> lib/gptk40b1 + lib/gptk40b2, staged unconditionally
+#     (independent of GPTK_SRC above). Lets GAMMA_GRAPHICS_BACKEND select a
+#     specific beta directly (gptk40b1 | gptk40b2), no separate version
+#     variable, no re-copy on switch — see docs/d3dmetal-savegame-crash.md.
+#     Same flat shape as lib/d3dmetal (x86_64-windows/x86_64-unix/external
+#     directly inside), which is what cxcompatdb's generic
+#     "root/lib/<backend>" fallback for any non-d3dmetal/dxmt backend name
+#     already expects with zero extra code.
+# ---------------------------------------------------------------------------
+stage_gptk_beta() {
+  local beta="$1" src="$REPO_ROOT/sources/$1/d3dmetal" dst="$WINE_INSTALL/lib/$1"
+  [[ -d "$src/wine" ]] || { echo "  Skipping $beta: $src not found" >&2; return 0; }
+  echo "--> $beta from $src"
+  rm -rf "$dst"
+  mkdir -p "$dst/x86_64-windows" "$dst/x86_64-unix" "$dst/external"
+  cp -R "$src/external/"* "$dst/external/"
+  for f in "$src/wine/x86_64-windows/"*; do
+    [[ "$(basename "$f")" == "d3d10.dll" ]] && continue
+    cp -R "$f" "$dst/x86_64-windows/"
+  done
+  for f in "$src/wine/x86_64-unix/"*; do
+    [[ "$(basename "$f")" == "d3d10.so" ]] && continue
+    cp -RP "$f" "$dst/x86_64-unix/"
+  done
+  echo "  Staged $beta -> lib/$beta (d3d10.dll/.so excluded, see docs/d3dmetal-savegame-crash.md)"
+}
+stage_gptk_beta gptk40b1
+stage_gptk_beta gptk40b2
 
 # ---------------------------------------------------------------------------
 # 4. DXVK -> lib/dxvk

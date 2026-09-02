@@ -7,6 +7,12 @@ upstream DXMT's bundled `winemetal.so` (and any other Mach-O under
 only offers DXMT as a selectable graphics backend on macOS 15+, so this
 exemption cannot regress the floor for any other shipped binary
 (`wine`, `wineserver`, `*.so`, bundled dylibs).
+
+`lib/gptk40b1/**`/`lib/gptk40b2/**` carry the same already-exempt Apple
+GPTK/D3DMetal payload as `lib/external/**`/`lib/d3dmetal/**` — just staged a
+second/third time so GAMMA_GRAPHICS_BACKEND can pick a specific beta
+directly (see docs/d3dmetal-savegame-crash.md). Not a new exemption
+category, same binaries, same rationale.
 """
 import re
 import subprocess
@@ -32,6 +38,8 @@ def is_renderer_exempt_path(rel_path: str) -> bool:
         rel_path.startswith(DXMT_PATH_PREFIX)
         or rel_path.startswith(D3DMETAL_PATH_PREFIX)
         or rel_path.startswith("lib/d3dmetal/")
+        or rel_path.startswith("lib/gptk40b1/")
+        or rel_path.startswith("lib/gptk40b2/")
         or rel_path.endswith("winemetal.so")
     )
 

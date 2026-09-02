@@ -1,9 +1,112 @@
-# Known issue: D3DMetal crashes saving the game (RESOLVED — use GPTK 40b1, not 40b2)
+# Known issue: D3DMetal hangs saving the game (RESOLVED 2026-09-02 — per-app d3d10=builtin override, no tradeoff)
 
-**Status: resolved 2026-08-30.** Root cause confirmed via direct A/B test,
-not just inferred: **GPTK 4.0b1 does not have this bug; 4.0b2 does.**
+**Final fix, confirmed working end-to-end 2026-09-02: both the save-hang and
+the graphics-quality regression are fixed together**, via a per-executable
+Wine DLL override — no file deletion needed in the running install, no
+tradeoff. Supersedes every earlier note in this section (kept below as
+investigation history).
+
+**Root cause, fully pinned down:**
+
+The genuine Microsoft `d3dx11_43.dll` (correctly installed, `native,builtin`
+override, confirmed real) needs `D3D10CreateBlob` for any function that
+returns an `ID3D10Blob` — Microsoft never made a separate blob type for
+D3D11, D3DX11 reuses D3D10's. That's not just the save-thumbnail call
+(`D3DX11SaveTextureToMemory`, `Layers/xrRender/r__screenshot.cpp`) — other
+D3DX11 texture-utility calls used during ordinary gameplay (format
+conversion, mip generation, etc.) depend on the same mechanism.
+
+GPTK 4.0b2's own `d3d10.dll`/`d3d10.so` technically exports
+`D3D10CreateBlob` (confirmed: only 2 exports total, `D3D10CreateDevice` and
+`D3D10CreateBlob` — strings inside the binary show its source as
+`D3DMetalDLLsBase/D3D4Mac/d3d10/d3d10.c`, same Apple source family as
+`d3d11.dll`/`d3d12.dll`/`dxgi.dll`) — but implements even this trivial
+blob-allocation call by round-tripping through `__wine_unix_call_dispatcher`
+into `lib/external/libd3dshared.dylib`, the exact same shared native Metal
+backend `d3d11.dll` is already using for real rendering (confirmed: every
+one of d3d10/d3d11/d3d12/dxgi/nvapi64/nvngx-on-metalfx's `x86_64-unix/*.so`
+halves is a symlink to that one file). At save time, this second entrant
+into the shared dispatch machinery collides with `d3d11`'s already-active
+traffic and reliably trips Wine's independently-confirmed
+`__wine_syscall_dispatcher` recursive-spin livelock (Lead E below) — hence
+the hang.
+
+Deleting `d3d10.dll`/`d3d10.so` from the payload removed that collision (no
+more hang) but also removed `D3D10CreateBlob` entirely — every D3DX11 call
+needing a blob, not just the save-thumbnail one, had nowhere to resolve it
+for the rest of the session. That's what caused the visible graphics
+regression: broader than one screenshot, degrading continuously through
+gameplay, not a deliberate quality feature tied to Apple's d3d10 stub.
+
+**The fix**: the prefix already ships a **genuine, independent Wine
+`d3d10.dll`** in `system32`/`syswow64` — real, complete implementation,
+forwards `D3D10CreateDevice` → `d3d10core.dll`, `D3D10CreateBlob` →
+`d3dcompiler_43.dll` (plain PE-level export forwarding, zero Metal/unixcall
+involvement, never touches `libd3dshared.dylib`). Rather than trust
+implicit DLL-resolution fallthrough to it (unverified in practice — this
+prefix's `user.reg` had zero explicit override for
+`d3d10`/`d3d11`/`d3d12`/`dxgi` at any level before this fix, and default
+resolution order in this engine has independently proven unreliable),
+pin it explicitly and narrowly:
+
+- `d3d10.dll`/`d3d10.so` stay **deleted** from
+  `lib/d3dmetal/x86_64-windows|x86_64-unix/` (as before) — this is what
+  stops `cxcompatdb`'s `activate_backend()`
+  (`runtime/cxcompatdb/cxcompatdb.c:458`) from re-activating Apple's d3d10
+  stub at all. If the files are ever restored there, `cxcompatdb` calls
+  `add_override("d3d10", "b")` → `add_load_order_override()` (`extern`,
+  implemented in CrossOver's patched `ntdll`) — a `module=order` string in
+  the same form and priority tier as the `WINEDLLOVERRIDES` env var, which
+  outranks **all** registry `DllOverrides`, global and per-app alike — then
+  `prepend_dll_path()` puts the d3dmetal directory back at the front of the
+  builtin search path. Any per-app override set below would still correctly
+  select "builtin" as the *type*, but "builtin" would then resolve back to
+  Apple's stub, not Wine's genuine copy — undoing the fix. **Standing risk**:
+  `scripts/install-renderers.sh`'s plain `cp -R` resync of the d3dmetal
+  payload will silently restore these two files on a future resync; they
+  need to be re-deleted after every resync until the script itself excludes
+  them.
+- A **per-executable** Wine DLL override, scoped to `AnomalyDX11AVX.exe`
+  only (not `AnomalyDX11.exe` — confirmed actual exe name from the app's
+  launcher script), forcing `d3d10 → builtin`. Set via `winecfg`:
+  Applications tab → add/select `AnomalyDX11AVX.exe` → Libraries tab (with
+  that app selected) → add `d3d10` → edit → Builtin only. Lands in
+  `user.reg` as:
+  ```
+  [Software\\Wine\\AppDefaults\\AnomalyDX11AVX.exe\\DllOverrides]
+  "d3d10"="builtin"
+  ```
+  This pins resolution to Wine's real `system32\d3d10.dll` explicitly for
+  this game's process, without touching global defaults or any other
+  D3DMetal-backed module (`d3d11`, `d3d12`, `dxgi`, `nvapi64` all stay
+  exactly as before).
+
+Net effect: `D3DX11SaveTextureToMemory` and every other blob-needing
+D3DX11 call get a real, working `D3D10CreateBlob` again (graphics
+regression gone) via code that never touches the shared Metal dispatch
+machinery (no more collision, save-hang gone). Confirmed working
+end-to-end: save completes without hanging, in-game graphics back to the
+pre-regression quality. No downgrade to 40b1 needed, no tradeoff.
+
+**Layout note (2026-09-02):** `sources/gptk40b2` used to be flat
+(`sources/gptk40b2/wine/...`, `sources/gptk40b2/external/...`), unlike
+`sources/gptk40b1/d3dmetal/wine/...`. Normalized so both betas share the
+identical `sources/<beta>/d3dmetal/{wine,external}` shape — `GPTK_SRC` for
+either beta is now just `sources/<beta>/d3dmetal`, no per-beta special-casing
+needed in `install-renderers.sh` or `scripts/interactive-setup.sh`.
+
+Everything below — including the page-fault crash signature (may reflect a
+different run/config than the hang described above), the shims, Lead E's
+Wine-tree work, and the b1-downgrade path — is kept for reference as
+investigation history, no longer the recommended fix.
+
+---
+
+**Status: resolved 2026-08-30 (see update above for the current fix).**
+Root cause confirmed via direct A/B test, not just inferred:
+**GPTK 4.0b1 does not have this bug; 4.0b2 does.**
 Same engine build, same `d3d11_orig.dll`/no-shim state, swapped only
-`sources/gptk40b1/d3dmetal` in for `sources/gptk40b2` (`GPTK_SRC` in
+`sources/gptk40b1/d3dmetal` in for `sources/gptk40b2/d3dmetal` (`GPTK_SRC` in
 `install-renderers.sh`, plus — important, easy to miss — `lib/external`
 needs re-syncing too, not just `lib/d3dmetal`; the Metal HUD's own "Game
 Porting Toolkit" version line is the fast way to confirm which one is
@@ -38,7 +141,7 @@ Game runs fine under D3DMetal — menus, level load, normal play all clean.
 Crashes specifically on writing a savegame, with a screenshot for the save
 slot's thumbnail. Reproduced identically across:
 
-- GPTK `40b1` and `40b2` (`sources/gptk40b1/d3dmetal` vs `sources/gptk40b2`)
+- GPTK `40b1` and `40b2` (`sources/gptk40b1/d3dmetal` vs `sources/gptk40b2/d3dmetal`)
 - with and without the engine's `-dxgi-old` compatibility flag
 - `d3dx11_43` DllOverride `native,builtin` (real Microsoft DLL) vs a
   from-scratch proxy DLL that null-checks its texture arguments (see below)

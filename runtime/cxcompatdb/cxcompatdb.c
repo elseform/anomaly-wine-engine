@@ -193,9 +193,14 @@ static int slice_equals( const struct slice *s, const char *value )
 
 static int valid_backend( const struct slice *s )
 {
+    /* gptk40b1/gptk40b2 are first-class GAMMA_GRAPHICS_BACKEND values picking
+     * a specific D3DMetal GPTK beta directly (lib/gptk40b1, lib/gptk40b2,
+     * same flat shape as lib/d3dmetal) — see docs/d3dmetal-savegame-crash.md
+     * in gamma-wine-engine. */
     return slice_equals( s, "default" ) || slice_equals( s, "wined3d" ) ||
            slice_equals( s, "dxvk" ) || slice_equals( s, "dxvk2" ) ||
-           slice_equals( s, "dxmt" ) || slice_equals( s, "d3dmetal" );
+           slice_equals( s, "dxmt" ) || slice_equals( s, "d3dmetal" ) ||
+           slice_equals( s, "gptk40b1" ) || slice_equals( s, "gptk40b2" );
 }
 
 static int wide_ascii_nocase( WCHAR a, unsigned char b )
@@ -567,7 +572,7 @@ static int activate_backend( const struct slice *selection )
             goto unavailable;
         }
     }
-    if (!strcmp( backend, "d3dmetal" ))
+    if (!strcmp( backend, "d3dmetal" ) || !strcmp( backend, "gptk40b1" ) || !strcmp( backend, "gptk40b2" ) )
     {
         int have_d3dshared = 0;
         char direct_base[PATH_MAX];
@@ -590,7 +595,7 @@ static int activate_backend( const struct slice *selection )
         {
             have_d3dshared = 1;
         }
-        else if (root && snprintf( support, sizeof(support), "%s/lib/d3dmetal/external/libd3dshared.dylib", root ) < (int)sizeof(support) && !access( support, R_OK ))
+        else if (root && snprintf( support, sizeof(support), "%s/lib/%s/external/libd3dshared.dylib", root, backend ) < (int)sizeof(support) && !access( support, R_OK ))
         {
             have_d3dshared = 1;
         }
