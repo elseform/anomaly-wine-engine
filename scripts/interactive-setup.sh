@@ -80,21 +80,25 @@ case "$BACKEND_CHOICE" in
     ;;
 esac
 
-echo ""
-echo "D3DMetal (GPTK) version, used only when the launcher swaps files in at"
-echo "startup (see D3DMETAL_USER_BACKEND in app.env — changeable any time,"
-echo "no rebuild needed):"
-echo "  1) gptk40b2  better perf/visual quality (recommended)"
-echo "  2) gptk40b1  no d3d10 payload, slightly lower quality"
-GPTK_CHOICE="$(prompt_path "Select GPTK version" "1")"
-case "$GPTK_CHOICE" in
-  1|gptk40b2|beta2|b2) GPTK_USER_BACKEND=gptk40b2 ;;
-  2|gptk40b1|beta1|b1) GPTK_USER_BACKEND=gptk40b1 ;;
-  *)
-    echo "  Unrecognized choice '$GPTK_CHOICE', using gptk40b2"
-    GPTK_USER_BACKEND=gptk40b2
-    ;;
-esac
+if is_d3dmetal_family "$GRAPHICS_BACKEND" || [[ "$GRAPHICS_BACKEND" == default ]]; then
+  echo ""
+  echo "D3DMetal (GPTK) version, used only when the launcher swaps files in at"
+  echo "startup (see D3DMETAL_USER_BACKEND in app.env — changeable any time,"
+  echo "no rebuild needed):"
+  echo "  1) gptk40b2  better perf/visual quality (recommended)"
+  echo "  2) gptk40b1  no d3d10 payload, slightly lower quality"
+  GPTK_CHOICE="$(prompt_path "Select GPTK version" "1")"
+  case "$GPTK_CHOICE" in
+    1|gptk40b2|beta2|b2) GPTK_USER_BACKEND=gptk40b2 ;;
+    2|gptk40b1|beta1|b1) GPTK_USER_BACKEND=gptk40b1 ;;
+    *)
+      echo "  Unrecognized choice '$GPTK_CHOICE', using gptk40b2"
+      GPTK_USER_BACKEND=gptk40b2
+      ;;
+  esac
+else
+  GPTK_USER_BACKEND=gptk40b2
+fi
 
 echo ""
 read -r -p "Enable Retina/HiDPI mode (CrossOver's Retina toggle equivalent)? [y/N]: " retina_choice || true
