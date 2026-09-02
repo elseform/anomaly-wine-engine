@@ -65,22 +65,18 @@ echo "Graphics backend:"
 echo "  1) d3dmetal  Apple D3DMetal — D3D11/12 via Metal (default, 64-bit only)"
 echo "  2) dxmt      DXMT — D3D11/10 via Metal (works for 32-bit too)"
 echo "  3) dxvk      DXVK — D3D11/10/9 via Vulkan/MoltenVK (needs a Vulkan engine build)"
-echo "  4) wined3d   Wine's OpenGL renderer (fallback)"
-echo "  5) default   Let the engine pick (d3dmetal, then dxmt, then wined3d)"
 BACKEND_CHOICE="$(prompt_path "Select backend" "1")"
 case "$BACKEND_CHOICE" in
   1|d3dmetal) GRAPHICS_BACKEND=d3dmetal ;;
   2|dxmt)     GRAPHICS_BACKEND=dxmt ;;
   3|dxvk)     GRAPHICS_BACKEND=dxvk ;;
-  4|wined3d)  GRAPHICS_BACKEND=wined3d ;;
-  5|default)  GRAPHICS_BACKEND=default ;;
   *)
     echo "  Unrecognized choice '$BACKEND_CHOICE', using d3dmetal"
     GRAPHICS_BACKEND=d3dmetal
     ;;
 esac
 
-if is_d3dmetal_family "$GRAPHICS_BACKEND" || [[ "$GRAPHICS_BACKEND" == default ]]; then
+if is_d3dmetal_family "$GRAPHICS_BACKEND"; then
   echo ""
   echo "D3DMetal (GPTK) version, used only when the launcher swaps files in at"
   echo "startup (see D3DMETAL_USER_BACKEND in app.env — changeable any time,"
@@ -330,7 +326,7 @@ fi
 # CX_APPLEGPTK_LIBD3DSHARED_PATH itself once a backend is active, and forcing
 # these for a DXMT or DXVK run points the process at the wrong renderer.
 case "\$GAMMA_GRAPHICS_BACKEND" in
-  d3dmetal | default)
+  d3dmetal)
     if [[ -f "\$ENGINE_DIR/lib/external/libd3dshared.dylib" ]]; then
       export CX_APPLEGPTK_LIBD3DSHARED_PATH="\$ENGINE_DIR/lib/external/libd3dshared.dylib"
     fi
