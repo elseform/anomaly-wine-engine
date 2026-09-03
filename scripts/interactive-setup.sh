@@ -113,6 +113,14 @@ APP_DIR_PARENT="$(prompt_path "Directory to place the .app in" "$HOME/Applicatio
 APP_DIR_PARENT="${APP_DIR_PARENT/#\~/$HOME}"
 APP_PATH="$APP_DIR_PARENT/$APP_NAME.app"
 
+if [[ -e "$APP_PATH" ]]; then
+  echo "Error: $APP_PATH already exists. This script never overwrites an" >&2
+  echo "existing wrapper (it would corrupt that app's Wine prefix). Choose a" >&2
+  echo "different name, or remove the existing .app and its" >&2
+  echo "~/Library/Application Support/$APP_NAME/ first." >&2
+  exit 1
+fi
+
 GAMMA_ROOT="$(prompt_path "Path to game root (G: drive)" "$HOME/gamma")"
 GAMMA_ROOT="${GAMMA_ROOT/#\~/$HOME}"
 

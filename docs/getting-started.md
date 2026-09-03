@@ -33,7 +33,7 @@ It asks for the core choices below and provides defaults for all of them:
 | Name for the .app bundle | `GAMMA` |
 | Directory to place the .app in | `~/Applications` |
 | Path to game root (G: drive) | `~/gamma` |
-| Path to .exe, relative to game root | `3dss5/bin/AnomalyDX11AVX.exe` |
+| Path to .exe, relative to game root | `sss23/bin/AnomalyDX11AVX.exe` |
 | Graphics backend | `d3dmetal` |
 | Runtime dependencies | `verbs` |
 
@@ -44,6 +44,39 @@ themselves create their DLL overrides; setup does not duplicate that policy.
 If no usable winetricks exists, setup downloads the current script into the
 app's external cache. Select `redist` only as an explicit offline fallback;
 that mode copies the bundled DLL payload and registers its fallback overrides.
+
+### `verbs` and `redist` are not equivalent
+
+They do not stage the same DLL set — pick one because you need what it
+covers, not interchangeably with the other.
+
+| | `verbs` (default) | `redist` (offline fallback) |
+|---|---|---|
+| Source | `scripts/interactive-setup.sh`'s winetricks call: `d3dx9_43 d3dx11_43 d3dcompiler_43 d3dcompiler_47 vcrun2022 win10 sound=coreaudio` | Every file under `runtime/redist/x86_64-windows/`: `concrt140`, `d3dcompiler_43/47`, `d3dx9_43`, `d3dx10_43`, `d3dx11_43`, `msvcp140` + 4 companion DLLs, `vcamp140`, `vccorlib140`, `vcomp140`, `vcruntime140`, `vcruntime140_1`, `vcruntime140_threads` |
+| `d3dx10_43` | **Not installed.** No `d3dx10_43` verb is requested — winetricks has one (`winetricks list-all` confirms it), it is just never called here. D3DX10 stays on Wine's own (limited) builtin. | Installed as a native override. |
+| `vcruntime140_threads.dll` | Not provided; `vcrun2022`'s own file list omits it. | Installed as a native override. |
+| DLL override policy | Set per-verb by winetricks itself, and not uniform: e.g. `d3dx9_43` registers `native` only, while `vcrun2022`'s files (including `vcruntime140`) register `native,builtin` | `native,builtin` for every file above, uniformly — falls back to Wine's builtin if the native copy is ever missing |
+| Provenance | Genuine Microsoft installers, downloaded (and cached) by winetricks | Whatever is checked into `runtime/redist/`; update it manually to move to a newer vcredist |
+
+(`verbs` row checked against a live prefix's
+`HKEY_CURRENT_USER\Software\Wine\DllOverrides`; `redist` row read from this
+script's own redist-branch loop, which is unconditional. Override value
+names are prefixed with `*`, e.g. `*vcruntime140`.)
+
+Practically: content that specifically needs D3DX10 (or, less likely,
+`vcruntime140_threads.dll`) behaves differently depending on which mode
+created the prefix. Neither mode is recorded anywhere after setup finishes.
+Because override policy isn't a clean two-way split (`vcruntime140` reads
+`native,builtin` under *both* modes), check `d3dx10_43` instead — it only
+ever exists under `redist`:
+
+```bash
+WINEPREFIX="$HOME/Library/Application Support/<AppName>/prefix" \
+  arch -x86_64 ~/Applications/<AppName>.app/Contents/Resources/engine/bin/wine \
+  reg query "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v "*d3dx10_43"
+```
+
+Found → `redist`. `Unable to find the specified registry value` → `verbs`.
 
 Launch it from Finder, or from a terminal to see log output:
 
@@ -109,6 +142,22 @@ export GAMMA_GRAPHICS_BACKEND=dxmt
 WineD3D is not selectable. It remains Wine's internal fallback when the chosen
 backend fails validation. The engine never tries the other Metal backend.
 
+**`d3dmetal` gets one extra, permanent registry override that `dxmt` does
+not.** GPTK's own `d3d10.dll`/`d3d10.so` are excluded from the D3DMetal
+payload — they share `libd3dshared` state with D3D11 and caused a confirmed
+savegame hang. `interactive-setup.sh` writes a one-time, per-executable
+override instead (`HKEY_CURRENT_USER\Software\Wine\AppDefaults\<exe>\DllOverrides`,
+`d3d10=builtin`), pinning that one process to Wine's own D3D10 rather than
+leaving resolution to `cxcompatdb`. This is **not** something `cxcompatdb`
+does — it has no override policy of its own (see [architecture.md § The
+backend switcher](architecture.md#the-backend-switcher)); this override is
+written once, at setup time, by the setup script itself, and only when
+`GAMMA_GRAPHICS_BACKEND` was `d3dmetal` at the time. Switching to `dxmt` in
+`app.env` afterward does not remove it (harmless — DXMT ships its own
+`d3d10core.dll` and never goes through this path), and setting up a fresh
+app with `dxmt` selected never writes it in the first place. Also documented
+in [renderers.md § Selection and fallback](renderers.md#selection-and-fallback).
+
 A couple of examples of what the commented blocks offer:
 
 ```bash
@@ -142,6 +191,10 @@ one line to stderr, and `WINEDEBUG=-all` does not silence it:
 ```
 gamma-cxcompatdb:info: graphics backend=dxmt machine=x86_64-windows path=…/lib/dxmt
 ```
+
+What `cxcompatdb` actually does (and does not do — it has no DLL-override or
+redist/verbs policy of its own) is in
+[architecture.md § The backend switcher](architecture.md#the-backend-switcher).
 
 **It says `fallback=wined3d`.** The preceding line gives the reason — a missing
 or invalid DLL for the current architecture, a missing `winemetal` bridge for
