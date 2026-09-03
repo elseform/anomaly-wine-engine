@@ -88,8 +88,10 @@ separately; `build-wine.sh` wires it in automatically if it finds one.
 
 ### Stage 3 — assemble the tree
 
-- `build-cxcompatdb.sh` compiles `runtime/cxcompatdb/cxcompatdb.c` into
-  `lib/wine/x86_64-unix/cxcompatdb.so`
+- `build-cxcompatdb.sh` compiles `runtime/cxcompatdb/cxcompatdb.c` into the
+  production `lib/wine/x86_64-unix/cxcompatdb.so`; `build-wine.sh` also builds
+  `cxcompatdb-debug_dummy.so` from the same source for interactive setup's
+  policy-isolation choice
 - `bundle-wine-dylibs.sh` copies Homebrew runtime dylibs into the tree and
   rewrites their install names to `@loader_path`, making the tree relocatable
 - `install-renderers.sh` stages D3DMetal, DXMT and DXVK into their own
@@ -174,7 +176,7 @@ rename keep working: `${GAMMA_X:-${CYDER_X:-default}}`. New variables should be
 **Versioning.** `config/engine-version.txt` is the single source of truth for
 the version label (e.g. `CX26.3.0-W11-Gamma086` at time of writing);
 `config/engine-release.json`'s `versionLabel` mirrors it. The compact
-artifact basename (e.g. `CX26W11-Gamma086`) used for the output filename is
+artifact basename and sequence (e.g. `CX26W11-Gamma086-5`) used for the output filename are
 no longer a separately hand-typed field — `gamma_engine_artifact_basename` in
 `scripts/engine-common.sh` derives it mechanically from the label. See
 [Versioning Policy](versioning-policy.md) for the exact format and what

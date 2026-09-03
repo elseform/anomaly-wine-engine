@@ -58,8 +58,8 @@ Usage: $(basename "$0") [--force] [--dry-run] [--zstd] [--format zstd|xz]
        [--media-profile full-video|minimal]
 
 Build a compressed engine artifact from install/wine-cx26-x86_64 (or WINE_INSTALL).
-  xz:   dist/artifacts/gamma-wine-x86_64-<CX26-winever>.tar.xz (default, xz -$XZ_LEVEL)
-  zstd: dist/artifacts/engine-<CX26-winever>.tar.zst (--zstd)
+  xz:   dist/artifacts/CX26W11-Gamma086-<N>.tar.xz (default, xz -$XZ_LEVEL)
+  zstd: dist/artifacts/CX26W11-Gamma086-<N>.tar.zst (--zstd)
 Set CYDER_ENGINE_VERSION to override the detected version label.
 Set GAMMA_ENGINE_FORMAT=zstd or pass --zstd to build with zstd -$ZSTD_LEVEL.
 Set GAMMA_ENGINE_COMPRESS_LEVEL to trade size against packing time.
@@ -124,6 +124,15 @@ CXCOMPATDB="$WINE_INSTALL/lib/wine/x86_64-unix/cxcompatdb.so"
   echo "Missing cxcompatdb at $CXCOMPATDB — run scripts/build-cxcompatdb.sh." >&2
   exit 1
 }
+CXCOMPATDB_DEBUG_DUMMY="$WINE_INSTALL/lib/wine/x86_64-unix/cxcompatdb-debug_dummy.so"
+[[ -f "$CXCOMPATDB_DEBUG_DUMMY" ]] || {
+  echo "Missing debug_dummy cxcompatdb at $CXCOMPATDB_DEBUG_DUMMY — run a full scripts/build-wine.sh build." >&2
+  exit 1
+}
+strings -a "$CXCOMPATDB_DEBUG_DUMMY" | grep -q 'GAMMA_CXCOMPATDB_VARIANT=debug_dummy' || {
+  echo "Invalid debug_dummy cxcompatdb marker: $CXCOMPATDB_DEBUG_DUMMY" >&2
+  exit 1
+}
 if [[ "$FORMAT" == "zst" ]]; then
   ZSTD_BIN="$(gamma_find_zstd 2>/dev/null || true)"
   [[ -x "$ZSTD_BIN" ]] || {
@@ -150,7 +159,7 @@ fi
 ENGINE_VERSION_SLUG="$(gamma_engine_version_slug_from_label "$ENGINE_VERSION_LABEL")"
 ENGINE_VERSION="$ENGINE_VERSION_SLUG"
 ARTIFACTS_DIR="$(gamma_engine_artifacts_dir)"
-ARCHIVE="$(gamma_engine_archive_path_for_format "$ENGINE_VERSION" "$ARTIFACTS_DIR" "$FORMAT")"
+ARCHIVE="$(gamma_engine_archive_path_for_format "$ENGINE_VERSION_LABEL" "$ARTIFACTS_DIR" "$FORMAT")"
 VERSION_FILE="$ARTIFACTS_DIR/engine-version.txt"
 STAMP_FILE="$ARTIFACTS_DIR/.pack-stamp"
 
@@ -199,6 +208,14 @@ PACKED_CXCOMPATDB="$ENGINE_TREE/lib/wine/x86_64-unix/cxcompatdb.so"
 }
 strings -a "$PACKED_CXCOMPATDB" | grep -Eq 'GAMMA_ACTIVE_GRAPHICS_BACKEND_PATH|GRAPHICS_BACKEND_PATH|CYDER_GRAPHICS_BACKEND_PATH' || {
   echo "Refusing to pack an incompatible cxcompatdb.so" >&2
+  exit 1
+}
+[[ -f "$ENGINE_TREE/lib/wine/x86_64-unix/cxcompatdb-debug_dummy.so" ]] || {
+  echo "Refusing to pack without cxcompatdb-debug_dummy.so" >&2
+  exit 1
+}
+strings -a "$ENGINE_TREE/lib/wine/x86_64-unix/cxcompatdb-debug_dummy.so" | grep -q 'GAMMA_CXCOMPATDB_VARIANT=debug_dummy' || {
+  echo "Refusing to pack an invalid cxcompatdb-debug_dummy.so" >&2
   exit 1
 }
 

@@ -25,7 +25,7 @@ see [architecture.md](architecture.md).
 bash scripts/interactive-setup.sh
 ```
 
-It asks six questions and defaults sensibly on all of them:
+It asks for the core choices below and provides defaults for all of them:
 
 | Prompt | Default |
 |---|---|
@@ -35,11 +35,19 @@ It asks six questions and defaults sensibly on all of them:
 | Path to game root (G: drive) | `~/gamma` |
 | Path to .exe, relative to game root | `3dss5/bin/AnomalyDX11AVX.exe` |
 | Graphics backend | `d3dmetal` |
+| cxcompatdb policy | `real` |
 
 Then it extracts the engine, bootstraps a Wine prefix, installs the winetricks
 verbs the game needs (`d3dx9_43`, `d3dx11_43`, `d3dcompiler_43/47`,
 `vcrun2022`, `win10`, CoreAudio), writes the launcher, and ad-hoc signs the
 bundle. Expect a few minutes, mostly winetricks.
+
+The `debug_dummy` cxcompatdb choice keeps explicit `GAMMA_GRAPHICS_BACKEND`
+activation and `winemenubuilder.exe` suppression. It removes automatic backend
+selection, legacy selector aliases, fixed DirectX helper overrides, and every
+external CompatDB rule action; external databases are parsed only for
+diagnostics. Artifacts built before this variant was added cannot use that
+choice and setup stops with a clear error.
 
 Launch it from Finder, or from a terminal to see log output:
 
@@ -53,6 +61,7 @@ open ~/Applications/GAMMA.app
 
 ```
 ~/Applications/GAMMA.app/Contents/MacOS/launcher       thin launcher
+~/Applications/GAMMA.app/Contents/MacOS/winetricks    prefix-aware winetricks launcher
 ~/Applications/GAMMA.app/Contents/Resources/engine/    the engine (read-only)
 
 ~/Library/Application Support/GAMMA/prefix             Wine prefix
@@ -61,6 +70,18 @@ open ~/Applications/GAMMA.app
 
 The prefix and settings deliberately sit **outside** the bundle. The app stays
 signed and replaceable, and your saves/config survive rebuilding it.
+
+Run additional winetricks verbs through the generated helper so they use this
+app's bundled Wine engine and prefix:
+
+```bash
+~/Applications/GAMMA.app/Contents/MacOS/winetricks settings list
+~/Applications/GAMMA.app/Contents/MacOS/winetricks -q d3dcompiler_47
+```
+
+The helper finds Homebrew winetricks in its standard Apple Silicon or Intel
+location, then falls back to `PATH`. Set `WINETRICKS_BIN` to an executable path
+when using another installation.
 
 ## 3. Changing settings
 

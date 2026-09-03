@@ -8,7 +8,20 @@ source "$SCRIPT_DIR/env-x86_64.sh"
 WINE_SRC="${WINE_SRC:-$ROOT/build/cx26/sources/wine}"
 WINE_INSTALL="${WINE_INSTALL:-$ROOT/install/wine-cx26-x86_64}"
 SOURCE="$ROOT/runtime/cxcompatdb/cxcompatdb.c"
-OUTPUT="${GAMMA_CXCOMPATDB_OUTPUT:-$WINE_INSTALL/lib/wine/x86_64-unix/cxcompatdb.so}"
+VARIANT="${GAMMA_CXCOMPATDB_VARIANT:-full}"
+case "$VARIANT" in
+  full)
+    DEFAULT_OUTPUT="$WINE_INSTALL/lib/wine/x86_64-unix/cxcompatdb.so"
+    ;;
+  debug_dummy)
+    DEFAULT_OUTPUT="$ROOT/build/cxcompatdb/debug_dummy/cxcompatdb.so"
+    ;;
+  *)
+    echo "Unknown GAMMA_CXCOMPATDB_VARIANT: $VARIANT (expected full or debug_dummy)" >&2
+    exit 1
+    ;;
+esac
+OUTPUT="${GAMMA_CXCOMPATDB_OUTPUT:-$DEFAULT_OUTPUT}"
 TARGET="${MACOSX_DEPLOYMENT_TARGET:-10.15}"
 CONFIG_DIR="${GAMMA_CXCOMPATDB_CONFIG_DIR:-$WINE_SRC/build64/include}"
 
@@ -33,6 +46,9 @@ clang_args=(
   -mmacosx-version-min="$TARGET"
   -DWINE_UNIX_LIB
 )
+if [[ "$VARIANT" == "debug_dummy" ]]; then
+  clang_args+=( -DGAMMA_CXCOMPATDB_DEBUG_DUMMY )
+fi
 if [[ -n "${GAMMA_CXCOMPATDB_EXTRA_CFLAGS:-}" ]]; then
   extra_cflags=()
   read -r -a extra_cflags <<<"$GAMMA_CXCOMPATDB_EXTRA_CFLAGS"
@@ -45,5 +61,5 @@ clang_args+=(
 )
 arch -x86_64 /usr/bin/clang "${clang_args[@]}" -o "$OUTPUT" "$SOURCE"
 
-echo "Built cxcompatdb: $OUTPUT"
+echo "Built cxcompatdb ($VARIANT): $OUTPUT"
 otool -l "$OUTPUT" | awk '/minos/{print "  " $0; exit}'

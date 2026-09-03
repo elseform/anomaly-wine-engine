@@ -66,6 +66,11 @@ static const char *const graphics_modules[] =
     "d3d11", "d3d12", "dxgi", "winemetal", "nvapi64", "nvngx"
 };
 
+#ifdef GAMMA_CXCOMPATDB_DEBUG_DUMMY
+__attribute__((used))
+static const char debug_dummy_marker[] = "GAMMA_CXCOMPATDB_VARIANT=debug_dummy";
+#endif
+
 static void log_message( const char *level, const char *format, ... )
 {
     va_list args;
@@ -82,8 +87,10 @@ static const char *get_gamma_env( const char *name )
     const char *val;
     snprintf( buf, sizeof(buf), "GAMMA_%s", name );
     if ((val = getenv( buf )) && *val) return val;
+#ifndef GAMMA_CXCOMPATDB_DEBUG_DUMMY
     snprintf( buf, sizeof(buf), "CYDER_%s", name );
     if ((val = getenv( buf )) && *val) return val;
+#endif
     return NULL;
 }
 
@@ -300,6 +307,7 @@ static int command_has_argument( const UNICODE_STRING *line, const struct slice 
     return 0;
 }
 
+#ifndef GAMMA_CXCOMPATDB_DEBUG_DUMMY
 static size_t encoded_argument_size( const struct slice *arg, int *quote )
 {
     size_t i, size = arg->size;
@@ -350,6 +358,7 @@ static int add_override_slice( const struct slice *value )
     free( entry );
     return 1;
 }
+#endif
 
 static int add_override( const char *module, const char *order )
 {
@@ -653,6 +662,11 @@ static int rule_matches( const struct rule *rule, const RTL_USER_PROCESS_PARAMET
 static void apply_rule( const struct rule *rule, RTL_USER_PROCESS_PARAMETERS *params,
                         int graphics_forced, int *graphics_applied )
 {
+#ifdef GAMMA_CXCOMPATDB_DEBUG_DUMMY
+    (void)graphics_forced;
+    (void)graphics_applied;
+    rule_matches( rule, params );
+#else
     unsigned int i;
     if (!rule_matches( rule, params )) return;
     for (i = 0; i < rule->arg_count; ++i) append_argument( params, &rule->args[i] );
@@ -662,6 +676,7 @@ static void apply_rule( const struct rule *rule, RTL_USER_PROCESS_PARAMETERS *pa
         activate_backend( &rule->graphics );
         *graphics_applied = 1;
     }
+#endif
 }
 
 static void parse_database( const struct database *db, RTL_USER_PROCESS_PARAMETERS *params,
@@ -742,6 +757,7 @@ static void parse_database( const struct database *db, RTL_USER_PROCESS_PARAMETE
 
 static void apply_default_runtime_overrides(void)
 {
+#ifndef GAMMA_CXCOMPATDB_DEBUG_DUMMY
     /* DirectX utility and shader compiler overrides -> prefer native (from winetricks / game) */
     add_override( "*d3dcompiler_47", "native,builtin" );
     add_override( "*d3dcompiler_43", "native,builtin" );
@@ -749,6 +765,7 @@ static void apply_default_runtime_overrides(void)
     add_override( "*d3dx10_43", "native,builtin" );
     add_override( "*d3dx9_43", "native,builtin" );
     add_override( "*xinput1_3", "native,builtin" );
+#endif
 
     /* Disable winemenubuilder to avoid polluting macOS LaunchServices */
     add_override( "winemenubuilder.exe", "" );
@@ -760,10 +777,12 @@ static void compatdb_init(void)
     const char *disabled = get_gamma_env( "COMPATDB" );
     const char *path = get_gamma_env( "COMPATDB_PATH" );
     const char *forced = get_gamma_env( "GRAPHICS_BACKEND" );
+#ifndef GAMMA_CXCOMPATDB_DEBUG_DUMMY
     const char *cx_backend = getenv( "CX_ACTIVE_GRAPHICS_BACKEND" );
     const char *d3dmetal_flag = getenv( "D3DMETAL" );
     const char *dxmt_flag = getenv( "DXMT" );
     const char *dxvk_flag = getenv( "DXVK" );
+#endif
     RTL_USER_PROCESS_PARAMETERS *params;
     struct database db;
     int graphics_forced = 0;
@@ -779,6 +798,7 @@ static void compatdb_init(void)
     /* Set default helper library overrides */
     apply_default_runtime_overrides();
 
+#ifndef GAMMA_CXCOMPATDB_DEBUG_DUMMY
     /* Check Sikarugir / CrossOver environment variables if GAMMA_GRAPHICS_BACKEND is unset */
     if ((!forced || !*forced || !strcmp( forced, "default" )))
     {
@@ -787,6 +807,7 @@ static void compatdb_init(void)
         else if (dxvk_flag && !strcmp( dxvk_flag, "1" )) forced = "dxvk";
         else if (cx_backend && *cx_backend && strcmp( cx_backend, "default" )) forced = cx_backend;
     }
+#endif
 
     if (forced && *forced && strcmp( forced, "default" ))
     {
@@ -804,6 +825,7 @@ static void compatdb_init(void)
 
     if (disabled && !strcmp( disabled, "0" ))
     {
+#ifndef GAMMA_CXCOMPATDB_DEBUG_DUMMY
         if (!graphics_forced && !graphics_applied)
         {
             struct slice fallback = {(const unsigned char *)"d3dmetal", 8};
@@ -813,6 +835,7 @@ static void compatdb_init(void)
                 activate_backend( &fallback_wined3d );
             }
         }
+#endif
         return;
     }
 
@@ -827,6 +850,7 @@ static void compatdb_init(void)
         free( db.data );
     }
 
+#ifndef GAMMA_CXCOMPATDB_DEBUG_DUMMY
     /* If no backend was explicitly forced or applied by rule, auto-activate D3DMetal default */
     if (!graphics_forced && !graphics_applied)
     {
@@ -849,4 +873,5 @@ static void compatdb_init(void)
             }
         }
     }
+#endif
 }

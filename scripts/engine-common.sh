@@ -128,23 +128,49 @@ gamma_engine_artifact_basename_from_label() {
   return 1
 }
 
-# Artifact basename (no extension) for a version label. Order of precedence:
-#   GAMMA_ENGINE_ARTIFACT_BASENAME (explicit override, e.g. a one-off build)
-#   -> derived from the given label (or the resolved current version label)
-#   -> empty, meaning "fall back to the version-derived long name".
+# Artifact basename stem (no extension or sequence) for a version label.
 gamma_engine_artifact_basename() {
   local label="${1:-}"
-  local name="${GAMMA_ENGINE_ARTIFACT_BASENAME:-}"
-  if [[ -z "$name" ]]; then
-    if [[ -z "$label" ]]; then
-      label="${GAMMA_ENGINE_VERSION_LABEL:-${CYDER_ENGINE_VERSION_LABEL:-}}"
-    fi
-    if [[ -z "$label" && -f "$ENGINE_PROJECT_ROOT/config/engine-version.txt" ]]; then
-      label="$(head -n 1 "$ENGINE_PROJECT_ROOT/config/engine-version.txt" 2>/dev/null || true)"
-    fi
-    [[ -n "$label" ]] && name="$(gamma_engine_artifact_basename_from_label "$label" 2>/dev/null || true)"
+  local name=""
+  if [[ -z "$label" ]]; then
+    label="${GAMMA_ENGINE_VERSION_LABEL:-${CYDER_ENGINE_VERSION_LABEL:-}}"
   fi
+  if [[ -z "$label" && -f "$ENGINE_PROJECT_ROOT/config/engine-version.txt" ]]; then
+    label="$(head -n 1 "$ENGINE_PROJECT_ROOT/config/engine-version.txt" 2>/dev/null || true)"
+  fi
+  [[ -n "$label" ]] && name="$(gamma_engine_artifact_basename_from_label "$label" 2>/dev/null || true)"
   printf '%s\n' "$name"
+}
+
+# Next numbered artifact basename. Sequence is per canonical version label and
+# considers legacy names without the dash before Gamma so migration continues
+# from the highest existing pack number.
+gamma_engine_artifact_next_basename() {
+  local label="${1:-}"
+  local dir="${2:-$(gamma_engine_artifacts_dir)}"
+  local base legacy_base path name suffix max=0 nullglob_was_set=0
+  base="$(gamma_engine_artifact_basename "$label")"
+  [[ -n "$base" ]] || return 1
+  legacy_base="${base/-Gamma/Gamma}"
+
+  if [[ -d "$dir" ]]; then
+    shopt -q nullglob && nullglob_was_set=1
+    shopt -s nullglob
+    for path in \
+      "$dir/$base"-*.tar.zst "$dir/$base"-*.tar.xz \
+      "$dir/$legacy_base"-*.tar.zst "$dir/$legacy_base"-*.tar.xz; do
+      name="${path##*/}"
+      suffix="${name#"$base"-}"
+      [[ "$suffix" != "$name" ]] || suffix="${name#"$legacy_base"-}"
+      suffix="${suffix%.tar.zst}"
+      suffix="${suffix%.tar.xz}"
+      if [[ "$suffix" =~ ^[0-9]+$ ]] && (( 10#$suffix > max )); then
+        max=$((10#$suffix))
+      fi
+    done
+    (( nullglob_was_set )) || shopt -u nullglob
+  fi
+  printf '%s-%d\n' "$base" "$((max + 1))"
 }
 
 gamma_engine_archive_path_for_format() {
@@ -152,7 +178,7 @@ gamma_engine_archive_path_for_format() {
   local dir="${2:-$(gamma_engine_artifacts_dir)}"
   local format="${3:-xz}"
   local base
-  base="$(gamma_engine_artifact_basename "$ver")"
+  base="$(gamma_engine_artifact_next_basename "$ver" "$dir" 2>/dev/null || true)"
   if [[ -n "$base" ]]; then
     case "$format" in
       zst | zstd) printf '%s/%s.tar.zst\n' "$dir" "$base" ; return 0 ;;

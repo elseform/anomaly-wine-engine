@@ -6,7 +6,7 @@
 
 ## Overview
 
-`gamma-wine-engine` provides a standalone, relocatable Wine 11 runtime and packages the production `wswine.bundle` tarball (named `<artifactBasename>.tar.xz`, derived from `config/engine-version.txt` by `gamma_engine_artifact_basename` in `scripts/engine-common.sh` — e.g. `CX26W11-Gamma086.tar.xz` at time of writing; see [Versioning Policy](docs/versioning-policy.md)) used by `gamma-setup-tool`.
+`gamma-wine-engine` provides a standalone, relocatable Wine 11 runtime and packages the production `wswine.bundle` tarball (named `<artifactBasename>-<N>.tar.xz`, derived from `config/engine-version.txt` by `gamma_engine_artifact_basename` in `scripts/engine-common.sh` — e.g. `CX26W11-Gamma086-5.tar.xz` at time of writing; see [Versioning Policy](docs/versioning-policy.md)) used by `gamma-setup-tool`.
 
 ### Documentation
 
@@ -39,7 +39,7 @@
 | Type | Path | Purpose |
 |---|---|---|
 | **Development Staging Tree** | `install/wine-cx26-x86_64/` | Live uncompressed build tree (`bin/wine`, `bin/wineserver`, `lib/d3dmetal/`, `lib/dxmt/`, `lib/dxvk/`) |
-| **Packaged Release Tarball** | `dist/artifacts/<artifactBasename>.tar.xz` — basename derived from `config/engine-version.txt`, e.g. `CX26W11-Gamma086.tar.xz` at time of writing | Codesigned, stripped, standalone production archive (~86 MB) |
+| **Packaged Release Tarball** | `dist/artifacts/<artifactBasename>-<N>.tar.xz` — basename derived from `config/engine-version.txt`, e.g. `CX26W11-Gamma086-5.tar.xz` at time of writing | Codesigned, stripped, standalone production archive (~86 MB) |
 | **Setup Tool Asset** | `gamma-setup-tool/sources/GAMMASetupTool/Resources/wine-engine/CX26-3W11-Gamma0-1.tar.xz` | Bundled asset embedded in `GAMMA Setup Tool.app` — copied in manually, so it lags the latest `dist/artifacts/` build; check its filename against `config/engine-version.txt` before assuming it's current |
 
 ---

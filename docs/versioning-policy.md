@@ -48,19 +48,19 @@ label by `gamma_engine_artifact_basename_from_label()` in
 `scripts/engine-common.sh`:
 
 ```
-CX26.3.0-W11-Gamma086  ->  CX26W11-Gamma086
+CX26.3.0-W11-Gamma086  ->  CX26W11-Gamma086-<N>
 ```
 
-Rule: `CX<crossover-major>` + `W<wine-major>` + `-Gamma<NNN>`, i.e. the
-crossover minor/patch (`.3.0`) is dropped and everything else is
-concatenated with a single dash before `Gamma`. This matches every artifact
-already shipped under the old hand-typed field (`CX26W11Gamma005`,
-`CX26W11Gamma086`, ...) except for the added dash before `Gamma`, adopted
-going forward for readability.
+Rule: `CX<crossover-major>` + `W<wine-major>` + `-Gamma<NNN>` + `-<N>`, i.e.
+the crossover minor/patch (`.3.0`) is dropped and everything else is
+concatenated with a single dash before `Gamma`. `<N>` increments from the
+highest existing pack number for that version label; both `.tar.xz` and
+`.tar.zst` packs count. Legacy names without the dash before `Gamma` also
+count, so the next `Gamma086` pack after `CX26W11Gamma086-4` is
+`CX26W11-Gamma086-5`.
 
-`GAMMA_ENGINE_ARTIFACT_BASENAME` still works as an explicit override for a
-one-off build (see `scripts/engine-common.sh`); nothing else needs to change
-when bumping a version — editing `engine-version.txt` (and mirroring
+Nothing else needs to change when bumping a version — editing
+`engine-version.txt` (and mirroring
 `engine-release.json`'s `versionLabel`) is now the only edit required for the
 name to propagate everywhere.
 

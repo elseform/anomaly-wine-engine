@@ -3,6 +3,7 @@
 #
 # Bundle layout:
 #   <App>.app/Contents/MacOS/launcher        thin launcher, paths baked in
+#   <App>.app/Contents/MacOS/winetricks      prefix-aware winetricks launcher
 #   <App>.app/Contents/Resources/engine/     engine tree (read-only, signed)
 #
 # Mutable state lives outside the bundle so the app stays signable and
@@ -97,6 +98,22 @@ else
 fi
 
 echo ""
+echo "cxcompatdb policy:"
+echo "  1) real         Full production policy (default)"
+echo "  2) debug_dummy  Policy-isolation build"
+echo "     Keeps explicit GAMMA backend switching and winemenubuilder suppression"
+echo "     Removes automatic selection, legacy aliases, DirectX helper overrides, and rule actions"
+CXCOMPATDB_CHOICE="$(prompt_path "Select cxcompatdb" "1")"
+case "$CXCOMPATDB_CHOICE" in
+  1|real|full) CXCOMPATDB_VARIANT=real ;;
+  2|debug_dummy|dummy_debug|dummy|debug) CXCOMPATDB_VARIANT=debug_dummy ;;
+  *)
+    echo "  Unrecognized choice '$CXCOMPATDB_CHOICE', using real"
+    CXCOMPATDB_VARIANT=real
+    ;;
+esac
+
+echo ""
 read -r -p "Enable Retina/HiDPI mode (CrossOver's Retina toggle equivalent)? [y/N]: " retina_choice || true
 if [[ "${retina_choice:-N}" =~ ^[Yy] ]]; then
   RETINA_MODE=Y
@@ -117,6 +134,7 @@ echo "  Prefix:         $WINEPREFIX"
 echo "  Settings:       $CONFIG_FILE"
 echo "  Game root:      $GAMMA_ROOT"
 echo "  Backend:        $GRAPHICS_BACKEND"
+echo "  cxcompatdb:      $CXCOMPATDB_VARIANT"
 echo ""
 read -r -p "Proceed? [Y/n]: " confirm || true
 if [[ "${confirm:-Y}" =~ ^[Nn] ]]; then
@@ -136,6 +154,20 @@ if [[ ! -x "$ENGINE_DIR/bin/wine" ]]; then
   exit 1
 fi
 arch -x86_64 "$ENGINE_DIR/bin/wine" --version
+
+CXCOMPATDB_DIR="$ENGINE_DIR/lib/wine/x86_64-unix"
+[[ -f "$CXCOMPATDB_DIR/cxcompatdb.so" ]] || {
+  echo "Error: engine artifact has no real cxcompatdb.so" >&2
+  exit 1
+}
+if [[ "$CXCOMPATDB_VARIANT" == "debug_dummy" ]]; then
+  [[ -f "$CXCOMPATDB_DIR/cxcompatdb-debug_dummy.so" ]] || {
+    echo "Error: engine artifact has no debug_dummy cxcompatdb; rebuild it with current scripts/build-wine.sh" >&2
+    exit 1
+  }
+  cp "$CXCOMPATDB_DIR/cxcompatdb-debug_dummy.so" "$CXCOMPATDB_DIR/cxcompatdb.so"
+  echo "  Activated debug_dummy cxcompatdb"
+fi
 
 ENGINE_VERSION="$(head -n 1 "$ENGINE_DIR/version" 2>/dev/null || echo "1.0.0")"
 
@@ -366,6 +398,77 @@ fi
 exec taskpolicy -l 0 -t 0 arch -x86_64 "\$ENGINE_DIR/bin/wine" "\$EXE_PATH" "\$@"
 EOF
 
+cat > "$APP_PATH/Contents/MacOS/winetricks" << EOF
+#!/usr/bin/env bash
+# Runs winetricks against this app's prefix with its bundled Wine engine.
+set -euo pipefail
+
+APP_DIR="\$(cd "\$(dirname "\$0")/../.." && pwd)"
+ENGINE_DIR="\$APP_DIR/Contents/Resources/engine"
+export WINEPREFIX="$WINEPREFIX"
+
+if [[ ! -x "\$ENGINE_DIR/bin/wine" || ! -x "\$ENGINE_DIR/bin/wineserver" ]]; then
+  echo "error: bundled Wine engine is incomplete: \$ENGINE_DIR" >&2
+  exit 1
+fi
+
+WINETRICKS_BIN="\${WINETRICKS_BIN:-}"
+if [[ -z "\$WINETRICKS_BIN" ]]; then
+  for candidate in /opt/homebrew/bin/winetricks /usr/local/bin/winetricks; do
+    if [[ -x "\$candidate" ]]; then
+      WINETRICKS_BIN="\$candidate"
+      break
+    fi
+  done
+fi
+if [[ -z "\$WINETRICKS_BIN" ]]; then
+  candidate="\$(command -v winetricks 2>/dev/null || true)"
+  if [[ -n "\$candidate" && "\$candidate" != "\$0" ]]; then
+    WINETRICKS_BIN="\$candidate"
+  fi
+fi
+if [[ -z "\$WINETRICKS_BIN" || ! -x "\$WINETRICKS_BIN" ]]; then
+  echo "error: winetricks not found; install it or set WINETRICKS_BIN to its executable path" >&2
+  exit 1
+fi
+
+WRAP_DIR="\$(mktemp -d "\${TMPDIR:-/tmp}/gamma-winetricks.XXXXXX")"
+cleanup() {
+  rm -rf "\$WRAP_DIR"
+}
+trap cleanup EXIT
+
+cat > "\$WRAP_DIR/wine-wrapper" << 'WRAPPER_EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+binary="\$(basename "\$0")"
+if [[ "\$binary" == "wine64" && ! -x "\$GAMMA_WINETRICKS_ENGINE/bin/wine64" ]]; then
+  binary=wine
+fi
+exec arch -x86_64 "\$GAMMA_WINETRICKS_ENGINE/bin/\$binary" "\$@"
+WRAPPER_EOF
+chmod +x "\$WRAP_DIR/wine-wrapper"
+ln -s wine-wrapper "\$WRAP_DIR/wine"
+ln -s wine-wrapper "\$WRAP_DIR/wine64"
+ln -s wine-wrapper "\$WRAP_DIR/wineserver"
+
+export GAMMA_WINETRICKS_ENGINE="\$ENGINE_DIR"
+export WINE="\$WRAP_DIR/wine"
+export WINE64="\$WRAP_DIR/wine64"
+export WINESERVER="\$WRAP_DIR/wineserver"
+export WINELOADER="\$WRAP_DIR/wine"
+export PATH="\$WRAP_DIR:\$PATH"
+
+echo "engine:     \$ENGINE_DIR"
+echo "prefix:     \$WINEPREFIX"
+echo "winetricks: \$WINETRICKS_BIN \$*"
+echo
+
+status=0
+"\$WINETRICKS_BIN" "\$@" || status=\$?
+exit "\$status"
+EOF
+
 cat > "$APP_PATH/Contents/Resources/select-gptk-beta.sh" << 'EOF'
 #!/usr/bin/env bash
 # Swaps which GPTK beta occupies lib/d3dmetal + lib/external, driven by
@@ -388,12 +491,13 @@ ln -sfn ../external "$ENGINE_DIR/lib/d3dmetal/external"
 EOF
 chmod +x "$APP_PATH/Contents/Resources/select-gptk-beta.sh"
 
-chmod +x "$APP_PATH/Contents/MacOS/launcher"
+chmod +x "$APP_PATH/Contents/MacOS/launcher" "$APP_PATH/Contents/MacOS/winetricks"
 
 # 5. Ad-hoc sign the bundle. The engine payload is already signed by
 #    pack-engine-artifact.sh, so only the wrapper needs a signature.
 echo "==> Step 4: Signing bundle..."
 codesign --force --sign - --timestamp=none "$APP_PATH/Contents/MacOS/launcher" 2>/dev/null || true
+codesign --force --sign - --timestamp=none "$APP_PATH/Contents/MacOS/winetricks" 2>/dev/null || true
 if codesign --force --sign - --timestamp=none "$APP_PATH" 2>/dev/null; then
   echo "  Ad-hoc signed $APP_PATH"
 else
@@ -411,6 +515,7 @@ echo "  Engine:   $ENGINE_DIR  (inside app, read-only)"
 echo "  Prefix:   $WINEPREFIX"
 echo "  Settings: $CONFIG_FILE"
 echo "  Backend:  $GRAPHICS_BACKEND  (change it in app.env, no rebuild needed)"
+echo "  cxcompatdb: $CXCOMPATDB_VARIANT"
 if is_d3dmetal_family "$GRAPHICS_BACKEND"; then
   echo "  GPTK:     $GPTK_USER_BACKEND (change D3DMETAL_USER_BACKEND in app.env, no rebuild needed)"
   echo "            d3d10.dll/.so excluded from payload, d3d10=builtin override"
@@ -419,4 +524,5 @@ fi
 echo ""
 echo "Launch via:  open \"$APP_PATH\""
 echo "Or CLI:      \"$APP_PATH/Contents/MacOS/launcher\" -dbg -nointro"
+echo "Winetricks:  \"$APP_PATH/Contents/MacOS/winetricks\" [verb ...]"
 echo "=========================================================="
