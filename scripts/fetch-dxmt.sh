@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-TARGET_DIR="${1:-$REPO_ROOT/sources/dxmt}"
+TARGET_DIR="${1:-$REPO_ROOT/renderers/dxmt}"
 
 echo "Fetching latest successful DXMT CI build from 3Shain/dxmt (main branch push)..."
 
@@ -35,6 +35,10 @@ rm -rf "$TARGET_DIR"
 mkdir -p "$TARGET_DIR"
 
 tar -xzf "$TARBALL" -C "$TARGET_DIR" --strip-components=1
+
+# No 32-bit games are targeted; drop the CI artifact's i386 build so the
+# staged tree stays x86_64-only, matching install-renderers.sh.
+rm -rf "$TARGET_DIR/i386-windows"
 
 echo "DXMT (commit: ${RUN_SHA:0:8}) successfully staged at $TARGET_DIR"
 ls -la "$TARGET_DIR"

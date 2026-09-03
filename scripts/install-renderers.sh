@@ -2,7 +2,7 @@
 # Stage the two user-selectable graphics backends using CrossOver's layout:
 #
 #   lib/wine/<arch>/             Wine builtins; winemetal.dll also lives here
-#   lib/dxmt/                    DXMT (x86_64 + i386)
+#   lib/dxmt/                    DXMT (x86_64 only; no 32-bit games targeted)
 #   lib64/apple_gptk/wine/       Apple D3DMetal GPTK 4.0b2 (x86_64)
 #   lib64/apple_gptk/external/   D3DMetal host libraries and framework
 #
@@ -17,8 +17,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/env-x86_64.sh"
 
 WINE_INSTALL="${1:-$WINE_INSTALL}"
-DXMT_SRC="${DXMT_SRC:-$REPO_ROOT/sources/dxmt}"
-GPTK_SRC="${GPTK_SRC:-$REPO_ROOT/sources/gptk40b2/d3dmetal}"
+DXMT_SRC="${DXMT_SRC:-$REPO_ROOT/renderers/dxmt}"
+GPTK_SRC="${GPTK_SRC:-$REPO_ROOT/renderers/gptk40b2/d3dmetal}"
 WINE_BUILD64="${WINE_BUILD64:-$WINE_SRC/build64}"
 
 [[ -d "$WINE_INSTALL" ]] || {
@@ -92,17 +92,13 @@ rm -f "$WINE_INSTALL/lib/wine/x86_64-unix/winemetal.so"
 echo "--> DXMT from $DXMT_SRC"
 rm -rf "$WINE_INSTALL/lib/dxmt"
 mkdir -p "$WINE_INSTALL/lib/dxmt/x86_64-windows" \
-         "$WINE_INSTALL/lib/dxmt/i386-windows" \
          "$WINE_INSTALL/lib/dxmt/x86_64-unix"
 
-for arch in x86_64-windows i386-windows; do
-  [[ -d "$DXMT_SRC/$arch" ]] || continue
-  cp -R "$DXMT_SRC/$arch/." "$WINE_INSTALL/lib/dxmt/$arch/"
-  if [[ -f "$DXMT_SRC/$arch/winemetal.dll" && -d "$WINE_INSTALL/lib/wine/$arch" ]]; then
-    cp "$DXMT_SRC/$arch/winemetal.dll" "$WINE_INSTALL/lib/wine/$arch/"
-  fi
-  echo "  Staged DXMT $arch"
-done
+cp -R "$DXMT_SRC/x86_64-windows/." "$WINE_INSTALL/lib/dxmt/x86_64-windows/"
+if [[ -f "$DXMT_SRC/x86_64-windows/winemetal.dll" && -d "$WINE_INSTALL/lib/wine/x86_64-windows" ]]; then
+  cp "$DXMT_SRC/x86_64-windows/winemetal.dll" "$WINE_INSTALL/lib/wine/x86_64-windows/"
+fi
+echo "  Staged DXMT x86_64-windows"
 cp "$DXMT_SRC/x86_64-unix/winemetal.so" "$WINE_INSTALL/lib/dxmt/x86_64-unix/"
 
 echo "--> D3DMetal GPTK 4.0b2 from $GPTK_SRC"
