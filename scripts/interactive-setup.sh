@@ -27,14 +27,80 @@ is_d3dmetal_family() {
   case "$1" in d3dmetal) return 0 ;; *) return 1 ;; esac
 }
 
+resolve_winetricks() {
+  local candidate cache_dir
+  if [[ -n "${WINETRICKS_BIN:-}" && -x "$WINETRICKS_BIN" ]]; then
+    printf '%s\n' "$WINETRICKS_BIN"
+    return 0
+  fi
+  for candidate in /opt/homebrew/bin/winetricks /usr/local/bin/winetricks; do
+    if [[ -x "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  candidate="$(command -v winetricks 2>/dev/null || true)"
+  if [[ -n "$candidate" && -x "$candidate" ]]; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+  cache_dir="$APP_SUPPORT/cache/winetricks"
+  candidate="$cache_dir/winetricks"
+  if [[ ! -x "$candidate" ]]; then
+    mkdir -p "$cache_dir"
+    echo "  Downloading current winetricks script..." >&2
+    if ! curl -fL --retry 2 \
+      https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks \
+      -o "$candidate"; then
+      rm -f "$candidate"
+      return 1
+    fi
+    chmod +x "$candidate"
+  fi
+  printf '%s\n' "$candidate"
+}
+
+run_winetricks() {
+  local winetricks_bin="$1" wrap_dir status=0
+  shift
+  wrap_dir="$(mktemp -d "${TMPDIR:-/tmp}/gamma-winetricks.XXXXXX")"
+  cat > "$wrap_dir/wine-wrapper" << 'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+binary="$(basename "$0")"
+if [[ "$binary" == "wine64" && ! -x "$GAMMA_WINETRICKS_ENGINE/bin/wine64" ]]; then
+  binary=wine
+fi
+exec arch -x86_64 "$GAMMA_WINETRICKS_ENGINE/bin/$binary" "$@"
+EOF
+  chmod +x "$wrap_dir/wine-wrapper"
+  ln -s wine-wrapper "$wrap_dir/wine"
+  ln -s wine-wrapper "$wrap_dir/wine64"
+  ln -s wine-wrapper "$wrap_dir/wineserver"
+  GAMMA_WINETRICKS_ENGINE="$ENGINE_DIR" \
+  WINEPREFIX="$WINEPREFIX" \
+  WINE="$wrap_dir/wine" \
+  WINE64="$wrap_dir/wine64" \
+  WINESERVER="$wrap_dir/wineserver" \
+  WINELOADER="$wrap_dir/wine" \
+  W_CACHE="$APP_SUPPORT/cache/winetricks/downloads" \
+  PATH="$wrap_dir:$PATH" \
+    "$winetricks_bin" "$@" || status=$?
+  rm -rf "$wrap_dir"
+  return "$status"
+}
+
 echo "=========================================================="
 echo "GAMMA Wine Engine — Interactive Setup"
 echo "=========================================================="
 
 # 1. Collect paths
-DEFAULT_ARTIFACT="$(ls -t "$REPO_ROOT"/dist/artifacts/*.tar.zst 2>/dev/null | head -n 1 || true)"
+DEFAULT_ARTIFACT="$(ls -t \
+  "$REPO_ROOT"/dist/artifacts/*.tar.zst \
+  "$REPO_ROOT"/dist/artifacts/*.tar.xz \
+  2>/dev/null | head -n 1 || true)"
 while true; do
-  ARTIFACT_PATH="$(prompt_path "Path to engine tar.xz" "${DEFAULT_ARTIFACT:-$REPO_ROOT/dist/artifacts/engine.tar.xz}")"
+  ARTIFACT_PATH="$(prompt_path "Path to engine archive (.tar.zst or .tar.xz)" "${DEFAULT_ARTIFACT:-$REPO_ROOT/dist/artifacts/engine.tar.zst}")"
   ARTIFACT_PATH="${ARTIFACT_PATH/#\~/$HOME}"
   [[ -f "$ARTIFACT_PATH" ]] && break
   echo "  Not found: $ARTIFACT_PATH"
@@ -65,51 +131,27 @@ echo ""
 echo "Graphics backend:"
 echo "  1) d3dmetal  Apple D3DMetal — D3D11/12 via Metal (default, 64-bit only)"
 echo "  2) dxmt      DXMT — D3D11/10 via Metal (works for 32-bit too)"
-echo "  3) dxvk      DXVK — D3D11/10/9 via Vulkan/MoltenVK (needs a Vulkan engine build)"
 BACKEND_CHOICE="$(prompt_path "Select backend" "1")"
 case "$BACKEND_CHOICE" in
   1|d3dmetal) GRAPHICS_BACKEND=d3dmetal ;;
   2|dxmt)     GRAPHICS_BACKEND=dxmt ;;
-  3|dxvk)     GRAPHICS_BACKEND=dxvk ;;
   *)
     echo "  Unrecognized choice '$BACKEND_CHOICE', using d3dmetal"
     GRAPHICS_BACKEND=d3dmetal
     ;;
 esac
 
-if is_d3dmetal_family "$GRAPHICS_BACKEND"; then
-  echo ""
-  echo "D3DMetal (GPTK) version, used only when the launcher swaps files in at"
-  echo "startup (see D3DMETAL_USER_BACKEND in app.env — changeable any time,"
-  echo "no rebuild needed):"
-  echo "  1) gptk40b2  better perf/visual quality (recommended)"
-  echo "  2) gptk40b1  no d3d10 payload, slightly lower quality"
-  GPTK_CHOICE="$(prompt_path "Select GPTK version" "1")"
-  case "$GPTK_CHOICE" in
-    1|gptk40b2|beta2|b2) GPTK_USER_BACKEND=gptk40b2 ;;
-    2|gptk40b1|beta1|b1) GPTK_USER_BACKEND=gptk40b1 ;;
-    *)
-      echo "  Unrecognized choice '$GPTK_CHOICE', using gptk40b2"
-      GPTK_USER_BACKEND=gptk40b2
-      ;;
-  esac
-else
-  GPTK_USER_BACKEND=gptk40b2
-fi
-
 echo ""
-echo "cxcompatdb policy:"
-echo "  1) real         Full production policy (default)"
-echo "  2) debug_dummy  Policy-isolation build"
-echo "     Keeps explicit GAMMA backend switching and winemenubuilder suppression"
-echo "     Removes automatic selection, legacy aliases, DirectX helper overrides, and rule actions"
-CXCOMPATDB_CHOICE="$(prompt_path "Select cxcompatdb" "1")"
-case "$CXCOMPATDB_CHOICE" in
-  1|real|full) CXCOMPATDB_VARIANT=real ;;
-  2|debug_dummy|dummy_debug|dummy|debug) CXCOMPATDB_VARIANT=debug_dummy ;;
+echo "Runtime dependencies:"
+echo "  1) verbs   Install required components with winetricks (recommended)"
+echo "  2) redist  Copy bundled DLLs and register fallback overrides"
+RUNTIME_CHOICE="$(prompt_path "Select dependency source" "1")"
+case "$RUNTIME_CHOICE" in
+  1|verbs|winetricks) RUNTIME_MODE=verbs ;;
+  2|redist|dlls)      RUNTIME_MODE=redist ;;
   *)
-    echo "  Unrecognized choice '$CXCOMPATDB_CHOICE', using real"
-    CXCOMPATDB_VARIANT=real
+    echo "  Unrecognized choice '$RUNTIME_CHOICE', using verbs"
+    RUNTIME_MODE=verbs
     ;;
 esac
 
@@ -127,14 +169,14 @@ ENGINE_DIR="$APP_PATH/Contents/Resources/engine"
 CONFIG_FILE="$APP_SUPPORT/app.env"
 
 echo ""
-echo "  Engine tar.xz:  $ARTIFACT_PATH"
+echo "  Engine archive: $ARTIFACT_PATH"
 echo "  App bundle:     $APP_PATH"
 echo "  Engine (in app):$ENGINE_DIR"
 echo "  Prefix:         $WINEPREFIX"
 echo "  Settings:       $CONFIG_FILE"
 echo "  Game root:      $GAMMA_ROOT"
 echo "  Backend:        $GRAPHICS_BACKEND"
-echo "  cxcompatdb:      $CXCOMPATDB_VARIANT"
+echo "  Dependencies:   $RUNTIME_MODE"
 echo ""
 read -r -p "Proceed? [Y/n]: " confirm || true
 if [[ "${confirm:-Y}" =~ ^[Nn] ]]; then
@@ -147,7 +189,25 @@ echo ""
 echo "==> Step 1: Extracting Wine engine into app bundle..."
 mkdir -p "$APP_PATH/Contents/MacOS" "$APP_PATH/Contents/Resources" "$ENGINE_DIR" "$APP_SUPPORT"
 cp "$SCRIPT_DIR/Anomaly.icns" "$APP_PATH/Contents/Resources/Anomaly.icns"
-tar -xf "$ARTIFACT_PATH" -C "$ENGINE_DIR" --strip-components=1
+case "$ARTIFACT_PATH" in
+  *.tar.zst)
+    ZSTD_BIN="$(command -v zstd 2>/dev/null || true)"
+    [[ -x "$ZSTD_BIN" ]] || ZSTD_BIN="/opt/homebrew/bin/zstd"
+    [[ -x "$ZSTD_BIN" ]] || ZSTD_BIN="/usr/local/bin/zstd"
+    [[ -x "$ZSTD_BIN" ]] || {
+      echo "zstd is required to extract $ARTIFACT_PATH (brew install zstd)" >&2
+      exit 1
+    }
+    "$ZSTD_BIN" -dc "$ARTIFACT_PATH" | tar -xf - -C "$ENGINE_DIR" --strip-components=1
+    ;;
+  *.tar.xz)
+    tar -xJf "$ARTIFACT_PATH" -C "$ENGINE_DIR" --strip-components=1
+    ;;
+  *)
+    echo "Unsupported engine archive: $ARTIFACT_PATH (expected .tar.zst or .tar.xz)" >&2
+    exit 1
+    ;;
+esac
 
 if [[ ! -x "$ENGINE_DIR/bin/wine" ]]; then
   echo "Error: wine binary missing after extraction at $ENGINE_DIR/bin/wine" >&2
@@ -157,34 +217,23 @@ arch -x86_64 "$ENGINE_DIR/bin/wine" --version
 
 CXCOMPATDB_DIR="$ENGINE_DIR/lib/wine/x86_64-unix"
 [[ -f "$CXCOMPATDB_DIR/cxcompatdb.so" ]] || {
-  echo "Error: engine artifact has no real cxcompatdb.so" >&2
+  echo "Error: engine artifact has no cxcompatdb.so" >&2
   exit 1
 }
-if [[ "$CXCOMPATDB_VARIANT" == "debug_dummy" ]]; then
-  [[ -f "$CXCOMPATDB_DIR/cxcompatdb-debug_dummy.so" ]] || {
-    echo "Error: engine artifact has no debug_dummy cxcompatdb; rebuild it with current scripts/build-wine.sh" >&2
-    exit 1
-  }
-  cp "$CXCOMPATDB_DIR/cxcompatdb-debug_dummy.so" "$CXCOMPATDB_DIR/cxcompatdb.so"
-  echo "  Activated debug_dummy cxcompatdb"
-fi
 
 ENGINE_VERSION="$(head -n 1 "$ENGINE_DIR/version" 2>/dev/null || echo "1.0.0")"
 
 # Warn early when the selected backend is not actually present in the engine.
 if is_d3dmetal_family "$GRAPHICS_BACKEND"; then
-  [[ -d "$ENGINE_DIR/lib/$GRAPHICS_BACKEND" ]] || echo "  Warning: engine has no lib/$GRAPHICS_BACKEND" >&2
+  [[ -d "$ENGINE_DIR/lib64/apple_gptk/wine" ]] || {
+    echo "Error: engine has no lib64/apple_gptk/wine" >&2
+    exit 1
+  }
 else
-  case "$GRAPHICS_BACKEND" in
-    dxmt)     [[ -d "$ENGINE_DIR/lib/dxmt" ]] || echo "  Warning: engine has no lib/dxmt" >&2 ;;
-    dxvk)
-      [[ -d "$ENGINE_DIR/lib/dxvk" ]] || echo "  Warning: engine has no lib/dxvk" >&2
-      if [[ ! -f "$ENGINE_DIR/lib/wine/x86_64-unix/libMoltenVK.dylib" &&
-            ! -f "$ENGINE_DIR/lib64/libMoltenVK.dylib" ]]; then
-        echo "  Warning: engine has no libMoltenVK.dylib — DXVK will fall back to wined3d" >&2
-      fi
-      ;;
-  esac
+  [[ -d "$ENGINE_DIR/lib/dxmt" ]] || {
+    echo "Error: engine has no lib/dxmt" >&2
+    exit 1
+  }
 fi
 
 # 3. Bootstrap prefix (outside the bundle)
@@ -206,7 +255,7 @@ mkdir -p "$WINEPREFIX/drive_c/users/Sikarugir"
 ln -sfn "Sikarugir" "$WINEPREFIX/drive_c/users/crossover"
 ln -sfn "Sikarugir" "$WINEPREFIX/drive_c/users/$USER"
 
-echo "==> Step 2.3: Registry overrides..."
+echo "==> Step 2.3: Runtime settings..."
 wine_reg() {
   WINEPREFIX="$WINEPREFIX" arch -x86_64 "$ENGINE_DIR/bin/wine" reg add "$@" >/dev/null
 }
@@ -214,27 +263,16 @@ wine_reg "HKEY_CURRENT_USER\Software\Wine\Drivers" /v Graphics /t REG_SZ /d mac 
 wine_reg "HKEY_CURRENT_USER\Software\Wine\Mac Driver" /v AllowSetGamma /t REG_DWORD /d 0 /f
 wine_reg "HKEY_CURRENT_USER\Software\Wine\Mac Driver" /v RetinaMode /t REG_SZ /d "$RETINA_MODE" /f
 
-# d3d11/dxgi/d3d12 deliberately get no registry DllOverrides here: cxcompatdb.so
-# activates the selected backend by prepending its directory to the DLL search
-# path at process start, not via registry overrides. Forcing these to "builtin"
-# in the registry would fight that mechanism and pin wined3d/Wine's own D3D11
-# regardless of GAMMA_GRAPHICS_BACKEND.
-for dll in "*d3dcompiler_43" "*d3dcompiler_47" "*d3dx9_43" "*d3dx10_43" "*d3dx11_43" \
-           "*concrt140" "*msvcp140" "*msvcp140_1" "*msvcp140_2" \
-           "*msvcp140_atomic_wait" "*msvcp140_codecvt_ids" \
-           "*vcamp140" "*vccorlib140" "*vcomp140" "*vcruntime140" "*vcruntime140_1"; do
-  wine_reg "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v "$dll" /t REG_SZ /d "native,builtin" /f
-done
+# Renderer DLLs deliberately get no registry overrides here. cxcompatdb
+# selects their backend directory before Wine resolves those modules.
 wine_reg "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v "winemenubuilder.exe" /t REG_SZ /d "" /f
 
 # d3d10 gets a per-app (not global) override, scoped to the game's own exe:
 # GPTK's own d3d10.dll (when present) trips a save-game hang (see
 # docs/d3dmetal-savegame-crash.md); this pins d3d10 at Wine's own genuine,
 # independent implementation instead of leaving resolution to chance. Applies
-# to all d3dmetal-family backends — gptk40b1 also ships no d3d10.dll of its
-# own, so it has the same unproven-default-resolution gap. Harmless either
-# way: this game never calls D3D10CreateDevice, only D3DX11's internal
-# D3D10CreateBlob dependency needs it to resolve at all.
+# to D3DMetal. The game never calls D3D10CreateDevice; D3DX11's internal
+# D3D10CreateBlob dependency only needs Wine's implementation to resolve.
 if is_d3dmetal_family "$GRAPHICS_BACKEND"; then
   EXE_BASENAME="$(basename "$EXE_REL_PATH")"
   wine_reg "HKEY_CURRENT_USER\Software\Wine\AppDefaults\\$EXE_BASENAME\DllOverrides" \
@@ -242,22 +280,55 @@ if is_d3dmetal_family "$GRAPHICS_BACKEND"; then
   echo "  Added d3d10=builtin override for $EXE_BASENAME"
 fi
 
-echo "==> Step 2.4: Installing vendored DirectX/VC++ redistributables..."
-REDIST_DIR="$ENGINE_DIR/redist"
-[[ -d "$REDIST_DIR" ]] || REDIST_DIR="$REPO_ROOT/runtime/redist"
-SYS64="$WINEPREFIX/drive_c/windows/system32"
-SYS32="$WINEPREFIX/drive_c/windows/syswow64"
-if [[ -d "$REDIST_DIR/x86_64-windows" ]]; then
+if [[ "$RUNTIME_MODE" == "verbs" ]]; then
+  echo "==> Step 2.4: Installing DirectX/VC++ components with winetricks..."
+  WINETRICKS_PATH="$(resolve_winetricks)" || {
+    echo "Error: winetricks unavailable. Re-run setup and select redist fallback." >&2
+    exit 1
+  }
+  mkdir -p "$APP_SUPPORT/cache/winetricks/downloads"
+  run_winetricks "$WINETRICKS_PATH" -q \
+    d3dx9_43 d3dx11_43 d3dcompiler_43 d3dcompiler_47 \
+    vcrun2022 win10 sound=coreaudio
+  missing_override=0
+  for dll in d3dx9_43 d3dx11_43 d3dcompiler_43 d3dcompiler_47 \
+             concrt140 msvcp140 vcruntime140; do
+    if ! WINEPREFIX="$WINEPREFIX" arch -x86_64 "$ENGINE_DIR/bin/wine" reg query \
+      "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v "*$dll" >/dev/null 2>&1; then
+      echo "Error: winetricks did not register expected override: *$dll" >&2
+      missing_override=1
+    fi
+  done
+  [[ "$missing_override" -eq 0 ]] || {
+    echo "Error: verbs installation completed without its required overrides." >&2
+    echo "Use redist fallback only if you explicitly want the fallback policy." >&2
+    exit 1
+  }
+else
+  echo "==> Step 2.4: Installing bundled DirectX/VC++ redistributables..."
+  REDIST_DIR="$ENGINE_DIR/share/gamma/redist"
+  [[ -d "$REDIST_DIR" ]] || REDIST_DIR="$ENGINE_DIR/redist"
+  [[ -d "$REDIST_DIR" ]] || REDIST_DIR="$REPO_ROOT/runtime/redist"
+  SYS64="$WINEPREFIX/drive_c/windows/system32"
+  SYS32="$WINEPREFIX/drive_c/windows/syswow64"
+  [[ -d "$REDIST_DIR/x86_64-windows" ]] || {
+    echo "Error: bundled redist payload is missing" >&2
+    exit 1
+  }
   cp -f "$REDIST_DIR/x86_64-windows/"*.dll "$SYS64/"
+  if [[ -d "$REDIST_DIR/i386-windows" && -d "$SYS32" ]]; then
+    cp -f "$REDIST_DIR/i386-windows/"*.dll "$SYS32/"
+  fi
+  for dll in "*d3dcompiler_43" "*d3dcompiler_47" "*d3dx9_43" "*d3dx10_43" "*d3dx11_43" \
+             "*concrt140" "*msvcp140" "*msvcp140_1" "*msvcp140_2" \
+             "*msvcp140_atomic_wait" "*msvcp140_codecvt_ids" \
+             "*vcamp140" "*vccorlib140" "*vcomp140" "*vcruntime140" "*vcruntime140_1"; do
+    wine_reg "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v "$dll" /t REG_SZ /d "native,builtin" /f
+  done
+  WINEPREFIX="$WINEPREFIX" arch -x86_64 "$ENGINE_DIR/bin/wine" \
+    "$ENGINE_DIR/lib/wine/x86_64-windows/winecfg.exe" -v win10
+  wine_reg "HKEY_CURRENT_USER\Software\Wine\Drivers" /v Audio /t REG_SZ /d coreaudio /f
 fi
-if [[ -d "$REDIST_DIR/i386-windows" && -d "$SYS32" ]]; then
-  cp -f "$REDIST_DIR/i386-windows/"*.dll "$SYS32/"
-fi
-
-WINEPREFIX="$WINEPREFIX" arch -x86_64 "$ENGINE_DIR/bin/wine" "$ENGINE_DIR/lib/wine/x86_64-windows/winecfg.exe" -v win10
-WINEPREFIX="$WINEPREFIX" arch -x86_64 "$ENGINE_DIR/bin/wineserver" -w
-
-wine_reg "HKEY_CURRENT_USER\Software\Wine\Drivers" /v Audio /t REG_SZ /d coreaudio /f
 
 WINEPREFIX="$WINEPREFIX" arch -x86_64 "$ENGINE_DIR/bin/wineserver" -w
 
@@ -313,7 +384,6 @@ else
   content="${content//\{\{EXE_WIN_PATH\}\}/$EXE_WIN_PATH}"
   content="${content//\{\{EXE_RUN_DIR\}\}/$EXE_RUN_DIR}"
   content="${content//\{\{RETINA_MODE\}\}/$RETINA_MODE}"
-  content="${content//\{\{GPTK_USER_BACKEND\}\}/$GPTK_USER_BACKEND}"
   printf '%s\n' "$content" > "$CONFIG_FILE"
   echo "  Wrote settings: $CONFIG_FILE"
 fi
@@ -345,25 +415,16 @@ export WINEBOOT_HIDE_DIALOG=1
 export LC_ALL="en_US.UTF-8"
 export LANG="en_US.UTF-8"
 
-# Swap which GPTK beta occupies lib/d3dmetal + lib/external before wine
-# ever starts — cxcompatdb.so stays completely unaware of beta names, it
-# only ever sees the plain "d3dmetal" backend it's always known. See
-# docs/d3dmetal-savegame-crash.md.
-if [[ "\$GAMMA_GRAPHICS_BACKEND" == "d3dmetal" ]]; then
-  "\$APP_DIR/Contents/Resources/select-gptk-beta.sh" "\$ENGINE_DIR" || true
-fi
-
 # D3DMetal needs its framework and shared library located explicitly. Only
-# export them when D3DMetal can actually be selected: cxcompatdb.so sets
-# CX_APPLEGPTK_LIBD3DSHARED_PATH itself once a backend is active, and forcing
-# these for a DXMT or DXVK run points the process at the wrong renderer.
+# export them for D3DMetal; forcing them during a DXMT run points the process
+# at the wrong renderer.
 case "\$GAMMA_GRAPHICS_BACKEND" in
   d3dmetal)
-    if [[ -f "\$ENGINE_DIR/lib/external/libd3dshared.dylib" ]]; then
-      export CX_APPLEGPTK_LIBD3DSHARED_PATH="\$ENGINE_DIR/lib/external/libd3dshared.dylib"
+    if [[ -f "\$ENGINE_DIR/lib64/apple_gptk/external/libd3dshared.dylib" ]]; then
+      export CX_APPLEGPTK_LIBD3DSHARED_PATH="\$ENGINE_DIR/lib64/apple_gptk/external/libd3dshared.dylib"
     fi
-    if [[ -d "\$ENGINE_DIR/lib/external/D3DMetal.framework" ]]; then
-      export CX_D3DMETALPATH="\$ENGINE_DIR/lib/external/D3DMetal.framework"
+    if [[ -d "\$ENGINE_DIR/lib64/apple_gptk/external/D3DMetal.framework" ]]; then
+      export CX_D3DMETALPATH="\$ENGINE_DIR/lib64/apple_gptk/external/D3DMetal.framework"
     fi
     ;;
 esac
@@ -405,6 +466,7 @@ set -euo pipefail
 
 APP_DIR="\$(cd "\$(dirname "\$0")/../.." && pwd)"
 ENGINE_DIR="\$APP_DIR/Contents/Resources/engine"
+APP_SUPPORT="$APP_SUPPORT"
 export WINEPREFIX="$WINEPREFIX"
 
 if [[ ! -x "\$ENGINE_DIR/bin/wine" || ! -x "\$ENGINE_DIR/bin/wineserver" ]]; then
@@ -414,7 +476,10 @@ fi
 
 WINETRICKS_BIN="\${WINETRICKS_BIN:-}"
 if [[ -z "\$WINETRICKS_BIN" ]]; then
-  for candidate in /opt/homebrew/bin/winetricks /usr/local/bin/winetricks; do
+  for candidate in \
+    "\$APP_SUPPORT/cache/winetricks/winetricks" \
+    /opt/homebrew/bin/winetricks \
+    /usr/local/bin/winetricks; do
     if [[ -x "\$candidate" ]]; then
       WINETRICKS_BIN="\$candidate"
       break
@@ -457,6 +522,7 @@ export WINE="\$WRAP_DIR/wine"
 export WINE64="\$WRAP_DIR/wine64"
 export WINESERVER="\$WRAP_DIR/wineserver"
 export WINELOADER="\$WRAP_DIR/wine"
+export W_CACHE="\$APP_SUPPORT/cache/winetricks/downloads"
 export PATH="\$WRAP_DIR:\$PATH"
 
 echo "engine:     \$ENGINE_DIR"
@@ -469,35 +535,48 @@ status=0
 exit "\$status"
 EOF
 
-cat > "$APP_PATH/Contents/Resources/select-gptk-beta.sh" << 'EOF'
+cat > "$APP_PATH/Contents/MacOS/winecfg" << EOF
 #!/usr/bin/env bash
-# Swaps which GPTK beta occupies lib/d3dmetal + lib/external, driven by
-# D3DMETAL_USER_BACKEND (gptk40b1 | gptk40b2, from app.env). Runs before
-# every launch when GAMMA_GRAPHICS_BACKEND=d3dmetal. cxcompatdb.so never
-# learns about beta names — see docs/d3dmetal-savegame-crash.md.
+# Opens winecfg for this app's prefix with its bundled Wine engine.
 set -euo pipefail
-ENGINE_DIR="$1"
-BETA="${D3DMETAL_USER_BACKEND:-gptk40b2}"
-SRC="$ENGINE_DIR/lib/$BETA"
-[[ -d "$SRC/external" ]] || exit 0
-rm -rf "$ENGINE_DIR/lib/external" "$ENGINE_DIR/lib/d3dmetal"
-mkdir -p "$ENGINE_DIR/lib/external" \
-         "$ENGINE_DIR/lib/d3dmetal/x86_64-windows" \
-         "$ENGINE_DIR/lib/d3dmetal/x86_64-unix"
-cp -R "$SRC/external/." "$ENGINE_DIR/lib/external/"
-cp -R "$SRC/x86_64-windows/." "$ENGINE_DIR/lib/d3dmetal/x86_64-windows/"
-cp -R "$SRC/x86_64-unix/." "$ENGINE_DIR/lib/d3dmetal/x86_64-unix/"
-ln -sfn ../external "$ENGINE_DIR/lib/d3dmetal/external"
-EOF
-chmod +x "$APP_PATH/Contents/Resources/select-gptk-beta.sh"
 
-chmod +x "$APP_PATH/Contents/MacOS/launcher" "$APP_PATH/Contents/MacOS/winetricks"
+APP_DIR="\$(cd "\$(dirname "\$0")/../.." && pwd)"
+ENGINE_DIR="\$APP_DIR/Contents/Resources/engine"
+APP_SUPPORT="$APP_SUPPORT"
+CONFIG_FILE="\$APP_SUPPORT/app.env"
+export WINEPREFIX="$WINEPREFIX"
+
+if [[ ! -x "\$ENGINE_DIR/bin/wine" || \
+      ! -f "\$ENGINE_DIR/lib/wine/x86_64-windows/winecfg.exe" ]]; then
+  echo "error: bundled Wine engine has no winecfg: \$ENGINE_DIR" >&2
+  exit 1
+fi
+
+if [[ -f "\$CONFIG_FILE" ]]; then
+  # shellcheck disable=SC1090
+  source "\$CONFIG_FILE"
+fi
+export GAMMA_GRAPHICS_BACKEND="\${GAMMA_GRAPHICS_BACKEND:-d3dmetal}"
+
+echo "engine: \$ENGINE_DIR"
+echo "prefix: \$WINEPREFIX"
+echo
+
+exec arch -x86_64 "\$ENGINE_DIR/bin/wine" \
+  "\$ENGINE_DIR/lib/wine/x86_64-windows/winecfg.exe" "\$@"
+EOF
+
+chmod +x \
+  "$APP_PATH/Contents/MacOS/launcher" \
+  "$APP_PATH/Contents/MacOS/winetricks" \
+  "$APP_PATH/Contents/MacOS/winecfg"
 
 # 5. Ad-hoc sign the bundle. The engine payload is already signed by
 #    pack-engine-artifact.sh, so only the wrapper needs a signature.
 echo "==> Step 4: Signing bundle..."
 codesign --force --sign - --timestamp=none "$APP_PATH/Contents/MacOS/launcher" 2>/dev/null || true
 codesign --force --sign - --timestamp=none "$APP_PATH/Contents/MacOS/winetricks" 2>/dev/null || true
+codesign --force --sign - --timestamp=none "$APP_PATH/Contents/MacOS/winecfg" 2>/dev/null || true
 if codesign --force --sign - --timestamp=none "$APP_PATH" 2>/dev/null; then
   echo "  Ad-hoc signed $APP_PATH"
 else
@@ -515,9 +594,9 @@ echo "  Engine:   $ENGINE_DIR  (inside app, read-only)"
 echo "  Prefix:   $WINEPREFIX"
 echo "  Settings: $CONFIG_FILE"
 echo "  Backend:  $GRAPHICS_BACKEND  (change it in app.env, no rebuild needed)"
-echo "  cxcompatdb: $CXCOMPATDB_VARIANT"
+echo "  Dependencies: $RUNTIME_MODE"
 if is_d3dmetal_family "$GRAPHICS_BACKEND"; then
-  echo "  GPTK:     $GPTK_USER_BACKEND (change D3DMETAL_USER_BACKEND in app.env, no rebuild needed)"
+  echo "  GPTK:     4.0b2"
   echo "            d3d10.dll/.so excluded from payload, d3d10=builtin override"
   echo "            added for $(basename "$EXE_REL_PATH")"
 fi
@@ -525,4 +604,5 @@ echo ""
 echo "Launch via:  open \"$APP_PATH\""
 echo "Or CLI:      \"$APP_PATH/Contents/MacOS/launcher\" -dbg -nointro"
 echo "Winetricks:  \"$APP_PATH/Contents/MacOS/winetricks\" [verb ...]"
+echo "WineCfg:     \"$APP_PATH/Contents/MacOS/winecfg\""
 echo "=========================================================="

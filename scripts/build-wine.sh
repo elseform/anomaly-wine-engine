@@ -90,8 +90,8 @@ Vulkan examples:
 
 vulkan-source crossover copies libMoltenVK.dylib (x86_64) out of a local
 CrossOver.app into the graphics staging tree, then bundles it into the
-engine. Vulkan is required for the DXVK backend; this repo does not build
-MoltenVK itself.
+engine. This repo does not build MoltenVK itself. Vulkan support is
+independent of the two packaged renderer choices.
 EOF
       exit 0
       ;;
@@ -559,15 +559,10 @@ if [[ "$CONFIGURE_ONLY" -eq 0 ]]; then
     CFLAGS="$GAMMA_HOST_CFLAGS" OBJCFLAGS="$GAMMA_HOST_OBJCFLAGS" LDFLAGS="$GAMMA_HOST_LDFLAGS" \
     make install
   if [[ "$DRY_RUN" -eq 1 ]]; then
-    echo "+ GAMMA_CXCOMPATDB_VARIANT=full $SCRIPT_DIR/build-cxcompatdb.sh"
-    echo "+ GAMMA_CXCOMPATDB_VARIANT=debug_dummy GAMMA_CXCOMPATDB_OUTPUT=$WINE_INSTALL/lib/wine/x86_64-unix/cxcompatdb-debug_dummy.so $SCRIPT_DIR/build-cxcompatdb.sh"
+    echo "+ $SCRIPT_DIR/build-cxcompatdb.sh"
   else
-    WINE_SRC="$WINE_SRC" WINE_INSTALL="$WINE_INSTALL" GAMMA_CXCOMPATDB_VARIANT=full \
-      "$SCRIPT_DIR/build-cxcompatdb.sh"
-    WINE_SRC="$WINE_SRC" WINE_INSTALL="$WINE_INSTALL" \
-      GAMMA_CXCOMPATDB_VARIANT=debug_dummy \
-      GAMMA_CXCOMPATDB_OUTPUT="$WINE_INSTALL/lib/wine/x86_64-unix/cxcompatdb-debug_dummy.so" \
-      "$SCRIPT_DIR/build-cxcompatdb.sh"
+    WINE_SRC="$WINE_SRC" WINE_INSTALL="$WINE_INSTALL" "$SCRIPT_DIR/build-cxcompatdb.sh"
+    rm -f "$WINE_INSTALL/lib/wine/x86_64-unix/cxcompatdb-debug_dummy.so"
   fi
   if [[ "$DRY_RUN" -eq 1 ]]; then
     echo "+ GRAPHICS_INSTALL=${GRAPHICS_INSTALL:-} VULKAN_MODE=$VULKAN_MODE $SCRIPT_DIR/bundle-wine-dylibs.sh"

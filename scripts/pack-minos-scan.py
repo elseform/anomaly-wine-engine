@@ -8,11 +8,8 @@ only offers DXMT as a selectable graphics backend on macOS 15+, so this
 exemption cannot regress the floor for any other shipped binary
 (`wine`, `wineserver`, `*.so`, bundled dylibs).
 
-`lib/gptk40b1/**`/`lib/gptk40b2/**` carry the same already-exempt Apple
-GPTK/D3DMetal payload as `lib/external/**`/`lib/d3dmetal/**` — just staged a
-second/third time so GAMMA_GRAPHICS_BACKEND can pick a specific beta
-directly (see docs/d3dmetal-savegame-crash.md). Not a new exemption
-category, same binaries, same rationale.
+Apple GPTK/D3DMetal is staged once using CrossOver's native
+`lib64/apple_gptk/**` layout.
 """
 import re
 import subprocess
@@ -20,7 +17,7 @@ import sys
 from pathlib import Path
 
 DXMT_PATH_PREFIX = "lib/dxmt/"
-D3DMETAL_PATH_PREFIX = "lib/external/"
+D3DMETAL_PATH_PREFIX = "lib64/apple_gptk/"
 DXMT_MINOS_CEILING = (99, 0, 0)
 
 
@@ -37,10 +34,6 @@ def is_renderer_exempt_path(rel_path: str) -> bool:
     return (
         rel_path.startswith(DXMT_PATH_PREFIX)
         or rel_path.startswith(D3DMETAL_PATH_PREFIX)
-        or rel_path.startswith("lib/d3dmetal/")
-        or rel_path.startswith("lib/gptk40b1/")
-        or rel_path.startswith("lib/gptk40b2/")
-        or rel_path.endswith("winemetal.so")
     )
 
 
@@ -86,14 +79,17 @@ def main(argv) -> int:
     if violations:
         print(
             f"Refusing to pack: Mach-O minos exceeds allowed ceiling "
-            f"(product floor {floor_s}; {DXMT_PATH_PREFIX}** is exempt up to {ceiling_s} "
-            "for pinned upstream DXMT v0.80):",
+            f"(product floor {floor_s}; {DXMT_PATH_PREFIX}** and "
+            f"{D3DMETAL_PATH_PREFIX}** are renderer-exempt up to {ceiling_s}):",
             file=sys.stderr,
         )
         for ver, rel in sorted(violations):
             print(f"  {ver}  {rel}", file=sys.stderr)
         return 1
-    print(f"OK: staged engine Mach-O minos <= {floor_s} ({DXMT_PATH_PREFIX}** exempt up to {ceiling_s})")
+    print(
+        f"OK: staged engine Mach-O minos <= {floor_s} "
+        f"({DXMT_PATH_PREFIX}** and {D3DMETAL_PATH_PREFIX}** exempt up to {ceiling_s})"
+    )
     return 0
 
 

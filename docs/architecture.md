@@ -11,11 +11,11 @@ graphics backends specifically, see [renderers.md](renderers.md).
 ## What this repo produces
 
 One artifact: a relocatable Wine 11.0 / CrossOver 26.3.0 engine for `x86_64`
-under Rosetta 2, packed as a tarball rooted at `wswine.bundle/`, with the
-graphics backends baked in.
+under Rosetta 2, packed as a tarball rooted at `wswine.bundle/`, with D3DMetal
+GPTK 4.0b2 and DXMT baked in.
 
 ```
-dist/artifacts/<artifactBasename>.tar.xz
+dist/artifacts/<artifactBasename>.tar.zst
                                    .sha256
                                    .manifest.json
 ```
@@ -65,7 +65,8 @@ and the llvm-mingw toolchain into `build/`. It is called automatically by
 `build-wine.sh`, so you rarely run it directly.
 
 `fetch-dxmt.sh` pulls the newest successful DXMT CI build from `3Shain/dxmt`
-via `gh run download` into `sources/dxmt`.
+via `gh run download` into `sources/dxmt`. D3DMetal comes from
+`sources/gptk40b2/d3dmetal`.
 
 ### Stage 2 — build Wine
 
@@ -89,13 +90,11 @@ separately; `build-wine.sh` wires it in automatically if it finds one.
 ### Stage 3 — assemble the tree
 
 - `build-cxcompatdb.sh` compiles `runtime/cxcompatdb/cxcompatdb.c` into the
-  production `lib/wine/x86_64-unix/cxcompatdb.so`; `build-wine.sh` also builds
-  `cxcompatdb-debug_dummy.so` from the same source for interactive setup's
-  policy-isolation choice
+  production `lib/wine/x86_64-unix/cxcompatdb.so`
 - `bundle-wine-dylibs.sh` copies Homebrew runtime dylibs into the tree and
   rewrites their install names to `@loader_path`, making the tree relocatable
-- `install-renderers.sh` stages D3DMetal, DXMT and DXVK into their own
-  directories, and restores any Wine builtin a previous run shadowed
+- `install-renderers.sh` stages GPTK 4.0b2 under `lib64/apple_gptk`, DXMT under
+  `lib/dxmt`, and restores any Wine builtin a previous run shadowed
 
 ### Stage 4 — package
 
@@ -112,7 +111,7 @@ rsync install tree → staging/wswine.bundle
 ```
 
 The minOS gate is the strictest check: the floor is 10.15, and only
-`lib/dxmt/**` and `lib/external/**` are exempt (upstream DXMT and Apple's
+`lib/dxmt/**` and `lib64/apple_gptk/**` are exempt (upstream DXMT and Apple's
 D3DMetal declare higher minimums). Everything else — `wine`, `wineserver`, all
 `.so` files, all bundled dylibs — must not regress the floor.
 
@@ -125,10 +124,11 @@ an archive on a machine that has never seen this repo.
 ## The backend switcher
 
 `cxcompatdb.so` is a small unix-side plugin that CrossOver's `ntdll` loads at
-process start. It reads `GAMMA_GRAPHICS_BACKEND`, validates that the requested
-backend directory really contains builtin PEs for the running architecture,
-then calls `prepend_dll_path()` so that directory wins DLL resolution — and
-falls back to wined3d rather than failing if anything is missing.
+process start. It accepts only `GAMMA_GRAPHICS_BACKEND=d3dmetal|dxmt`, validates
+the selected backend for the running architecture, and calls
+`prepend_dll_path()` once. On failure it prepends nothing, leaving WineD3D as
+Wine's internal fallback. It has no external database, compatibility aliases,
+automatic backend chain, or DirectX/VC++ helper policy.
 
 Because it runs per process, 32-bit and 64-bit children of the same game can
 end up on different backends, which is intended.
@@ -187,20 +187,19 @@ end-user re-signing need. Release builds export
 `SIGN_IDENTITY="Developer ID Application: …"`, which also switches on a secure
 timestamp, since notarization rejects unstamped signatures.
 
-**CrossOver.app** is auto-detected in `~/Applications` or `/Applications` and
-used as a source of prebuilt x86_64 assets — MoltenVK and DXVK — always by
-copy. The engine tree never references it at runtime.
+**CrossOver.app** is auto-detected in `~/Applications` or `/Applications` only
+as an optional MoltenVK source for a Vulkan-enabled Wine build. Renderer
+staging never references it at runtime.
 
 **Useful knobs.** `GAMMA_ENGINE_COMPRESS_LEVEL` trades archive size against
-packing time (default `xz -6` / `zstd -12`); `GAMMA_SKIP_ENGINE_STRIP=1` and
+packing time (default `zstd -6`; `xz -6` is explicit compatibility mode); `GAMMA_SKIP_ENGINE_STRIP=1` and
 `GAMMA_KEEP_DEBUG_SYMBOLS=1` help when debugging a packaged tree;
 `--skip-renderers` builds Wine without staging any backend.
 
 ## Current state
 
-- D3DMetal and DXMT work and switch cleanly
-- DXVK is staged but inert until the engine is rebuilt with
-  `--with-vulkan --vulkan-source crossover`
+- D3DMetal and DXMT are the only selectable backends
+- D3DMetal is fixed to GPTK 4.0b2 and uses CrossOver's native directory layout
 - The full patch sequence is verified to apply to a pristine CX 26.3.0 tree
   (15/15), but a complete from-scratch `build-wine.sh` run has not been
   re-timed since the patch-list fixes

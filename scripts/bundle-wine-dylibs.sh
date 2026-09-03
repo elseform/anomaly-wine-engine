@@ -268,7 +268,7 @@ for base, src in sorted(need.items()):
 # engine's configure resolves to "libvulkan.1.dylib" (the standard Vulkan
 # Loader name) even though the only file actually staged is libMoltenVK.dylib
 # (MoltenVK implements the Vulkan entry points itself, standing in for the
-# loader). Without this alias DXVK/wined3d's Vulkan probe fails with
+# loader). Without this alias Wine's Vulkan probe fails with
 # "Failed to load libvulkan.1.dylib" even though MoltenVK is present.
 if (unix_lib / "libMoltenVK.dylib").exists():
     vk_alias = unix_lib / "libvulkan.1.dylib"

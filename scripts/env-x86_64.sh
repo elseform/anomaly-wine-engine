@@ -109,9 +109,8 @@ case "$MOLTENVK_SOURCE" in
 esac
 export VKD3D_SRC="${VKD3D_SRC:-$BUILD_DIR/cx${CX_VERSION}/sources/vkd3d}"
 
-# Local CrossOver.app install, used as a source of prebuilt x86_64 assets:
-#   lib64/libMoltenVK.dylib  -> --vulkan-source crossover
-#   lib/dxvk/                -> DXVK graphics backend
+# Local CrossOver.app install, optionally used as a source of MoltenVK for a
+# Vulkan-enabled Wine build. Renderer staging itself does not consume it.
 # Set CROSSOVER_APP to override; empty when no install is found.
 if [[ -z "${CROSSOVER_APP:-}" ]]; then
   for _cx_app in \
@@ -128,11 +127,9 @@ export CROSSOVER_APP="${CROSSOVER_APP:-}"
 if [[ -n "$CROSSOVER_APP" ]]; then
   export CROSSOVER_SHARED="$CROSSOVER_APP/Contents/SharedSupport/CrossOver"
   export CROSSOVER_MOLTENVK="${CROSSOVER_MOLTENVK:-$CROSSOVER_SHARED/lib64/libMoltenVK.dylib}"
-  export CROSSOVER_DXVK="${CROSSOVER_DXVK:-$CROSSOVER_SHARED/lib/dxvk}"
 else
   export CROSSOVER_SHARED=""
   export CROSSOVER_MOLTENVK="${CROSSOVER_MOLTENVK:-}"
-  export CROSSOVER_DXVK="${CROSSOVER_DXVK:-}"
 fi
 
 export BLUECG_PREFIX="${BLUECG_PREFIX:-$OGOM/BlueCrossgateNew}"

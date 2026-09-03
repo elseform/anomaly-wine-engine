@@ -11,12 +11,12 @@ source "$SCRIPT_DIR/env-x86_64.sh"
 
 FORCE=0
 DRY_RUN=0
-FORMAT="${GAMMA_ENGINE_FORMAT:-${CYDER_ENGINE_FORMAT:-xz}}"
-# Compression effort. The old defaults (xz -9e / zstd -22 --ultra) cost several
-# minutes for a few MB; -6 and -12 land within a few percent in a fraction of
-# the time. Override with GAMMA_ENGINE_COMPRESS_LEVEL.
+FORMAT="${GAMMA_ENGINE_FORMAT:-${CYDER_ENGINE_FORMAT:-zst}}"
+# Compression effort. The old xz -9e / zstd -22 --ultra defaults cost minutes
+# for negligible distribution benefit. Both explicit xz and default zstd use
+# a moderate level 6. Override with GAMMA_ENGINE_COMPRESS_LEVEL.
 XZ_LEVEL="${GAMMA_ENGINE_COMPRESS_LEVEL:-6}"
-ZSTD_LEVEL="${GAMMA_ENGINE_COMPRESS_LEVEL:-12}"
+ZSTD_LEVEL="${GAMMA_ENGINE_COMPRESS_LEVEL:-6}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -54,14 +54,16 @@ while [[ $# -gt 0 ]]; do
       ;;
     -h | --help)
       cat <<EOF
-Usage: $(basename "$0") [--force] [--dry-run] [--zstd] [--format zstd|xz]
+Usage: $(basename "$0") [--force] [--dry-run] [--zstd|--xz] [--format zstd|xz]
        [--media-profile full-video|minimal]
 
 Build a compressed engine artifact from install/wine-cx26-x86_64 (or WINE_INSTALL).
-  xz:   dist/artifacts/CX26W11-Gamma086-<N>.tar.xz (default, xz -$XZ_LEVEL)
-  zstd: dist/artifacts/CX26W11-Gamma086-<N>.tar.zst (--zstd)
+  zstd: dist/artifacts/CX26W11-Gamma087-<N>.tar.zst (default, zstd -$ZSTD_LEVEL)
+  xz:   dist/artifacts/CX26W11-Gamma087-<N>.tar.xz (--xz, xz -$XZ_LEVEL)
+--dry-run performs only a fast source/layout preflight; it does not stage,
+strip, rewrite dylib paths, sign, scan minOS, compress, or verify an archive.
 Set CYDER_ENGINE_VERSION to override the detected version label.
-Set GAMMA_ENGINE_FORMAT=zstd or pass --zstd to build with zstd -$ZSTD_LEVEL.
+Set GAMMA_ENGINE_FORMAT=xz or pass --xz only for an explicit xz build.
 Set GAMMA_ENGINE_COMPRESS_LEVEL to trade size against packing time.
 The default media profile is minimal (no GStreamer full-video plugin set);
 pass --media-profile full-video only if a video-capable build is needed.
@@ -124,15 +126,6 @@ CXCOMPATDB="$WINE_INSTALL/lib/wine/x86_64-unix/cxcompatdb.so"
   echo "Missing cxcompatdb at $CXCOMPATDB — run scripts/build-cxcompatdb.sh." >&2
   exit 1
 }
-CXCOMPATDB_DEBUG_DUMMY="$WINE_INSTALL/lib/wine/x86_64-unix/cxcompatdb-debug_dummy.so"
-[[ -f "$CXCOMPATDB_DEBUG_DUMMY" ]] || {
-  echo "Missing debug_dummy cxcompatdb at $CXCOMPATDB_DEBUG_DUMMY — run a full scripts/build-wine.sh build." >&2
-  exit 1
-}
-strings -a "$CXCOMPATDB_DEBUG_DUMMY" | grep -q 'GAMMA_CXCOMPATDB_VARIANT=debug_dummy' || {
-  echo "Invalid debug_dummy cxcompatdb marker: $CXCOMPATDB_DEBUG_DUMMY" >&2
-  exit 1
-}
 if [[ "$FORMAT" == "zst" ]]; then
   ZSTD_BIN="$(gamma_find_zstd 2>/dev/null || true)"
   [[ -x "$ZSTD_BIN" ]] || {
@@ -163,6 +156,49 @@ ARCHIVE="$(gamma_engine_archive_path_for_format "$ENGINE_VERSION_LABEL" "$ARTIFA
 VERSION_FILE="$ARTIFACTS_DIR/engine-version.txt"
 STAMP_FILE="$ARTIFACTS_DIR/.pack-stamp"
 
+# Cheap source preflight. Keep this before mktemp/rsync so --dry-run never
+# performs packaging work.
+[[ -d "$WINE_INSTALL/lib64/apple_gptk/wine/x86_64-windows" ]] || {
+  echo "Missing packaged D3DMetal payload at lib64/apple_gptk/wine" >&2
+  exit 1
+}
+[[ -d "$WINE_INSTALL/lib/dxmt/x86_64-windows" ]] || {
+  echo "Missing packaged DXMT payload at lib/dxmt" >&2
+  exit 1
+}
+for obsolete in lib/d3dmetal lib/dxvk lib/external lib/gptk40b1 lib/gptk40b2 lib/apple_gptk; do
+  [[ ! -e "$WINE_INSTALL/$obsolete" ]] || {
+    echo "Refusing obsolete renderer layout in source engine: $obsolete" >&2
+    exit 1
+  }
+done
+REDIST_SRC="$OGOM/runtime/redist"
+[[ -d "$REDIST_SRC/x86_64-windows" ]] || {
+  echo "Missing vendored redist DLLs at $REDIST_SRC — see runtime/redist/README or interactive-setup.sh history." >&2
+  exit 1
+}
+strings -a "$CXCOMPATDB" | grep -q 'GAMMA_GRAPHICS_BACKEND' || {
+  echo "Refusing to pack an incompatible cxcompatdb.so" >&2
+  exit 1
+}
+strings -a "$CXCOMPATDB" | grep -q 'lib64/apple_gptk/wine' || {
+  echo "Refusing to pack cxcompatdb without CrossOver D3DMetal layout support" >&2
+  exit 1
+}
+if strings -a "$CXCOMPATDB" | grep -q 'CX_ACTIVE_GRAPHICS_BACKEND'; then
+  echo "Refusing to pack cxcompatdb with legacy CX_ACTIVE_GRAPHICS_BACKEND policy" >&2
+  exit 1
+fi
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  echo "DRY RUN: preflight passed"
+  echo "  source: $WINE_INSTALL"
+  echo "  version: $ENGINE_VERSION_LABEL"
+  echo "  media: $MEDIA_PROFILE ($MEDIA_INSTALL)"
+  echo "  output: $ARCHIVE"
+  exit 0
+fi
+
 if [[ -f "$ARCHIVE" && "$FORCE" -ne 1 ]]; then
   echo "Engine artifact present: $ARCHIVE"
   echo "Use --force to rebuild."
@@ -183,15 +219,32 @@ rsync -a --delete \
   --exclude 'lib/*.bak-*' \
   "$WINE_INSTALL/" "$ENGINE_TREE/"
 find "$ENGINE_TREE" -name '.DS_Store' -delete 2>/dev/null || true
+rm -rf "$ENGINE_TREE/redist"
+rm -f "$ENGINE_TREE/lib/wine/x86_64-unix/cxcompatdb-debug_dummy.so"
 gamma_write_engine_version_file "$ENGINE_TREE" "$ENGINE_VERSION_LABEL"
 
-REDIST_SRC="$OGOM/runtime/redist"
+[[ -d "$ENGINE_TREE/lib64/apple_gptk/wine/x86_64-windows" ]] || {
+  echo "Missing packaged D3DMetal payload at lib64/apple_gptk/wine" >&2
+  exit 1
+}
+[[ -d "$ENGINE_TREE/lib/dxmt/x86_64-windows" ]] || {
+  echo "Missing packaged DXMT payload at lib/dxmt" >&2
+  exit 1
+}
+for obsolete in lib/d3dmetal lib/dxvk lib/external lib/gptk40b1 lib/gptk40b2 lib/apple_gptk; do
+  [[ ! -e "$ENGINE_TREE/$obsolete" ]] || {
+    echo "Refusing obsolete renderer layout in artifact: $obsolete" >&2
+    exit 1
+  }
+done
+
 [[ -d "$REDIST_SRC/x86_64-windows" ]] || {
   echo "Missing vendored redist DLLs at $REDIST_SRC — see runtime/redist/README or interactive-setup.sh history." >&2
   exit 1
 }
 echo "==> Embedding vendored DirectX/VC++ redistributables"
-rsync -a --delete "$REDIST_SRC/" "$ENGINE_TREE/redist/"
+mkdir -p "$ENGINE_TREE/share/gamma/redist"
+rsync -a --delete "$REDIST_SRC/" "$ENGINE_TREE/share/gamma/redist/"
 
 bash "$SCRIPT_DIR/strip-wine-install.sh" "$ENGINE_TREE"
 # Preserve MoltenVK already in the install tree (VULKAN_SOURCE=existing only
@@ -206,18 +259,18 @@ PACKED_CXCOMPATDB="$ENGINE_TREE/lib/wine/x86_64-unix/cxcompatdb.so"
   echo "Refusing to pack without cxcompatdb.so" >&2
   exit 1
 }
-strings -a "$PACKED_CXCOMPATDB" | grep -Eq 'GAMMA_ACTIVE_GRAPHICS_BACKEND_PATH|GRAPHICS_BACKEND_PATH|CYDER_GRAPHICS_BACKEND_PATH' || {
+strings -a "$PACKED_CXCOMPATDB" | grep -q 'GAMMA_GRAPHICS_BACKEND' || {
   echo "Refusing to pack an incompatible cxcompatdb.so" >&2
   exit 1
 }
-[[ -f "$ENGINE_TREE/lib/wine/x86_64-unix/cxcompatdb-debug_dummy.so" ]] || {
-  echo "Refusing to pack without cxcompatdb-debug_dummy.so" >&2
+strings -a "$PACKED_CXCOMPATDB" | grep -q 'lib64/apple_gptk/wine' || {
+  echo "Refusing to pack cxcompatdb without CrossOver D3DMetal layout support" >&2
   exit 1
 }
-strings -a "$ENGINE_TREE/lib/wine/x86_64-unix/cxcompatdb-debug_dummy.so" | grep -q 'GAMMA_CXCOMPATDB_VARIANT=debug_dummy' || {
-  echo "Refusing to pack an invalid cxcompatdb-debug_dummy.so" >&2
+if strings -a "$PACKED_CXCOMPATDB" | grep -q 'CX_ACTIVE_GRAPHICS_BACKEND'; then
+  echo "Refusing to pack cxcompatdb with legacy CX_ACTIVE_GRAPHICS_BACKEND policy" >&2
   exit 1
-}
+fi
 
 # Fail closed: every host Mach-O must stay at/below the product minOS floor.
 python3 "$SCRIPT_DIR/pack-minos-scan.py" "$ENGINE_TREE" "${MACOSX_DEPLOYMENT_TARGET:-10.15}"
@@ -233,11 +286,6 @@ bash "$SCRIPT_DIR/write-engine-manifest.sh" \
   --ntdll-sha256 "$NTDLL_SHA256"
 
 mkdir -p "$ARTIFACTS_DIR"
-if [[ "$DRY_RUN" -eq 1 ]]; then
-  echo "DRY RUN: would create $ARCHIVE from $ENGINE_TREE"
-  exit 0
-fi
-
 case "$FORMAT" in
   zst)
     echo "==> Compressing with zstd (-$ZSTD_LEVEL)"

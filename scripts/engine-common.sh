@@ -176,7 +176,7 @@ gamma_engine_artifact_next_basename() {
 gamma_engine_archive_path_for_format() {
   local ver="$1"
   local dir="${2:-$(gamma_engine_artifacts_dir)}"
-  local format="${3:-xz}"
+  local format="${3:-zst}"
   local base
   base="$(gamma_engine_artifact_next_basename "$ver" "$dir" 2>/dev/null || true)"
   if [[ -n "$base" ]]; then

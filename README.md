@@ -6,7 +6,7 @@
 
 ## Overview
 
-`gamma-wine-engine` provides a standalone, relocatable Wine 11 runtime and packages the production `wswine.bundle` tarball (named `<artifactBasename>-<N>.tar.xz`, derived from `config/engine-version.txt` by `gamma_engine_artifact_basename` in `scripts/engine-common.sh` — e.g. `CX26W11-Gamma086-5.tar.xz` at time of writing; see [Versioning Policy](docs/versioning-policy.md)) used by `gamma-setup-tool`.
+`gamma-wine-engine` provides a standalone, relocatable Wine 11 runtime and packages the production `wswine.bundle` tarball (named `<artifactBasename>-<N>.tar.zst`, derived from `config/engine-version.txt` by `gamma_engine_artifact_basename` in `scripts/engine-common.sh` — e.g. `CX26W11-Gamma087-2.tar.zst`; see [Versioning Policy](docs/versioning-policy.md)) used by `gamma-setup-tool`.
 
 ### Documentation
 
@@ -14,18 +14,17 @@
 |---|---|
 | [Getting Started](docs/getting-started.md) | Build the `.app`, run it, change its settings |
 | [How This Repo Works](docs/architecture.md) | Pipeline, scripts, patches, conventions |
-| [Graphics Backends](docs/renderers.md) | Renderer layout, switching, DXVK status |
+| [Graphics Backends](docs/renderers.md) | Renderer layout, switching, and fallback behavior |
 | [Patch Set](patches/README.md) | What each patch does and why one is excluded |
 | [Why deps build from source](docs/why-no-prebuilt-deps.md) | The `.brew-x86` situation |
 | [Versioning Policy](docs/versioning-policy.md) | Version-label / artifact-basename format, when to bump, CX/Wine base bumps |
 
 ### Key Features:
 - **Base Runtime**: CrossOver 26.3.0 built on **Wine 11.0** (`x86_64` under Rosetta 2 on Apple Silicon).
-- **Switchable Graphics Backends**: D3DMetal (Apple GPTK 4.0b1), DXMT, DXVK and wined3d ship side by side in their own directories; none overwrites a Wine builtin. See [docs/renderers.md](docs/renderers.md).
-  - **Apple D3DMetal (GPTK 4.0b1)**: Default for 64-bit Direct3D 11/12 via Metal.
+- **Switchable Graphics Backends**: D3DMetal and DXMT ship side by side using CrossOver's directory convention; WineD3D remains an internal fallback. See [docs/renderers.md](docs/renderers.md).
+  - **Apple D3DMetal (GPTK 4.0b2)**: Default for 64-bit Direct3D 11/12 via Metal.
   - **DXMT**: Selectable D3D11/10 via Metal, and the only Metal backend for 32-bit processes.
-  - **DXVK**: Staged from a local CrossOver.app, inert until the engine is rebuilt with Vulkan.
-- **Dynamic Backend Switcher (`cxcompatdb.so`)**: Intercepts process startup and prepends the selected backend to the DLL search path — `GAMMA_GRAPHICS_BACKEND=d3dmetal|dxmt|dxvk|wined3d`, with no DLL file modifications in the prefix.
+- **Dynamic Backend Switcher (`cxcompatdb.so`)**: Intercepts process startup and prepends the selected backend to the DLL search path — `GAMMA_GRAPHICS_BACKEND=d3dmetal|dxmt`, with no DLL file modifications in the prefix.
 - **Darwin Mach Semaphore Sync (`WINEMSYNC=1`)**: In-process shared memory thread synchronization, eliminating wineserver IPC overhead and micro-stuttering across X-Ray Engine's worker threads.
 - **Engine-Level Stability Patches**:
   - `win32u.so`: Stock upstream message-wait loop (the legacy MapleStory handoff hack is deliberately not applied), preventing UI/menu click deadlocks.
@@ -38,8 +37,8 @@
 
 | Type | Path | Purpose |
 |---|---|---|
-| **Development Staging Tree** | `install/wine-cx26-x86_64/` | Live uncompressed build tree (`bin/wine`, `bin/wineserver`, `lib/d3dmetal/`, `lib/dxmt/`, `lib/dxvk/`) |
-| **Packaged Release Tarball** | `dist/artifacts/<artifactBasename>-<N>.tar.xz` — basename derived from `config/engine-version.txt`, e.g. `CX26W11-Gamma086-5.tar.xz` at time of writing | Codesigned, stripped, standalone production archive (~86 MB) |
+| **Development Staging Tree** | `install/wine-cx26-x86_64/` | Live uncompressed build tree (`bin/wine`, `bin/wineserver`, `lib/dxmt/`, `lib64/apple_gptk/`) |
+| **Packaged Release Tarball** | `dist/artifacts/<artifactBasename>-<N>.tar.zst` — basename derived from `config/engine-version.txt`, e.g. `CX26W11-Gamma087-2.tar.zst` | Codesigned, stripped, standalone production archive |
 | **Setup Tool Asset** | `gamma-setup-tool/sources/GAMMASetupTool/Resources/wine-engine/CX26-3W11-Gamma0-1.tar.xz` | Bundled asset embedded in `GAMMA Setup Tool.app` — copied in manually, so it lags the latest `dist/artifacts/` build; check its filename against `config/engine-version.txt` before assuming it's current |
 
 ---
@@ -47,9 +46,10 @@
 ## Dedicated Scripts
 
 ### 1. Interactive Setup (`scripts/interactive-setup.sh`)
-Builds a fully self-contained `.app` from an engine `.tar.xz`: extracts the engine, bootstraps a
-prefix, installs winetricks verbs, and writes the bundle metadata and launcher. Prompts for the
-artifact path, app name and location, game root, and executable. Standalone — calls no other script.
+Builds a fully self-contained `.app` from an engine `.tar.zst` (or explicit legacy `.tar.xz`): extracts the engine, bootstraps a
+prefix, installs dependencies through winetricks by default (or bundled redist as an explicit
+fallback), and writes the bundle metadata, launcher, prefix-aware `winetricks`, and `winecfg`
+helpers. Standalone — calls no other repo script.
 The generated `app.env` also exposes `EXE_PATH` and `EXE_RUN_DIR`, so the target can be changed
 later without rebuilding the app.
 ```bash
@@ -105,22 +105,15 @@ ln -sfn "Sikarugir" "$WINEPREFIX/drive_c/users/crossover"
 ln -sfn "Sikarugir" "$WINEPREFIX/drive_c/users/$USER"
 ```
 
-### Step 3: Set Registry Overrides (DllOverrides & Drivers)
+### Step 3: Set Base Runtime Registry Values
 ```bash
 WINEPREFIX="$WINEPREFIX" arch -x86_64 "$WINE_DIR/bin/wine" reg add "HKEY_CURRENT_USER\Software\Wine\Drivers" /v Graphics /t REG_SZ /d mac /f
-WINEPREFIX="$WINEPREFIX" arch -x86_64 "$WINE_DIR/bin/wine" reg add "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v d3d11 /t REG_SZ /d builtin /f
-WINEPREFIX="$WINEPREFIX" arch -x86_64 "$WINE_DIR/bin/wine" reg add "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v dxgi /t REG_SZ /d builtin /f
-WINEPREFIX="$WINEPREFIX" arch -x86_64 "$WINE_DIR/bin/wine" reg add "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v d3d12 /t REG_SZ /d builtin /f
-WINEPREFIX="$WINEPREFIX" arch -x86_64 "$WINE_DIR/bin/wine" reg add "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v "*d3dcompiler_43" /t REG_SZ /d "native,builtin" /f
-WINEPREFIX="$WINEPREFIX" arch -x86_64 "$WINE_DIR/bin/wine" reg add "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v "*d3dcompiler_47" /t REG_SZ /d "native,builtin" /f
-WINEPREFIX="$WINEPREFIX" arch -x86_64 "$WINE_DIR/bin/wine" reg add "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v "*d3dx9_43" /t REG_SZ /d "native,builtin" /f
-WINEPREFIX="$WINEPREFIX" arch -x86_64 "$WINE_DIR/bin/wine" reg add "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v "*d3dx10_43" /t REG_SZ /d "native,builtin" /f
-WINEPREFIX="$WINEPREFIX" arch -x86_64 "$WINE_DIR/bin/wine" reg add "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v "*d3dx11_43" /t REG_SZ /d "native,builtin" /f
-WINEPREFIX="$WINEPREFIX" arch -x86_64 "$WINE_DIR/bin/wine" reg add "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v "*msvcp140" /t REG_SZ /d "native,builtin" /f
-WINEPREFIX="$WINEPREFIX" arch -x86_64 "$WINE_DIR/bin/wine" reg add "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v "*vcruntime140" /t REG_SZ /d "native,builtin" /f
-WINEPREFIX="$WINEPREFIX" arch -x86_64 "$WINE_DIR/bin/wine" reg add "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v "*concrt140" /t REG_SZ /d "native,builtin" /f
 WINEPREFIX="$WINEPREFIX" arch -x86_64 "$WINE_DIR/bin/wine" reg add "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v "winemenubuilder.exe" /t REG_SZ /d "" /f
 ```
+
+Do not add renderer or helper-library overrides here. `cxcompatdb` selects the
+renderer. The verbs in the next step install their native DLLs and create
+their own overrides.
 
 ### Step 4: Install Winetricks Verbs
 ```bash
@@ -178,5 +171,5 @@ arch -x86_64 "$PWD/install/wine-cx26-x86_64/bin/wine" "G:\3dss5\bin\AnomalyDX11A
   ```
 - **Package Release Archive**:
   ```bash
-  bash scripts/pack-engine-artifact.sh --xz --force
+  bash scripts/pack-engine-artifact.sh --force
   ```
