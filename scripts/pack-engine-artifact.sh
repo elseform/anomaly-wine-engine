@@ -173,7 +173,13 @@ for obsolete in lib/d3dmetal lib/dxvk lib/external lib/gptk40b1 lib/gptk40b2 lib
   }
 done
 REDIST_SRC="$OGOM/runtime/redist"
-[[ -d "$REDIST_SRC/x86_64-windows" ]] || {
+# Vendored redist DLLs are grouped one subdirectory per package
+# (d3dcompiler_47/, directx_Jun2010_redist/, vcrun2022/, ...), each with an
+# x86_64-windows/*.dll set. 64-bit only; there is no i386-windows anymore.
+shopt -s nullglob
+REDIST_DLL_CHECK=("$REDIST_SRC"/*/x86_64-windows/*.dll)
+shopt -u nullglob
+[[ ${#REDIST_DLL_CHECK[@]} -gt 0 ]] || {
   echo "Missing vendored redist DLLs at $REDIST_SRC — see runtime/redist/README or interactive-setup.sh history." >&2
   exit 1
 }
@@ -238,7 +244,10 @@ for obsolete in lib/d3dmetal lib/dxvk lib/external lib/gptk40b1 lib/gptk40b2 lib
   }
 done
 
-[[ -d "$REDIST_SRC/x86_64-windows" ]] || {
+shopt -s nullglob
+REDIST_DLL_CHECK=("$REDIST_SRC"/*/x86_64-windows/*.dll)
+shopt -u nullglob
+[[ ${#REDIST_DLL_CHECK[@]} -gt 0 ]] || {
   echo "Missing vendored redist DLLs at $REDIST_SRC — see runtime/redist/README or interactive-setup.sh history." >&2
   exit 1
 }
