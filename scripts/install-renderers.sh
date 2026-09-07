@@ -120,4 +120,5 @@ for file in "$GPTK_SRC/wine/x86_64-unix/"*; do
 done
 
 echo "  Staged GPTK 4.0b2 in lib64/apple_gptk"
-echo "==> Backends staged: d3dmetal, dxmt (wined3d fallback remains built in)."
+echo "==> Backends staged: d3dmetal, dxmt. wined3d.dll still ships (manual DllOverrides"
+echo "    only) — cxcompatdb no longer falls back to it automatically on failure."

@@ -126,12 +126,16 @@ an archive on a machine that has never seen this repo.
 `cxcompatdb.so` is a small unix-side plugin that CrossOver's `ntdll` loads at
 process start. It accepts only `GAMMA_GRAPHICS_BACKEND=d3dmetal|dxmt`, validates
 the selected backend for the running architecture, and calls
-`prepend_dll_path()` once. On failure it prepends nothing, leaving WineD3D as
-Wine's internal fallback. It has no external database, compatibility aliases,
-automatic backend chain, or DirectX/VC++ helper policy.
+`prepend_dll_path()` once. There is no WineD3D fallback: if validation fails
+for any reason — invalid env value, missing/corrupt module for the running
+architecture, missing native support library — it terminates the process
+instead. It has no external database, compatibility aliases, automatic
+backend chain, or DirectX/VC++ helper policy.
 
-Because it runs per process, 32-bit and 64-bit children of the same game can
-end up on different backends, which is intended.
+Because it runs per process, this also applies to 32-bit children of a
+64-bit game: D3DMetal has no 32-bit payload, so any 32-bit process spawned
+under `GAMMA_GRAPHICS_BACKEND=d3dmetal` is terminated by this constructor.
+Use `dxmt` when a 32-bit process needs a Metal backend.
 
 Full detail, including the tree layout it depends on and why `winemetal` is
 special, is in [renderers.md](renderers.md).

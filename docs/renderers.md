@@ -1,8 +1,9 @@
 # Graphics Backends
 
 The engine exposes exactly two graphics backends: Apple D3DMetal from GPTK
-4.0b2 and DXMT. WineD3D remains installed as Wine's built-in terminal fallback
-but is not a user-selectable backend.
+4.0b2 and DXMT. WineD3D still ships as one of Wine's builtins but is not
+user-selectable and is never used as an automatic fallback — see
+[Selection and fallback](#selection-and-fallback).
 
 Selection happens at process start in `cxcompatdb.so`, built from
 `runtime/cxcompatdb/cxcompatdb.c` and loaded by CrossOver's `ntdll`.
@@ -26,6 +27,8 @@ under `lib/dxmt/x86_64-unix`, matching CrossOver.
 
 ## Selection and fallback
 
+There is no fallback: a validation failure terminates the process.
+
 ```bash
 GAMMA_GRAPHICS_BACKEND=d3dmetal
 GAMMA_GRAPHICS_BACKEND=dxmt
@@ -42,13 +45,15 @@ d3dmetal  lib64/apple_gptk/wine
 dxmt      lib/dxmt
 ```
 
-If validation fails, `cxcompatdb` prepends nothing. Wine therefore resolves
-its own builtins and uses WineD3D. It does not try the other Metal backend.
-The decision is logged to stderr with the `gamma-cxcompatdb:` prefix.
+If validation fails, `cxcompatdb` calls `_exit(1)` from its process
+constructor instead of prepending anything — it does not leave Wine to
+resolve its own builtins, and it does not try the other Metal backend. The
+reason is logged to stderr with the `gamma-cxcompatdb:` prefix immediately
+before the process exits.
 
 | Backend | API | Architecture | Notes |
 |---|---|---|---|
-| `d3dmetal` | D3D11/12 via Metal | x86_64 | Default; GPTK 4.0b2 only. A 32-bit process falls back to WineD3D. |
+| `d3dmetal` | D3D11/12 via Metal | x86_64 | Default; GPTK 4.0b2 only. A 32-bit process is terminated — no 32-bit payload exists, and there is no fallback. Use `dxmt` for 32-bit. |
 | `dxmt` | D3D11/10 via Metal | x86_64 + i386 | Requires `winemetal.dll` and the host `winemetal.so`. |
 
 GPTK's `d3d10.dll` and `d3d10.so` are deliberately excluded. They caused a

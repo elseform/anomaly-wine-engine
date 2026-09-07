@@ -3,8 +3,11 @@
  *
  * CrossOver's ntdll.so loads this library at process start and exports the
  * two loader primitives used below. The only public selector is
- * GAMMA_GRAPHICS_BACKEND=d3dmetal|dxmt. Wine's built-in wined3d remains the
- * terminal fallback when the requested payload is unavailable.
+ * GAMMA_GRAPHICS_BACKEND=d3dmetal|dxmt. There is no WineD3D fallback: if the
+ * requested backend's payload does not validate for the running process
+ * (wrong architecture, missing/corrupt module, missing native support
+ * library), this constructor terminates the process instead of silently
+ * degrading to WineD3D.
  */
 
 #include "config.h"
@@ -234,9 +237,12 @@ static void compatdb_init(void)
     if (!backend || !*backend) backend = "d3dmetal";
     if (strcmp( backend, "d3dmetal" ) && strcmp( backend, "dxmt" ))
     {
-        log_message( "error", "invalid GAMMA_GRAPHICS_BACKEND=%s; fallback=wined3d", backend );
-        return;
+        log_message( "error", "invalid GAMMA_GRAPHICS_BACKEND=%s", backend );
+        _exit( 1 );
     }
     if (!activate_backend( backend ))
-        log_message( "warning", "graphics backend=%s rejected; fallback=wined3d", backend );
+    {
+        log_message( "error", "graphics backend=%s unavailable, refusing to launch", backend );
+        _exit( 1 );
+    }
 }

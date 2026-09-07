@@ -139,8 +139,9 @@ export GAMMA_GRAPHICS_BACKEND=dxmt
 | `d3dmetal` | Apple D3DMetal (GPTK 4.0b2), D3D11/12 → Metal | Default. 64-bit only. |
 | `dxmt` | DXMT, D3D11/10 → Metal | The only Metal backend for 32-bit processes. |
 
-WineD3D is not selectable. It remains Wine's internal fallback when the chosen
-backend fails validation. The engine never tries the other Metal backend.
+WineD3D is not selectable, and there is no fallback to it: if the chosen
+backend fails validation for a process, `cxcompatdb` terminates that process
+instead of silently degrading. The engine never tries the other Metal backend.
 
 **`d3dmetal` gets one extra, permanent registry override that `dxmt` does
 not.** GPTK's own `d3d10.dll`/`d3d10.so` are excluded from the D3DMetal
@@ -196,11 +197,14 @@ What `cxcompatdb` actually does (and does not do — it has no DLL-override or
 redist/verbs policy of its own) is in
 [architecture.md § The backend switcher](architecture.md#the-backend-switcher).
 
-**It says `fallback=wined3d`.** The preceding line gives the reason — a missing
-or invalid DLL for the current architecture, a missing `winemetal` bridge for
-DXMT, or missing D3DMetal host support. Falling back is deliberate.
+**The process exited immediately with no `graphics backend=` line.** Backend
+validation failed and `cxcompatdb` terminated the process — there is no
+fallback to WineD3D. The preceding stderr line gives the reason: a missing or
+invalid DLL for the current architecture, a missing `winemetal` bridge for
+DXMT, or missing D3DMetal host support.
 
-**32-bit process fell back to WineD3D.** D3DMetal ships no 32-bit payload. Set
+**32-bit process terminated under `d3dmetal`.** D3DMetal ships no 32-bit
+payload, and there is no fallback — the process is killed. Set
 `GAMMA_GRAPHICS_BACKEND=dxmt` when 32-bit Metal support is required.
 
 **DXMT crashes during startup.** Known and unresolved — the game dies just
