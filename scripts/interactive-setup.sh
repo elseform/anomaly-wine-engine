@@ -574,10 +574,221 @@ exec arch -x86_64 "\$ENGINE_DIR/bin/wine" \
   "\$ENGINE_DIR/lib/wine/x86_64-windows/winecfg.exe" "\$@"
 EOF
 
+# Small GUI over app.env: reads the user's actual settings file (never the
+# template), renders each variable as a checkbox/field grouped the same way
+# the template groups them, and writes straight back on every change (no
+# Save button). Line-surgery only — every comment, blank line, and unknown
+# export/#export the tool doesn't render is left byte-identical.
+cat > "$APP_PATH/Contents/MacOS/configurator" << 'PYEOF'
+#!/usr/bin/env python3
+import re
+import sys
+
+CONFIG_FILE = "__GAMMA_CONFIG_FILE__"
+
+try:
+    from PySide6.QtWidgets import (
+        QApplication, QWidget, QVBoxLayout, QHBoxLayout, QScrollArea,
+        QGroupBox, QFormLayout, QCheckBox, QLineEdit, QComboBox, QPlainTextEdit,
+    )
+except ImportError:
+    sys.stderr.write(
+        "gamma-configurator: PySide6 not found. Install it with: pip3 install PySide6\n"
+    )
+    sys.exit(1)
+
+# (section, KEY, kind, always_on). kind: bool | text | multiline | backend | retina.
+# always_on vars are never commented out — only their value changes. The rest
+# are "commentToggle": a checkbox adds/removes the leading '#', and the field's
+# last-typed value is kept even while disabled so re-enabling restores it.
+SCHEMA = [
+    ("Core", "GAMMA_GRAPHICS_BACKEND", "backend", True),
+    ("Core", "MTL_HUD_ENABLED", "bool", True),
+    ("Core", "WINEMSYNC", "bool", True),
+    ("Core", "WINEESYNC", "bool", True),
+    ("Core", "ROSETTA_ADVERTISE_AVX", "bool", True),
+    ("Core", "WINEDEBUG", "text", True),
+    ("Core", "DEFAULT_GAME_ARGS", "text", True),
+    ("Core", "GAMMA_RETINA_MODE", "retina", True),
+    ("Core", "GAMMA_RETINA_LOGPIXELS", "text", False),
+    ("D3DMetal (proven)", "D3DM_ENABLE_METALFX", "bool", True),
+    ("D3DMetal (proven)", "D3DM_MAX_FPS", "text", True),
+    ("D3DMetal (proven)", "D3DM_POSITION_INVARIANCE", "bool", True),
+    ("D3DMetal (proven)", "D3DM_SAMPLE_NAN_TO_ZERO", "bool", True),
+    ("D3DMetal (proven)", "D3DM_FLUSH_POS_INF_TO_NAN", "bool", True),
+    ("D3DMetal (untested)", "D3DM_SHOW_HUD_STATS", "text", False),
+    ("D3DMetal (untested)", "D3DM_LOD_BIAS", "text", False),
+    ("D3DMetal (untested)", "D3DM_MIN_LOD_CLAMP", "text", False),
+    ("D3DMetal (untested)", "D3DM_SUPPORT_DXR", "text", False),
+    ("D3DMetal (untested)", "D3DM_MTL4", "text", False),
+    ("D3DMetal (untested)", "D3DM_IGNORE_D3D11_RENDER_BARRIERS", "text", False),
+    ("D3DMetal (untested)", "D3DM_BOUNDS_CHECK", "text", False),
+    ("D3DMetal (untested)", "D3DM_ERROR_MODE", "text", False),
+    ("D3DMetal (untested)", "D3DM_LOGLEVEL_INFO", "text", False),
+    ("D3DMetal (untested)", "D3DM_NVNGX_PATH", "text", False),
+    ("D3DMetal (untested)", "D3DM_VENDOR_ID", "text", False),
+    ("D3DMetal (untested)", "D3DM_DEVICE_ID", "text", False),
+    ("D3DMetal (untested)", "D3DM_DEVICE_DESCRIPTION", "text", False),
+    ("D3DMetal (untested)", "D3DM_DEVICE_REVISION", "text", False),
+    ("D3DMetal (untested)", "D3DM_DEVICE_SUBSYS", "text", False),
+    ("DXMT", "DXMT_METALFX_SPATIAL_SWAPCHAIN", "bool", True),
+    ("DXMT", "DXMT_LOG_LEVEL", "text", False),
+    ("DXMT", "DXMT_LOG_PATH", "text", False),
+    ("DXMT", "DXMT_SHADER_CACHE", "text", False),
+    ("DXMT", "DXMT_SHADER_CACHE_PATH", "text", False),
+    ("DXMT", "DXMT_CAPTURE_FRAME", "text", False),
+    ("DXMT", "DXMT_CAPTURE_EXECUTABLE", "text", False),
+    ("DXMT", "DXMT_CONFIG", "multiline", False),
+    ("DXMT", "DXMT_CONFIG_FILE", "text", False),
+]
+
+# Matches "export KEY=VALUE" or "#export KEY=VALUE", with an optional
+# trailing comment separated by 2+ spaces (this file's own convention).
+LINE_RE = re.compile(r'^(?P<hash>#)?export\s+(?P<key>\w+)=(?P<value>.*?)(?P<tail>\s{2,}#.*)?$')
+
+
+def read_lines(path):
+    with open(path, "r") as f:
+        return f.readlines()
+
+
+def find_line(lines, key):
+    for i, line in enumerate(lines):
+        m = LINE_RE.match(line.rstrip("\n"))
+        if m and m.group("key") == key:
+            return i, m
+    return None, None
+
+
+def read_value(lines, key):
+    _, m = find_line(lines, key)
+    if not m:
+        return False, ""
+    return m.group("hash") is None, m.group("value")
+
+
+def write_value(path, lines, key, active, value):
+    i, m = find_line(lines, key)
+    if m is None:
+        return
+    tail = m.group("tail") or ""
+    lines[i] = ("" if active else "#") + "export " + key + "=" + value + tail + "\n"
+    with open(path, "w") as f:
+        f.writelines(lines)
+
+
+class ConfiguratorWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("GAMMA Configurator")
+        self.resize(560, 640)
+        self.lines = read_lines(CONFIG_FILE)
+
+        outer = QVBoxLayout(self)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        container = QWidget()
+        vbox = QVBoxLayout(container)
+
+        sections = {}
+        for section, key, kind, always_on in SCHEMA:
+            if section not in sections:
+                box = QGroupBox(section)
+                box.setLayout(QFormLayout())
+                sections[section] = box
+                vbox.addWidget(box)
+            sections[section].layout().addRow(key, self._build_row(key, kind, always_on))
+
+        vbox.addStretch(1)
+        scroll.setWidget(container)
+        outer.addWidget(scroll)
+
+    def _build_row(self, key, kind, always_on):
+        active, value = read_value(self.lines, key)
+
+        if kind == "backend":
+            combo = QComboBox()
+            combo.addItems(["d3dmetal", "dxmt"])
+            combo.setCurrentText(value if value in ("d3dmetal", "dxmt") else "d3dmetal")
+            combo.currentTextChanged.connect(lambda text, k=key: self._save(k, True, text))
+            return combo
+
+        if kind == "retina":
+            box = QCheckBox()
+            box.setChecked(value.strip() == "Y")
+            box.toggled.connect(lambda checked, k=key: self._save(k, True, "Y" if checked else "N"))
+            return box
+
+        if kind == "bool" and always_on:
+            box = QCheckBox()
+            box.setChecked(value.strip() == "1")
+            box.toggled.connect(lambda checked, k=key: self._save(k, True, "1" if checked else "0"))
+            return box
+
+        row = QWidget()
+        hbox = QHBoxLayout(row)
+        hbox.setContentsMargins(0, 0, 0, 0)
+
+        enable_box = None
+        if not always_on:
+            enable_box = QCheckBox()
+            enable_box.setChecked(active)
+            hbox.addWidget(enable_box)
+
+        if kind == "multiline":
+            field = QPlainTextEdit()
+            field.setPlainText(value)
+            field.setFixedHeight(60)
+            field.setEnabled(always_on or active)
+            field.textChanged.connect(
+                lambda k=key, f=field, e=enable_box: self._save(
+                    k, e.isChecked() if e else True, f.toPlainText()
+                )
+            )
+        else:
+            field = QLineEdit()
+            field.setText(value)
+            field.setEnabled(always_on or active)
+            field.editingFinished.connect(
+                lambda k=key, f=field, e=enable_box: self._save(
+                    k, e.isChecked() if e else True, f.text()
+                )
+            )
+
+        if enable_box is not None:
+            enable_box.toggled.connect(
+                lambda checked, k=key, f=field: (
+                    f.setEnabled(checked),
+                    self._save(k, checked, f.toPlainText() if isinstance(f, QPlainTextEdit) else f.text()),
+                )
+            )
+
+        hbox.addWidget(field)
+        return row
+
+    def _save(self, key, active, value):
+        write_value(CONFIG_FILE, self.lines, key, active, value)
+
+
+def main():
+    app = QApplication(sys.argv)
+    window = ConfiguratorWindow()
+    window.show()
+    sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()
+PYEOF
+# Bake in this install's actual app.env path (may contain spaces, e.g.
+# "Application Support" — sed with '#' delimiter avoids clashing with '/').
+sed -i '' "s#__GAMMA_CONFIG_FILE__#$CONFIG_FILE#" "$APP_PATH/Contents/MacOS/configurator"
+
 chmod +x \
   "$APP_PATH/Contents/MacOS/launcher" \
   "$APP_PATH/Contents/MacOS/winetricks" \
-  "$APP_PATH/Contents/MacOS/winecfg"
+  "$APP_PATH/Contents/MacOS/winecfg" \
+  "$APP_PATH/Contents/MacOS/configurator"
 
 # 5. Ad-hoc sign the bundle. The engine payload is already signed by
 #    pack-engine-artifact.sh, so only the wrapper needs a signature.
@@ -585,6 +796,7 @@ echo "==> Step 4: Signing bundle..."
 codesign --force --sign - --timestamp=none "$APP_PATH/Contents/MacOS/launcher" 2>/dev/null || true
 codesign --force --sign - --timestamp=none "$APP_PATH/Contents/MacOS/winetricks" 2>/dev/null || true
 codesign --force --sign - --timestamp=none "$APP_PATH/Contents/MacOS/winecfg" 2>/dev/null || true
+codesign --force --sign - --timestamp=none "$APP_PATH/Contents/MacOS/configurator" 2>/dev/null || true
 if codesign --force --sign - --timestamp=none "$APP_PATH" 2>/dev/null; then
   echo "  Ad-hoc signed $APP_PATH"
 else
@@ -613,4 +825,5 @@ echo "Launch via:  open \"$APP_PATH\""
 echo "Or CLI:      \"$APP_PATH/Contents/MacOS/launcher\" -dbg -nointro"
 echo "Winetricks:  \"$APP_PATH/Contents/MacOS/winetricks\" [verb ...]"
 echo "WineCfg:     \"$APP_PATH/Contents/MacOS/winecfg\""
+echo "Configurator:\"$APP_PATH/Contents/MacOS/configurator\"  (requires: pip3 install PySide6)"
 echo "=========================================================="
