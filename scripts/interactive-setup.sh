@@ -318,20 +318,20 @@ else
   [[ -d "$REDIST_DIR" ]] || REDIST_DIR="$ENGINE_DIR/redist"
   [[ -d "$REDIST_DIR" ]] || REDIST_DIR="$REPO_ROOT/runtime/redist"
   SYS64="$WINEPREFIX/drive_c/windows/system32"
-  SYS32="$WINEPREFIX/drive_c/windows/syswow64"
-  [[ -d "$REDIST_DIR/x86_64-windows" ]] || {
+  # 64-bit only: the redist payload is grouped one subdirectory per package
+  # (d3dcompiler_47/, directx_Jun2010_redist/, vcrun2022/, ...), each holding
+  # an x86_64-windows/*.dll set confirmed required against xray-monolith.
+  shopt -s nullglob
+  REDIST_DLLS=("$REDIST_DIR"/*/x86_64-windows/*.dll)
+  shopt -u nullglob
+  [[ ${#REDIST_DLLS[@]} -gt 0 ]] || {
     echo "Error: bundled redist payload is missing" >&2
     exit 1
   }
-  cp -f "$REDIST_DIR/x86_64-windows/"*.dll "$SYS64/"
-  if [[ -d "$REDIST_DIR/i386-windows" && -d "$SYS32" ]]; then
-    cp -f "$REDIST_DIR/i386-windows/"*.dll "$SYS32/"
-  fi
-  for dll in "*d3dcompiler_43" "*d3dcompiler_47" "*d3dx9_43" "*d3dx10_43" "*d3dx11_43" \
-             "*concrt140" "*msvcp140" "*msvcp140_1" "*msvcp140_2" \
-             "*msvcp140_atomic_wait" "*msvcp140_codecvt_ids" \
-             "*vcamp140" "*vccorlib140" "*vcomp140" "*vcruntime140" "*vcruntime140_1"; do
-    wine_reg "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v "$dll" /t REG_SZ /d "native,builtin" /f
+  cp -f "${REDIST_DLLS[@]}" "$SYS64/"
+  for dll_path in "${REDIST_DLLS[@]}"; do
+    dll_name="$(basename "$dll_path" .dll)"
+    wine_reg "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v "*$dll_name" /t REG_SZ /d "native,builtin" /f
   done
   WINEPREFIX="$WINEPREFIX" arch -x86_64 "$ENGINE_DIR/bin/wine" \
     "$ENGINE_DIR/lib/wine/x86_64-windows/winecfg.exe" -v win10
