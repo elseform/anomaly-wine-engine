@@ -49,15 +49,24 @@ in `config/engine-release.json` and lands in the release manifest.
 
 ## Present but not in the numbered list
 
-These four files were deleted at one point and have been restored from
-`cyder-wine-engine`, because `build-wine.sh` still references them:
+This file was deleted at one point and has been restored from
+`cyder-wine-engine`, because `build-wine.sh` still references it:
 
 | File | Role |
 |---|---|
-| `w1-win32u-vulkan-soname.patch` | **Applied for every `--without-vulkan` build.** CrossOver compiles `dlls/win32u/vulkan.c` even when configure finds no libvulkan/MoltenVK, leaving `SONAME_LIBVULKAN` undefined; this supplies the fallback define so the build compiles at all. Also selectable via `--vulkan-soname-fallback`. |
-| `cyder-ntdll-query-directory-object-trace.patch` | Not applied. Debug-only trace, superseded by `cyder-ntdll-qdo-optnone-NtQueryDirectoryObject.patch`; kept so `remove_obsolete_patch()` can reverse it out of a tree that still carries it. |
-| `obsolete/cyder-ntdll-frame-walk-guard.patch` | Not applied. Same role — reversed out in favour of the page-fault guard. |
+| `w1-win32u-vulkan-soname.patch` | **Applied by default** (`VULKAN_MODE=without` is the script default; also selectable via `--vulkan-soname-fallback`). CrossOver compiles `dlls/win32u/vulkan.c` even when configure finds no libvulkan/MoltenVK, leaving `SONAME_LIBVULKAN` undefined; this supplies the fallback define so the build compiles at all. |
 | *(none — see below)* | `maplestory-cx26-message-wait-handoff.patch` is **deleted, not merely unapplied.** |
+
+### Removed obsolete patches
+
+`cyder-ntdll-query-directory-object-trace.patch` and
+`obsolete/cyder-ntdll-frame-walk-guard.patch` were kept for a while only so
+`remove_obsolete_patch()` in `build-wine.sh` could reverse them out of a build
+tree that still carried the old code. As of September 2026 the persisted tree
+at `build/cx26/sources/wine` already carries the current patches (`cyder QDO
+optnone` marker, `if (!func) break;` guard), so there is nothing left to
+reverse, and the two files were deleted. The `remove_obsolete_patch()` calls
+in `build-wine.sh` no-op cleanly on a missing file and were left in place.
 
 ### Why `maplestory-cx26-message-wait-handoff.patch` is gone
 
