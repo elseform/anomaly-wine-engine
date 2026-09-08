@@ -13,6 +13,7 @@ try:
         QApplication, QWidget, QVBoxLayout, QHBoxLayout, QScrollArea,
         QGroupBox, QFormLayout, QCheckBox, QLineEdit, QComboBox,
     )
+    from PySide6.QtCore import Qt
 except ImportError:
     sys.stderr.write(
         "gamma-configurator: PySide6 not found. Install it with: pip3 install PySide6\n"
@@ -52,13 +53,13 @@ POINTER_COMMENT = "# Edit via Contents/MacOS/configurator — see it for descrip
 # Defaults are the exact values the original config/app.env.template shipped
 # (now retired — this SCHEMA is the sole source of truth for defaults).
 SCHEMA = [
-    ("Core", None, "GAMMA_GRAPHICS_BACKEND", "backend", True, False, "d3dmetal"),
+    ("Core", None, "GAMMA_GRAPHICS_BACKEND", "backend", True, False, "dxmt"),
     ("Core", None, "MTL_HUD_ENABLED", "bool", True, False, "1"),
     ("Core", None, "WINEMSYNC", "bool", True, False, "1"),
     ("Core", None, "WINEESYNC", "bool", True, False, "1"),
     ("Core", None, "ROSETTA_ADVERTISE_AVX", "bool", True, False, "1"),
     ("Core", None, "WINEDEBUG", "text", True, True, "-all"),
-    ("Core", None, "DEFAULT_GAME_ARGS", "text", True, True, ""),
+    ("Core", None, "DEFAULT_GAME_ARGS", "text", True, True, "--dbg"),
     ("Core", None, "GAMMA_RETINA_MODE", "retina", True, False, "N"),
     ("Core", None, "GAMMA_RETINA_LOGPIXELS", "text", False, False, ""),
     ("D3DMetal (proven)", "d3dmetal", "D3DM_ENABLE_METALFX", "bool", True, False, "0"),
@@ -258,7 +259,7 @@ def generate_env(state):
     if backend == "dxmt":
         active = {k: v["value"] for k, v in state["dxmt_config"].items() if v["enabled"]}
         if active:
-            serialized = ";".join(k + "=" + v for k, v in active.items())
+            serialized = "".join(k + "=" + v + ";" for k, v in active.items())
             lines.append('export DXMT_CONFIG="' + serialized + '"')
 
     lines.extend(state["foreign_lines"])
@@ -381,20 +382,35 @@ class ConfiguratorWindow(QWidget):
             included = entry["enabled"]
             current = entry["value"]
 
+            if kind == "bool":
+                tri_box = QCheckBox()
+                tri_box.setTristate(True)
+                tri_box.setCheckState(
+                    Qt.Checked if included and current.lower() == "true"
+                    else Qt.Unchecked if included
+                    else Qt.PartiallyChecked
+                )
+
+                def _on_tri_changed(state, k=subkey):
+                    state = Qt.CheckState(state)
+                    if state == Qt.PartiallyChecked:
+                        self._save_dxmt(k, False, "false")
+                    else:
+                        self._save_dxmt(k, True, "true" if state == Qt.Checked else "false")
+
+                tri_box.stateChanged.connect(_on_tri_changed)
+
+                row = QWidget()
+                hbox = QHBoxLayout(row)
+                hbox.setContentsMargins(0, 0, 0, 0)
+                hbox.addWidget(tri_box)
+                form.addRow(subkey, row)
+                continue
+
             enable_box = QCheckBox()
             enable_box.setChecked(included)
 
-            if kind == "bool":
-                field = QCheckBox()
-                field.setChecked(current.lower() == "true")
-                field.setEnabled(included)
-                field.toggled.connect(
-                    lambda checked, k=subkey, e=enable_box: self._save_dxmt(
-                        k, e.isChecked(), "true" if checked else "false"
-                    )
-                )
-                get_value = lambda f=field: "true" if f.isChecked() else "false"
-            elif kind == "enum":
+            if kind == "enum":
                 field = QComboBox()
                 field.addItems(choices)
                 if current in choices:
