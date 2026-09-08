@@ -9,3 +9,6 @@ reference
 .DS_Store
 *.swp
 *~
+
+# Python
+__pycache__/

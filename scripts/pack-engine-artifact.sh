@@ -183,6 +183,11 @@ shopt -u nullglob
   echo "Missing vendored redist DLLs at $REDIST_SRC — see runtime/redist/README or interactive-setup.sh history." >&2
   exit 1
 }
+CONFIGURATOR_SRC="$OGOM/runtime/configurator/configurator.py"
+[[ -f "$CONFIGURATOR_SRC" ]] || {
+  echo "Missing configurator source at $CONFIGURATOR_SRC" >&2
+  exit 1
+}
 strings -a "$CXCOMPATDB" | grep -q 'GAMMA_GRAPHICS_BACKEND' || {
   echo "Refusing to pack an incompatible cxcompatdb.so" >&2
   exit 1
@@ -254,6 +259,10 @@ shopt -u nullglob
 echo "==> Embedding vendored DirectX/VC++ redistributables"
 mkdir -p "$ENGINE_TREE/share/gamma/redist"
 rsync -a --delete "$REDIST_SRC/" "$ENGINE_TREE/share/gamma/redist/"
+
+echo "==> Embedding GAMMA Configurator"
+mkdir -p "$ENGINE_TREE/share/gamma"
+cp "$CONFIGURATOR_SRC" "$ENGINE_TREE/share/gamma/configurator.py"
 
 bash "$SCRIPT_DIR/strip-wine-install.sh" "$ENGINE_TREE"
 # Preserve MoltenVK already in the install tree (VULKAN_SOURCE=existing only
