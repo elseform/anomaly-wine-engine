@@ -75,7 +75,6 @@ repo's history, bump it when:
 - The patch set changes (`engine-release.json`'s `patches` array must be
   updated in the same commit — a shipped artifact's manifest should always
   say exactly what patches produced it).
-- A renderer/backend change alters what the packaged tree contains.
 - A validated milestone is reached worth recording (e.g. "confirmed D3DMetal
   b1 game launch" — see `4305d5f`), even without a patch change, so the
   build that was actually tested is distinguishable from ones that weren't.
