@@ -33,24 +33,26 @@ It asks for the core choices below and provides defaults for all of them:
 | Name for the .app bundle | `GAMMA` |
 | Directory to place the .app in | `~/Applications` |
 | Path to game root (G: drive) | `~/gamma` |
-| Path to .exe, relative to game root | `sss23/bin/AnomalyDX11AVX.exe` |
-| Graphics backend | `d3dmetal` |
-| Runtime dependencies | `verbs` |
+| Path to .exe, relative to game root | `sept/bin/AnomalyDX11.exe` |
+| Graphics backend | `dxmt` |
+| Runtime dependencies | `redist` |
 
 Then it extracts the engine, bootstraps a Wine prefix, installs the required
-verbs (`d3dx9_43`, `d3dx11_43`, `d3dcompiler_43/47`, `vcrun2022`, `win10`,
-CoreAudio), writes the launcher, and ad-hoc signs the bundle. The verbs
-themselves create their DLL overrides; setup does not duplicate that policy.
-If no usable winetricks exists, setup downloads the current script into the
-app's external cache. Select `redist` only as an explicit offline fallback;
-that mode copies the bundled DLL payload and registers its fallback overrides.
+dependencies, writes the launcher, and ad-hoc signs the bundle. `redist`
+copies the bundled DLL payload (`d3dx9_43`, `d3dx10_43`, `d3dx11_43`,
+`d3dcompiler_43/47`, `concrt140`/`msvcp140`/`vc*140` family) and registers its
+fallback overrides — no network access needed. Select `verbs` instead when you
+need what winetricks covers that `redist` doesn't (see the comparison below);
+it installs its components via winetricks, which create their own DLL
+overrides. If no usable winetricks exists, setup downloads the current script
+into the app's external cache.
 
 ### `verbs` and `redist` are not equivalent
 
 They do not stage the same DLL set — pick one because you need what it
 covers, not interchangeably with the other.
 
-| | `verbs` (default) | `redist` (offline fallback) |
+| | `verbs` | `redist` (default) |
 |---|---|---|
 | Source | `scripts/interactive-setup.sh`'s winetricks call: `d3dx9_43 d3dx11_43 d3dcompiler_43 d3dcompiler_47 vcrun2022 win10 sound=coreaudio` | Every file under `runtime/redist/x86_64-windows/`: `concrt140`, `d3dcompiler_43/47`, `d3dx9_43`, `d3dx10_43`, `d3dx11_43`, `msvcp140` + 4 companion DLLs, `vcamp140`, `vccorlib140`, `vcomp140`, `vcruntime140`, `vcruntime140_1`, `vcruntime140_threads` |
 | `d3dx10_43` | **Not installed.** No `d3dx10_43` verb is requested — winetricks has one (`winetricks list-all` confirms it), it is just never called here. D3DX10 stays on Wine's own (limited) builtin. | Installed as a native override. |
@@ -136,8 +138,8 @@ export GAMMA_GRAPHICS_BACKEND=dxmt
 
 | Backend | What it is | Notes |
 |---|---|---|
-| `d3dmetal` | Apple D3DMetal (GPTK 4.0b2), D3D11/12 → Metal | Default. 64-bit only. |
-| `dxmt` | DXMT, D3D11/10 → Metal | The only Metal backend for 32-bit processes. |
+| `dxmt` | DXMT, D3D11/10 → Metal | Default (via `interactive-setup.sh`). The only Metal backend for 32-bit processes. |
+| `d3dmetal` | Apple D3DMetal (GPTK 4.0b2), D3D11/12 → Metal | 64-bit only. |
 
 WineD3D is not selectable, and there is no fallback to it: if the chosen
 backend fails validation for a process, `cxcompatdb` terminates that process

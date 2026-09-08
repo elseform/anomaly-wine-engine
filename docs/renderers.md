@@ -53,8 +53,8 @@ before the process exits.
 
 | Backend | API | Architecture | Notes |
 |---|---|---|---|
-| `d3dmetal` | D3D11/12 via Metal | x86_64 | Default; GPTK 4.0b2 only. A 32-bit process is terminated — no 32-bit payload exists, and there is no fallback. Use `dxmt` for 32-bit. |
-| `dxmt` | D3D11/10 via Metal | x86_64 + i386 | Requires `winemetal.dll` and the host `winemetal.so`. |
+| `dxmt` | D3D11/10 via Metal | x86_64 + i386 | Default (via `interactive-setup.sh`). Requires `winemetal.dll` and the host `winemetal.so`. |
+| `d3dmetal` | D3D11/12 via Metal | x86_64 | GPTK 4.0b2 only. A 32-bit process is terminated — no 32-bit payload exists, and there is no fallback. Use `dxmt` for 32-bit. |
 
 GPTK's `d3d10.dll` and `d3d10.so` are deliberately excluded. They caused a
 confirmed savegame hang by sharing D3DMetal state with D3D11. Interactive setup

@@ -23,8 +23,8 @@
 
 - **Base Runtime**: CrossOver 26.3.0 built on **Wine 11.0** (`x86_64` under Rosetta 2 on Apple Silicon).
 - **Switchable Graphics Backends**: D3DMetal and DXMT ship side by side using CrossOver's directory convention; WineD3D remains an internal fallback. See [docs/renderers.md](docs/renderers.md).
-  - **Apple D3DMetal (GPTK 4.0b2)**: Default for 64-bit Direct3D 11/12 via Metal.
-  - **DXMT**: Selectable D3D11/10 via Metal, and the only Metal backend for 32-bit processes.
+  - **DXMT**: Default (via `interactive-setup.sh`). D3D11/10 via Metal, and the only Metal backend for 32-bit processes.
+  - **Apple D3DMetal (GPTK 4.0b2)**: Selectable alternative, 64-bit Direct3D 11/12 via Metal.
 - **Dynamic Backend Switcher (`cxcompatdb.so`)**: Intercepts process startup and prepends the selected backend to the DLL search path — `GAMMA_GRAPHICS_BACKEND=d3dmetal|dxmt`, with no DLL file modifications in the prefix.
 - **Darwin Mach Semaphore Sync (`WINEMSYNC=1`)**: In-process shared memory thread synchronization, eliminating wineserver IPC overhead and micro-stuttering across X-Ray Engine's worker threads.
 - **Engine-Level Stability Patches**:

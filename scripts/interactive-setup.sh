@@ -125,7 +125,7 @@ GAMMA_ROOT="$(prompt_path "Path to game root (G: drive)" "$HOME/gamma")"
 GAMMA_ROOT="${GAMMA_ROOT/#\~/$HOME}"
 
 while true; do
-  EXE_REL_PATH="$(prompt_path "Path to .exe, relative to game root" "sept/bin/AnomalyDX11AVX.exe")"
+  EXE_REL_PATH="$(prompt_path "Path to .exe, relative to game root" "sept/bin/AnomalyDX11.exe")"
   EXE_REL_PATH="${EXE_REL_PATH#/}"
   [[ -f "$GAMMA_ROOT/$EXE_REL_PATH" ]] && break
   echo "  Not found: $GAMMA_ROOT/$EXE_REL_PATH"
@@ -137,39 +137,33 @@ EXE_RUN_DIR="$GAMMA_ROOT/$(dirname "$EXE_REL_PATH")"
 
 echo ""
 echo "Graphics backend:"
-echo "  1) d3dmetal  Apple D3DMetal — D3D11/12 via Metal (default, 64-bit only)"
-echo "  2) dxmt      DXMT — D3D11/10 via Metal (works for 32-bit too)"
+echo "  1) dxmt      DXMT — D3D11/10 via Metal (default, works for 32-bit too)"
+echo "  2) d3dmetal  Apple D3DMetal — D3D11/12 via Metal (64-bit only)"
 BACKEND_CHOICE="$(prompt_path "Select backend" "1")"
 case "$BACKEND_CHOICE" in
-  1|d3dmetal) GRAPHICS_BACKEND=d3dmetal ;;
-  2|dxmt)     GRAPHICS_BACKEND=dxmt ;;
+  1|dxmt)     GRAPHICS_BACKEND=dxmt ;;
+  2|d3dmetal) GRAPHICS_BACKEND=d3dmetal ;;
   *)
-    echo "  Unrecognized choice '$BACKEND_CHOICE', using d3dmetal"
-    GRAPHICS_BACKEND=d3dmetal
+    echo "  Unrecognized choice '$BACKEND_CHOICE', using dxmt"
+    GRAPHICS_BACKEND=dxmt
     ;;
 esac
 
 echo ""
 echo "Runtime dependencies:"
-echo "  1) verbs   Install required components with winetricks (recommended)"
-echo "  2) redist  Copy bundled DLLs and register fallback overrides"
+echo "  1) redist  Copy bundled DLLs and register fallback overrides (default)"
+echo "  2) verbs   Install required components with winetricks"
 RUNTIME_CHOICE="$(prompt_path "Select dependency source" "1")"
 case "$RUNTIME_CHOICE" in
-  1|verbs|winetricks) RUNTIME_MODE=verbs ;;
-  2|redist|dlls)      RUNTIME_MODE=redist ;;
+  1|redist|dlls)      RUNTIME_MODE=redist ;;
+  2|verbs|winetricks) RUNTIME_MODE=verbs ;;
   *)
-    echo "  Unrecognized choice '$RUNTIME_CHOICE', using verbs"
-    RUNTIME_MODE=verbs
+    echo "  Unrecognized choice '$RUNTIME_CHOICE', using redist"
+    RUNTIME_MODE=redist
     ;;
 esac
 
-echo ""
-read -r -p "Enable Retina/HiDPI mode (CrossOver's Retina toggle equivalent)? [y/N]: " retina_choice || true
-if [[ "${retina_choice:-N}" =~ ^[Yy] ]]; then
-  RETINA_MODE=Y
-else
-  RETINA_MODE=N
-fi
+RETINA_MODE=N
 
 APP_SUPPORT="$HOME/Library/Application Support/$APP_NAME"
 WINEPREFIX="$APP_SUPPORT/prefix"
