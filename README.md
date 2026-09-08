@@ -169,6 +169,13 @@ arch -x86_64 "$PWD/install/wine-cx26-x86_64/bin/wine" "G:\3dss5\bin\AnomalyDX11A
   ```bash
   bash scripts/fetch-dxmt.sh
   ```
+  `renderers/dxmt/` currently carries a locally-built, non-upstream payload
+  (`fix2-3-winemetal-cbuffer-9434028` — Fix 2 + Fix 3 from the
+  DXMT GPU page-fault fix
+  plan, built from the `dxmt` fork; see
+  a private build archive), not the upstream CI
+  artifact this script fetches. Running `fetch-dxmt.sh` overwrites it with
+  vanilla `3Shain/dxmt`.
 - **Package Release Archive**:
   ```bash
   bash scripts/pack-engine-artifact.sh --force
