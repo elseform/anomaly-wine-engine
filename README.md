@@ -19,7 +19,8 @@
 | [Why deps build from source](docs/why-no-prebuilt-deps.md) | The `.brew-x86` situation |
 | [Versioning Policy](docs/versioning-policy.md) | Version-label / artifact-basename format, when to bump, CX/Wine base bumps |
 
-### Key Features:
+### Key Features
+
 - **Base Runtime**: CrossOver 26.3.0 built on **Wine 11.0** (`x86_64` under Rosetta 2 on Apple Silicon).
 - **Switchable Graphics Backends**: D3DMetal and DXMT ship side by side using CrossOver's directory convention; WineD3D remains an internal fallback. See [docs/renderers.md](docs/renderers.md).
   - **Apple D3DMetal (GPTK 4.0b2)**: Default for 64-bit Direct3D 11/12 via Metal.
@@ -46,27 +47,33 @@
 ## Dedicated Scripts
 
 ### 1. Interactive Setup (`scripts/interactive-setup.sh`)
+
 Builds a fully self-contained `.app` from an engine `.tar.zst` (or explicit legacy `.tar.xz`): extracts the engine, bootstraps a
 prefix, installs dependencies through winetricks by default (or bundled redist as an explicit
 fallback), and writes the bundle metadata, launcher, prefix-aware `winetricks`, and `winecfg`
 helpers. Standalone — calls no other repo script.
 The generated `app.env` also exposes `EXE_PATH` and `EXE_RUN_DIR`, so the target can be changed
 later without rebuilding the app.
+
 ```bash
 bash scripts/interactive-setup.sh
 ```
 
 ### 2. Build Wine (`scripts/build-wine.sh`)
+
 Full engine build: extracts sources, applies `patches/`, configures and builds CrossOver Wine for
 `x86_64`, then chains `build-cxcompatdb.sh`, `bundle-wine-dylibs.sh`, and
 `install-renderers.sh`.
+
 ```bash
 bash scripts/build-wine.sh --cx 26 --without-vulkan
 ```
 
 ### 3. Package Release Artifact (`scripts/pack-engine-artifact.sh`)
+
 Stages, strips, re-bundles dylibs, codesigns, scans minOS, and packs the install tree into
 `dist/artifacts/`, writing the release manifest alongside it.
+
 ```bash
 bash scripts/pack-engine-artifact.sh --force
 ```
@@ -76,6 +83,7 @@ bash scripts/pack-engine-artifact.sh --force
 If you wish to create a custom prefix without the script, follow these steps:
 
 ### Step 1: Initialize Prefix
+
 ```bash
 export WINE_DIR="$PWD/install/wine-cx26-x86_64"
 export WINEPREFIX="$HOME/Library/Application Support/GAMMA/prefix"
@@ -90,6 +98,7 @@ WINEPREFIX="$WINEPREFIX" arch -x86_64 "$WINE_DIR/bin/wineserver" -w
 ```
 
 ### Step 2: Configure Drive Mappings & User Profiles
+
 ```bash
 # Drive C: and Z:
 mkdir -p "$WINEPREFIX/dosdevices"
@@ -106,6 +115,7 @@ ln -sfn "Sikarugir" "$WINEPREFIX/drive_c/users/$USER"
 ```
 
 ### Step 3: Set Base Runtime Registry Values
+
 ```bash
 WINEPREFIX="$WINEPREFIX" arch -x86_64 "$WINE_DIR/bin/wine" reg add "HKEY_CURRENT_USER\Software\Wine\Drivers" /v Graphics /t REG_SZ /d mac /f
 WINEPREFIX="$WINEPREFIX" arch -x86_64 "$WINE_DIR/bin/wine" reg add "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v "winemenubuilder.exe" /t REG_SZ /d "" /f
@@ -116,6 +126,7 @@ renderer. The verbs in the next step install their native DLLs and create
 their own overrides.
 
 ### Step 4: Install Winetricks Verbs
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks -o /tmp/winetricks
 chmod +x /tmp/winetricks
@@ -157,18 +168,24 @@ arch -x86_64 "$PWD/install/wine-cx26-x86_64/bin/wine" "G:\3dss5\bin\AnomalyDX11A
 ## Build & Maintenance Commands
 
 - **Build Wine from Source**:
+
   ```bash
   bash scripts/build-wine.sh --cx 26 --without-vulkan
   ```
+
 - **Install Renderers (D3DMetal + DXMT)** — chained automatically by `build-wine.sh`
   (skip with `--skip-renderers`); run standalone to re-stage them:
+
   ```bash
   bash scripts/install-renderers.sh install/wine-cx26-x86_64
   ```
+
 - **Fetch latest DXMT build**:
+
   ```bash
   bash scripts/fetch-dxmt.sh
   ```
+
   `renderers/dxmt/` currently carries a locally-built, non-upstream payload
   (`fix2-3-winemetal-cbuffer-9434028` — Fix 2 + Fix 3 from the
   DXMT GPU page-fault fix
@@ -176,7 +193,9 @@ arch -x86_64 "$PWD/install/wine-cx26-x86_64/bin/wine" "G:\3dss5\bin\AnomalyDX11A
   a private build archive), not the upstream CI
   artifact this script fetches. Running `fetch-dxmt.sh` overwrites it with
   vanilla `3Shain/dxmt`.
+
 - **Package Release Archive**:
+
   ```bash
   bash scripts/pack-engine-artifact.sh --force
   ```
