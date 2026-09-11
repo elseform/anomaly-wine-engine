@@ -509,7 +509,7 @@ cd "$WINE_SRC/build64"
 # Bake -mmacosx-version-min into host CFLAGS so incremental `make` without an
 # exported MACOSX_DEPLOYMENT_TARGET still cannot drift to the SDK default (15+).
 GAMMA_MIN_OS_TARGET="${MACOSX_DEPLOYMENT_TARGET:-10.15}"
-GAMMA_MIN_FLAG="${GAMMA_MACOSX_VERSION_MIN_FLAG:-${CYDER_MACOSX_VERSION_MIN_FLAG:--mmacosx-version-min=${GAMMA_MIN_OS_TARGET}}}"
+GAMMA_MIN_FLAG="${GAMMA_MACOSX_VERSION_MIN_FLAG:--mmacosx-version-min=${GAMMA_MIN_OS_TARGET}}"
 GAMMA_HOST_CFLAGS="-arch x86_64 ${CFLAGS:--g -O2} ${GAMMA_MIN_FLAG}"
 GAMMA_HOST_OBJCFLAGS="-arch x86_64 ${OBJCFLAGS:--g -O2} ${GAMMA_MIN_FLAG}"
 GAMMA_HOST_LDFLAGS="-arch x86_64 ${LDFLAGS:-} ${GAMMA_MIN_FLAG}"

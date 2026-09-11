@@ -82,6 +82,7 @@ SCHEMA = [
     ("D3DMetal (untested)", "d3dmetal", "D3DM_DEVICE_REVISION", "text", False, False, "0"),
     ("D3DMetal (untested)", "d3dmetal", "D3DM_DEVICE_SUBSYS", "text", False, False, "0"),
     ("DXMT", "dxmt", "DXMT_METALFX_SPATIAL_SWAPCHAIN", "bool", True, False, "0"),
+    ("DXMT", "dxmt", "DXMT_ENABLE_NVEXT", "bool", True, False, "0"),
     ("DXMT", "dxmt", "DXMT_LOG_LEVEL", "text", False, False, "info"),
     ("DXMT", "dxmt", "DXMT_LOG_PATH", "text", False, False, ""),
     ("DXMT", "dxmt", "DXMT_SHADER_CACHE", "text", False, False, "1"),

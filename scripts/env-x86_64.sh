@@ -9,7 +9,7 @@ if [[ -z "${OGOM:-}" ]]; then
 fi
 
 # Optional project .env (gitignored). Only KEY=VALUE lines; no shell expansion.
-# Recognized: MACOSX_DEPLOYMENT_TARGET, GAMMA_MIN_OS / CYDER_MIN_OS (aliases).
+# Recognized: MACOSX_DEPLOYMENT_TARGET, GAMMA_MIN_OS (alias).
 _gamma_load_dotenv() {
   local env_file="$OGOM/.env"
   local line key value
@@ -30,7 +30,7 @@ _gamma_load_dotenv() {
     value="${value%\'}"
     value="${value#\'}"
     case "$key" in
-      MACOSX_DEPLOYMENT_TARGET | GAMMA_MIN_OS | CYDER_MIN_OS)
+      MACOSX_DEPLOYMENT_TARGET | GAMMA_MIN_OS)
         [[ "$value" =~ ^[0-9]+(\.[0-9]+)*$ ]] || {
           echo "Ignoring invalid $key in $env_file: $value" >&2
           continue
@@ -63,8 +63,7 @@ case "$CX_VERSION" in
     exit 1
     ;;
   26)
-    export GAMMA_ENGINE_CX_PREFIX="${GAMMA_ENGINE_CX_PREFIX:-${CYDER_ENGINE_CX_PREFIX:-CX26}}"
-    export CYDER_ENGINE_CX_PREFIX="$GAMMA_ENGINE_CX_PREFIX"
+    export GAMMA_ENGINE_CX_PREFIX="${GAMMA_ENGINE_CX_PREFIX:-CX26}"
     export WINE_SRC="${WINE_SRC:-$BUILD_DIR/cx26/sources/wine}"
     export WINE_INSTALL="${WINE_INSTALL:-$OGOM/install/wine-cx26-x86_64}"
     ;;
@@ -134,16 +133,13 @@ fi
 
 export BLUECG_PREFIX="${BLUECG_PREFIX:-$OGOM/BlueCrossgateNew}"
 export ENTITLEMENTS_PLIST="${ENTITLEMENTS_PLIST:-$OGOM/config/entitlements.plist}"
-export GAMMA_CROSSOVER_VERSION="${GAMMA_CROSSOVER_VERSION:-${CYDER_CROSSOVER_VERSION:-26.3.0}}"
-export CYDER_CROSSOVER_VERSION="$GAMMA_CROSSOVER_VERSION"
+export GAMMA_CROSSOVER_VERSION="${GAMMA_CROSSOVER_VERSION:-26.3.0}"
 # Product floor for host Mach-O (wine, ntdll.so, bundled dylibs). Prefer
 # .env / MACOSX_DEPLOYMENT_TARGET; default 10.15. Apple Silicon still needs
 # macOS 11+ for Rosetta 2. A lower floor needs a full Wine rebuild.
 export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-10.15}"
-export GAMMA_MIN_OS="${GAMMA_MIN_OS:-${CYDER_MIN_OS:-$MACOSX_DEPLOYMENT_TARGET}}"
-export CYDER_MIN_OS="$GAMMA_MIN_OS"
+export GAMMA_MIN_OS="${GAMMA_MIN_OS:-$MACOSX_DEPLOYMENT_TARGET}"
 export GAMMA_MACOSX_VERSION_MIN_FLAG="-mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}"
-export CYDER_MACOSX_VERSION_MIN_FLAG="$GAMMA_MACOSX_VERSION_MIN_FLAG"
 export ARCH_CMD="arch -x86_64"
 
 export PATH="$LLVM_MINGW/bin:$HOMEBREW_PREFIX/bin:$PATH"

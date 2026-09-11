@@ -12,7 +12,7 @@ graphics backends specifically, see [renderers.md](renderers.md).
 
 One artifact: a relocatable Wine 11.0 / CrossOver 26.3.0 engine for `x86_64`
 under Rosetta 2, packed as a tarball rooted at `wswine.bundle/`, with D3DMetal
-GPTK 4.0b2 and DXMT baked in.
+GPTK (defaults to 4.0b2, staging-time choice) and DXMT baked in.
 
 ```
 dist/artifacts/<artifactBasename>.tar.zst
@@ -93,7 +93,8 @@ separately; `build-wine.sh` wires it in automatically if it finds one.
   production `lib/wine/x86_64-unix/cxcompatdb.so`
 - `bundle-wine-dylibs.sh` copies Homebrew runtime dylibs into the tree and
   rewrites their install names to `@loader_path`, making the tree relocatable
-- `install-renderers.sh` stages GPTK 4.0b2 under `lib64/apple_gptk`, DXMT under
+- `install-renderers.sh` stages GPTK under `lib64/apple_gptk` (default
+  `renderers/gptk40b2`, override with `--apple-gptk <path>`), DXMT under
   `lib/dxmt`, and restores any Wine builtin a previous run shadowed
 
 ### Stage 4 — package
@@ -172,10 +173,8 @@ manifest, so a shipped artifact says exactly what went into it.
 **Paths.** Every script derives its root as `$SCRIPT_DIR/..`. `OGOM` is a
 legacy alias for that root, still used inside `env-x86_64.sh`.
 
-**Environment variables.** `GAMMA_*` is canonical. `CYDER_*` is accepted as a
-fallback everywhere it used to exist, so engines and tooling from before the
-rename keep working: `${GAMMA_X:-${CYDER_X:-default}}`. New variables should be
-`GAMMA_*` only.
+**Environment variables.** `GAMMA_*` only. The `CYDER_*` fallback (from before
+the rename) was removed 2026-09-11; nothing reads or exports `CYDER_*` anymore.
 
 **Versioning.** `config/engine-version.txt` is the single source of truth for
 the version label (e.g. `CX26.3.0-W11-Gamma086` at time of writing);
@@ -203,7 +202,8 @@ packing time (default `zstd -6`; `xz -6` is explicit compatibility mode); `GAMMA
 ## Current state
 
 - D3DMetal and DXMT are the only selectable backends
-- D3DMetal is fixed to GPTK 4.0b2 and uses CrossOver's native directory layout
+- D3DMetal defaults to GPTK 4.0b2 (swap via `install-renderers.sh --apple-gptk`)
+  and uses CrossOver's native directory layout
 - The full patch sequence is verified to apply to a pristine CX 26.3.0 tree
   (15/15), but a complete from-scratch `build-wine.sh` run has not been
   re-timed since the patch-list fixes

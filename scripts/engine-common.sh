@@ -5,11 +5,11 @@ ENGINE_COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENGINE_PROJECT_ROOT="$(cd "$ENGINE_COMMON_DIR/.." && pwd)"
 
 gamma_engine_artifacts_dir() {
-  printf '%s\n' "${GAMMA_ENGINE_ARTIFACTS_DIR:-${CYDER_ENGINE_ARTIFACTS_DIR:-$ENGINE_PROJECT_ROOT/dist/artifacts}}"
+  printf '%s\n' "${GAMMA_ENGINE_ARTIFACTS_DIR:-$ENGINE_PROJECT_ROOT/dist/artifacts}"
 }
 
 gamma_crossover_version() {
-  printf '%s\n' "${GAMMA_CROSSOVER_VERSION:-${CYDER_CROSSOVER_VERSION:-26.3.0}}"
+  printf '%s\n' "${GAMMA_CROSSOVER_VERSION:-26.3.0}"
 }
 
 gamma_engine_version_label_trim() {
@@ -23,7 +23,7 @@ gamma_engine_version_label_trim() {
 gamma_format_engine_version_from_wine() {
   local wine_bin="${1:-}"
   local wine_raw wine_ver cx_ver
-  local version_label="${GAMMA_ENGINE_VERSION_LABEL:-${CYDER_ENGINE_VERSION_LABEL:-}}"
+  local version_label="${GAMMA_ENGINE_VERSION_LABEL:-}"
   if [[ -n "$version_label" ]]; then
     gamma_engine_version_label_trim "$version_label"
     return 0
@@ -119,37 +119,58 @@ gamma_engine_version_from_tarball() {
 # it is now always computed from the label, so there is exactly one place a
 # version number is typed. See docs/versioning-policy.md.
 gamma_engine_artifact_basename_from_label() {
-  local label
+  local label gptk_version="${2:-}"
   label="$(gamma_engine_version_label_trim "${1:-}")"
   if [[ "$label" =~ ^CX([0-9]+)(\.[0-9]+)*-W([0-9]+)-Gamma([0-9]+)$ ]]; then
-    printf 'CX%sW%s-Gamma%s\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[4]}"
+    if [[ -n "$gptk_version" ]]; then
+      printf 'CX%sW%s-%s-Gamma%s\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[3]}" \
+        "$gptk_version" "${BASH_REMATCH[4]}"
+    else
+      printf 'CX%sW%s-Gamma%s\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[4]}"
+    fi
     return 0
   fi
   return 1
 }
 
+# GPTK version label staged into the engine tree by install-renderers.sh
+# (lib64/apple_gptk/gptk-version.txt). Empty if the flag file is missing —
+# callers fall back to the pre-toggle, version-less artifact name.
+gamma_engine_gptk_version() {
+  local wine_install="${1:-}" file
+  file="$wine_install/lib64/apple_gptk/gptk-version.txt"
+  [[ -f "$file" ]] || return 0
+  head -n 1 "$file" | tr -d '\n\r '
+}
+
 # Artifact basename stem (no extension or sequence) for a version label.
+# Second arg, when non-empty, inserts a GPTK version segment: see
+# gamma_engine_gptk_version and gamma_engine_artifact_basename_from_label.
 gamma_engine_artifact_basename() {
   local label="${1:-}"
+  local gptk_version="${2:-}"
   local name=""
   if [[ -z "$label" ]]; then
-    label="${GAMMA_ENGINE_VERSION_LABEL:-${CYDER_ENGINE_VERSION_LABEL:-}}"
+    label="${GAMMA_ENGINE_VERSION_LABEL:-}"
   fi
   if [[ -z "$label" && -f "$ENGINE_PROJECT_ROOT/config/engine-version.txt" ]]; then
     label="$(head -n 1 "$ENGINE_PROJECT_ROOT/config/engine-version.txt" 2>/dev/null || true)"
   fi
-  [[ -n "$label" ]] && name="$(gamma_engine_artifact_basename_from_label "$label" 2>/dev/null || true)"
+  [[ -n "$label" ]] && name="$(gamma_engine_artifact_basename_from_label "$label" "$gptk_version" 2>/dev/null || true)"
   printf '%s\n' "$name"
 }
 
-# Next numbered artifact basename. Sequence is per canonical version label and
-# considers legacy names without the dash before Gamma so migration continues
-# from the highest existing pack number.
+# Next numbered artifact basename. Sequence is per canonical version label
+# (now including the GPTK version segment, when given, as part of that
+# identity — switching GPTK payload starts its own numbering) and considers
+# legacy names without the dash before Gamma so migration continues from the
+# highest existing pack number.
 gamma_engine_artifact_next_basename() {
   local label="${1:-}"
   local dir="${2:-$(gamma_engine_artifacts_dir)}"
+  local gptk_version="${3:-}"
   local base legacy_base path name suffix max=0 nullglob_was_set=0
-  base="$(gamma_engine_artifact_basename "$label")"
+  base="$(gamma_engine_artifact_basename "$label" "$gptk_version")"
   [[ -n "$base" ]] || return 1
   legacy_base="${base/-Gamma/Gamma}"
 
@@ -177,8 +198,9 @@ gamma_engine_archive_path_for_format() {
   local ver="$1"
   local dir="${2:-$(gamma_engine_artifacts_dir)}"
   local format="${3:-zst}"
+  local gptk_version="${4:-}"
   local base
-  base="$(gamma_engine_artifact_next_basename "$ver" "$dir" 2>/dev/null || true)"
+  base="$(gamma_engine_artifact_next_basename "$ver" "$dir" "$gptk_version" 2>/dev/null || true)"
   if [[ -n "$base" ]]; then
     case "$format" in
       zst | zstd) printf '%s/%s.tar.zst\n' "$dir" "$base" ; return 0 ;;

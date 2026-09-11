@@ -9,7 +9,7 @@ VERSION_LABEL=""
 NTDLL_SHA256=""
 ARTIFACT=""
 ARTIFACT_SHA256=""
-RELEASE_CONFIG="${GAMMA_ENGINE_RELEASE_CONFIG:-${CYDER_ENGINE_RELEASE_CONFIG:-$ROOT/config/engine-release.json}}"
+RELEASE_CONFIG="${GAMMA_ENGINE_RELEASE_CONFIG:-$ROOT/config/engine-release.json}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in

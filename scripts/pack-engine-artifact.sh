@@ -5,13 +5,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=engine-common.sh
 source "$SCRIPT_DIR/engine-common.sh"
-MEDIA_PROFILE="${GAMMA_ENGINE_MEDIA_PROFILE:-${CYDER_ENGINE_MEDIA_PROFILE:-minimal}}"
+MEDIA_PROFILE="${GAMMA_ENGINE_MEDIA_PROFILE:-minimal}"
 MEDIA_INSTALL_WAS_EXPLICIT="${MEDIA_INSTALL+x}"
 source "$SCRIPT_DIR/env-x86_64.sh"
 
 FORCE=0
 DRY_RUN=0
-FORMAT="${GAMMA_ENGINE_FORMAT:-${CYDER_ENGINE_FORMAT:-zst}}"
+FORMAT="${GAMMA_ENGINE_FORMAT:-zst}"
 # Compression effort. The old xz -9e / zstd -22 --ultra defaults cost minutes
 # for negligible distribution benefit. Both explicit xz and default zstd use
 # a moderate level 6. Override with GAMMA_ENGINE_COMPRESS_LEVEL.
@@ -62,7 +62,7 @@ Build a compressed engine artifact from install/wine-cx26-x86_64 (or WINE_INSTAL
   xz:   dist/artifacts/CX26W11-Gamma087-<N>.tar.xz (--xz, xz -$XZ_LEVEL)
 --dry-run performs only a fast source/layout preflight; it does not stage,
 strip, rewrite dylib paths, sign, scan minOS, compress, or verify an archive.
-Set CYDER_ENGINE_VERSION to override the detected version label.
+Set GAMMA_ENGINE_VERSION_LABEL to override the detected version label.
 Set GAMMA_ENGINE_FORMAT=xz or pass --xz only for an explicit xz build.
 Set GAMMA_ENGINE_COMPRESS_LEVEL to trade size against packing time.
 The default media profile is minimal (no GStreamer full-video plugin set);
@@ -139,7 +139,7 @@ else
   }
 fi
 
-ENGINE_VERSION_LABEL="${GAMMA_ENGINE_VERSION_LABEL:-${CYDER_ENGINE_VERSION_LABEL:-}}"
+ENGINE_VERSION_LABEL="${GAMMA_ENGINE_VERSION_LABEL:-}"
 if [[ -z "$ENGINE_VERSION_LABEL" ]]; then
   ENGINE_VERSION_LABEL="$(head -n 1 "$OGOM/config/engine-version.txt" 2>/dev/null || true)"
 fi
@@ -152,7 +152,10 @@ fi
 ENGINE_VERSION_SLUG="$(gamma_engine_version_slug_from_label "$ENGINE_VERSION_LABEL")"
 ENGINE_VERSION="$ENGINE_VERSION_SLUG"
 ARTIFACTS_DIR="$(gamma_engine_artifacts_dir)"
-ARCHIVE="$(gamma_engine_archive_path_for_format "$ENGINE_VERSION_LABEL" "$ARTIFACTS_DIR" "$FORMAT")"
+# Read by install-renderers.sh's flag file so the artifact name records which
+# GPTK payload (gptk40b1, gptk40b2, ...) got staged into this WINE_INSTALL.
+GPTK_VERSION="$(gamma_engine_gptk_version "$WINE_INSTALL")"
+ARCHIVE="$(gamma_engine_archive_path_for_format "$ENGINE_VERSION_LABEL" "$ARTIFACTS_DIR" "$FORMAT" "$GPTK_VERSION")"
 VERSION_FILE="$ARTIFACTS_DIR/engine-version.txt"
 STAMP_FILE="$ARTIFACTS_DIR/.pack-stamp"
 
@@ -205,6 +208,7 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   echo "DRY RUN: preflight passed"
   echo "  source: $WINE_INSTALL"
   echo "  version: $ENGINE_VERSION_LABEL"
+  echo "  gptk: ${GPTK_VERSION:-<unlabeled>}"
   echo "  media: $MEDIA_PROFILE ($MEDIA_INSTALL)"
   echo "  output: $ARCHIVE"
   exit 0
@@ -348,7 +352,7 @@ printf '%s\n' "$ENGINE_VERSION_LABEL" >"$VERSION_FILE"
   echo "slug=$ENGINE_VERSION_SLUG"
   echo "format=$FORMAT"
   echo "archive=$(basename "$ARCHIVE")"
-  if [[ -n "${CYDER_ENGINE_VERSION_LABEL:-}" ]]; then
+  if [[ -n "${GAMMA_ENGINE_VERSION_LABEL:-}" ]]; then
     echo "wine=$ENGINE_VERSION_LABEL"
   else
     echo "wine=$(arch -x86_64 "$WINE_INSTALL/bin/wine" --version 2>/dev/null || true)"

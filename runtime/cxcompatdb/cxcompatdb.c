@@ -163,6 +163,15 @@ static int activate_backend( const char *backend )
     const char *machine_dir;
     uint16_t machine;
     unsigned int i;
+    /* nvngx (renamed from GPTK's nvngx-on-metalfx by install-renderers.sh) is
+     * always staged, but only D3DMetal's launcher backs it into the prefix's
+     * system32, gated on D3DM_ENABLE_METALFX=1 — cxcompatdb's own builtin
+     * override for it should track that same toggle for d3dmetal so the
+     * unix-side DLL search does not offer NGX/DLSS when the feature is off.
+     * DXMT ships and overrides its own nvngx.dll independently of this var. */
+    const char *metalfx_env = getenv( "D3DM_ENABLE_METALFX" );
+    int nvngx_disabled = !strcmp( backend, "d3dmetal" ) &&
+                          (!metalfx_env || strcmp( metalfx_env, "1" ));
 
     if (!engine_root_from_ntdll( root ))
     {
@@ -215,6 +224,7 @@ static int activate_backend( const char *backend )
     for (i = 0; i < ARRAY_SIZE(graphics_modules); ++i)
     {
         char file[PATH_MAX];
+        if (nvngx_disabled && !strcmp( graphics_modules[i], "nvngx" )) continue;
         if (snprintf( file, sizeof(file), "%s/%s/%s.dll", path, machine_dir,
                       graphics_modules[i] ) < (int)sizeof(file) && !access( file, R_OK ))
             add_override( graphics_modules[i] );

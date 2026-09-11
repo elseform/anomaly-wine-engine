@@ -139,14 +139,14 @@ export GAMMA_GRAPHICS_BACKEND=dxmt
 | Backend | What it is | Notes |
 |---|---|---|
 | `dxmt` | DXMT, D3D11/10 → Metal | Default (via `interactive-setup.sh`). The only Metal backend for 32-bit processes. |
-| `d3dmetal` | Apple D3DMetal (GPTK 4.0b2), D3D11/12 → Metal | 64-bit only. |
+| `d3dmetal` | Apple D3DMetal (GPTK), D3D11/12 → Metal | 64-bit only. GPTK version is a build-time choice — see `scripts/install-renderers.sh --apple-gptk`. |
 
 WineD3D is not selectable, and there is no fallback to it: if the chosen
 backend fails validation for a process, `cxcompatdb` terminates that process
 instead of silently degrading. The engine never tries the other Metal backend.
 
 **`d3dmetal` gets one extra, permanent registry override that `dxmt` does
-not.** GPTK's own `d3d10.dll`/`d3d10.so` are excluded from the D3DMetal
+not.** GPTK's own `d3d10.dll`/`d3d10.so` ship as part of the D3DMetal
 payload — they share `libd3dshared` state with D3D11 and caused a confirmed
 savegame hang. `interactive-setup.sh` writes a one-time, per-executable
 override instead (`HKEY_CURRENT_USER\Software\Wine\AppDefaults\<exe>\DllOverrides`,
@@ -171,7 +171,14 @@ export D3DM_MAX_FPS=120
 # DXMT
 export DXMT_METALFX_SPATIAL_SWAPCHAIN=1
 export DXMT_CONFIG="d3d11.metalSpatialUpscaleFactor=1.5;d3d11.preferredMaxFrameRate=120"
+export DXMT_ENABLE_NVEXT=1
 ```
+
+`D3DM_ENABLE_METALFX` and `DXMT_ENABLE_NVEXT` each additionally copy their own
+backend's `nvngx.dll`/`nvapi64.dll` into the prefix's `system32` on next
+launch (some NGX/DLSS detection paths check for the files there directly),
+restoring whatever was there before once the toggle goes back off. See
+`interactive-setup.sh`'s generated launcher.
 
 `DEFAULT_GAME_ARGS` sets the arguments used for Finder/Dock launches; anything
 passed on the command line overrides it.

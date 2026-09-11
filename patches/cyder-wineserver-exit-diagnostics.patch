@@ -288,7 +288,7 @@
  static struct timeout_user *shutdown_timeout;  /* timeout for server shutdown */
  static int shutdown_stage;  /* current stage in the shutdown process */
  
-+/* Cyder: dual-write diagnostics to stderr and $WINEPREFIX/cyder-wineserver-diag.log
++/* Cyder: dual-write diagnostics to stderr and $WINEPREFIX/gamma-wineserver-diag.log
 + * so a killed gzip capture pipe cannot erase the only copy of the death reason. */
 +void wineserver_diag_printf( const char *fmt, ... )
 +{
@@ -302,13 +302,13 @@
 +    va_end( ap );
 +
 +    if (config_dir_fd != -1)
-+        fd = openat( config_dir_fd, "cyder-wineserver-diag.log",
++        fd = openat( config_dir_fd, "gamma-wineserver-diag.log",
 +                     O_WRONLY | O_CREAT | O_APPEND, 0600 );
 +    if (fd == -1)
 +    {
 +        const char *prefix = getenv( "WINEPREFIX" );
 +        char path[PATH_MAX];
-+        if (prefix && snprintf( path, sizeof(path), "%s/cyder-wineserver-diag.log",
++        if (prefix && snprintf( path, sizeof(path), "%s/gamma-wineserver-diag.log",
 +                                prefix ) < (int)sizeof(path))
 +            fd = open( path, O_WRONLY | O_CREAT | O_APPEND, 0600 );
 +    }

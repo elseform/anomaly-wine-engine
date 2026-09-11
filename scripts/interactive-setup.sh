@@ -271,8 +271,8 @@ wine_reg "HKEY_CURRENT_USER\Software\Wine\Mac Driver" /v RetinaMode /t REG_SZ /d
 wine_reg "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v "winemenubuilder.exe" /t REG_SZ /d "" /f
 
 # d3d10 gets a per-app (not global) override, scoped to the game's own exe:
-# GPTK's own d3d10.dll (when present) trips a save-game hang (see
-# docs/d3dmetal-savegame-crash.md); this pins d3d10 at Wine's own genuine,
+# GPTK's own d3d10.dll (always present in the staged payload) trips a
+# save-game hang (see docs/renderers.md); this pins d3d10 at Wine's own genuine,
 # independent implementation instead of leaving resolution to chance. Applies
 # to D3DMetal. The game never calls D3D10CreateDevice; D3DX11's internal
 # D3D10CreateBlob dependency only needs Wine's implementation to resolve.
@@ -409,6 +409,7 @@ else
       echo "export D3DM_FLUSH_POS_INF_TO_NAN=1"
     else
       echo "export DXMT_METALFX_SPATIAL_SWAPCHAIN=0"
+      echo "export DXMT_ENABLE_NVEXT=0"
     fi
   } > "$CONFIG_FILE"
   echo "  Wrote settings: $CONFIG_FILE"
@@ -454,6 +455,54 @@ case "\$GAMMA_GRAPHICS_BACKEND" in
     fi
     ;;
 esac
+
+# NGX/DLSS shim files, per backend: D3DM_ENABLE_METALFX (D3DMetal) and
+# DXMT_ENABLE_NVEXT (DXMT, gates dxgi.cpp's InitializeVendorExtensionNV)
+# each additionally place their own backend's nvngx.dll (D3DMetal's is
+# renamed from nvngx-on-metalfx by install-renderers.sh) and nvapi64.dll
+# directly in the prefix's system32 — some NGX/DLSS detection paths check
+# for the files there, not just Wine's own DLL search path (which already
+# resolves them from lib64/apple_gptk or lib/dxmt via cxcompatdb regardless
+# of these toggles). Whatever was already at those two names in system32
+# gets backed up as <name>.old before being overwritten, and restored the
+# moment neither toggle applies (backend switch or the toggle going back
+# off); a name with no prior file is just removed again on disable.
+GAMMA_NVNGX_SYSTEM32="\$WINEPREFIX/drive_c/windows/system32"
+if [[ -d "\$GAMMA_NVNGX_SYSTEM32" ]]; then
+  GAMMA_NVNGX_SRC_DIR=""
+  case "\$GAMMA_GRAPHICS_BACKEND" in
+    dxmt)
+      if [[ "\${DXMT_ENABLE_NVEXT:-0}" == "1" ]]; then
+        GAMMA_NVNGX_SRC_DIR="\$ENGINE_DIR/lib/dxmt/x86_64-windows"
+      fi
+      ;;
+    d3dmetal)
+      if [[ "\${D3DM_ENABLE_METALFX:-0}" == "1" ]]; then
+        GAMMA_NVNGX_SRC_DIR="\$ENGINE_DIR/lib64/apple_gptk/wine/x86_64-windows"
+      fi
+      ;;
+  esac
+  if [[ -n "\$GAMMA_NVNGX_SRC_DIR" ]]; then
+    for module in nvngx nvapi64; do
+      src="\$GAMMA_NVNGX_SRC_DIR/\$module.dll"
+      dst="\$GAMMA_NVNGX_SYSTEM32/\$module.dll"
+      [[ -f "\$src" ]] || continue
+      if [[ ! -f "\$dst.old" && -f "\$dst" ]]; then
+        mv "\$dst" "\$dst.old"
+      fi
+      cp -f "\$src" "\$dst"
+    done
+  else
+    for module in nvngx nvapi64; do
+      dst="\$GAMMA_NVNGX_SYSTEM32/\$module.dll"
+      if [[ -f "\$dst.old" ]]; then
+        mv -f "\$dst.old" "\$dst"
+      elif [[ -f "\$dst" ]]; then
+        rm -f "\$dst"
+      fi
+    done
+  fi
+fi
 
 GAMMA_RETINA_MODE="\${GAMMA_RETINA_MODE:-N}"
 WINEPREFIX="\$WINEPREFIX" arch -x86_64 "\$ENGINE_DIR/bin/wine" reg add \\
@@ -647,9 +696,8 @@ echo "  Settings: $CONFIG_FILE"
 echo "  Backend:  $GRAPHICS_BACKEND  (change it in app.env, no rebuild needed)"
 echo "  Dependencies: $RUNTIME_MODE"
 if is_d3dmetal_family "$GRAPHICS_BACKEND"; then
-  echo "  GPTK:     4.0b2"
-  echo "            d3d10.dll/.so excluded from payload, d3d10=builtin override"
-  echo "            added for $(basename "$EXE_REL_PATH")"
+  echo "  GPTK:     staged by install-renderers.sh (--apple-gptk selects the version)"
+  echo "            d3d10=builtin override added for $(basename "$EXE_REL_PATH")"
 fi
 echo ""
 echo "Launch via:  open \"$APP_PATH\""
