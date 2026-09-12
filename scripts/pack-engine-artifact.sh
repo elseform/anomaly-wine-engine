@@ -11,6 +11,7 @@ source "$SCRIPT_DIR/env-x86_64.sh"
 
 FORCE=0
 DRY_RUN=0
+DXMT_ONLY=0
 FORMAT="${GAMMA_ENGINE_FORMAT:-zst}"
 # Compression effort. The old xz -9e / zstd -22 --ultra defaults cost minutes
 # for negligible distribution benefit. Both explicit xz and default zstd use
@@ -26,6 +27,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --dry-run)
       DRY_RUN=1
+      shift
+      ;;
+    --dxmt-only)
+      DXMT_ONLY=1
       shift
       ;;
     --format)
@@ -54,12 +59,15 @@ while [[ $# -gt 0 ]]; do
       ;;
     -h | --help)
       cat <<EOF
-Usage: $(basename "$0") [--force] [--dry-run] [--zstd|--xz] [--format zstd|xz]
-       [--media-profile full-video|minimal]
+Usage: $(basename "$0") [--force] [--dry-run] [--dxmt-only] [--zstd|--xz]
+       [--format zstd|xz] [--media-profile full-video|minimal]
 
 Build a compressed engine artifact from install/wine-cx26-x86_64 (or WINE_INSTALL).
   zstd: dist/artifacts/CX26W11-Gamma087-<N>.tar.zst (default, zstd -$ZSTD_LEVEL)
   xz:   dist/artifacts/CX26W11-Gamma087-<N>.tar.xz (--xz, xz -$XZ_LEVEL)
+--dxmt-only skips the GPTK/D3DMetal payload requirement and strips it from
+the staged tree, producing dist/artifacts/CX26W11-GAMMA-DXMT-<N>.tar.zst
+instead (no numeric engine version in the filename).
 --dry-run performs only a fast source/layout preflight; it does not stage,
 strip, rewrite dylib paths, sign, scan minOS, compress, or verify an archive.
 Set GAMMA_ENGINE_VERSION_LABEL to override the detected version label.
@@ -155,16 +163,22 @@ ARTIFACTS_DIR="$(gamma_engine_artifacts_dir)"
 # Read by install-renderers.sh's flag file so the artifact name records which
 # GPTK payload (gptk40b1, gptk40b2, ...) got staged into this WINE_INSTALL.
 GPTK_VERSION="$(gamma_engine_gptk_version "$WINE_INSTALL")"
-ARCHIVE="$(gamma_engine_archive_path_for_format "$ENGINE_VERSION_LABEL" "$ARTIFACTS_DIR" "$FORMAT" "$GPTK_VERSION")"
+if [[ "$DXMT_ONLY" -eq 1 ]]; then
+  ARCHIVE="$(gamma_engine_dxmt_archive_path_for_format "$ENGINE_VERSION_LABEL" "$ARTIFACTS_DIR" "$FORMAT")"
+else
+  ARCHIVE="$(gamma_engine_archive_path_for_format "$ENGINE_VERSION_LABEL" "$ARTIFACTS_DIR" "$FORMAT" "$GPTK_VERSION")"
+fi
 VERSION_FILE="$ARTIFACTS_DIR/engine-version.txt"
 STAMP_FILE="$ARTIFACTS_DIR/.pack-stamp"
 
 # Cheap source preflight. Keep this before mktemp/rsync so --dry-run never
 # performs packaging work.
-[[ -d "$WINE_INSTALL/lib64/apple_gptk/wine/x86_64-windows" ]] || {
-  echo "Missing packaged D3DMetal payload at lib64/apple_gptk/wine" >&2
-  exit 1
-}
+if [[ "$DXMT_ONLY" -ne 1 ]]; then
+  [[ -d "$WINE_INSTALL/lib64/apple_gptk/wine/x86_64-windows" ]] || {
+    echo "Missing packaged D3DMetal payload at lib64/apple_gptk/wine" >&2
+    exit 1
+  }
+fi
 [[ -d "$WINE_INSTALL/lib/dxmt/x86_64-windows" ]] || {
   echo "Missing packaged DXMT payload at lib/dxmt" >&2
   exit 1
@@ -186,9 +200,9 @@ shopt -u nullglob
   echo "Missing vendored redist DLLs at $REDIST_SRC — see runtime/redist/README or interactive-setup.sh history." >&2
   exit 1
 }
-CONFIGURATOR_SRC="$OGOM/runtime/configurator/configurator.py"
-[[ -f "$CONFIGURATOR_SRC" ]] || {
-  echo "Missing configurator source at $CONFIGURATOR_SRC" >&2
+CONFIGURATOR_GUI_SRC="$OGOM/runtime/configurator-gui/Sources"
+[[ -d "$CONFIGURATOR_GUI_SRC" ]] || {
+  echo "Missing configurator GUI source at $CONFIGURATOR_GUI_SRC" >&2
   exit 1
 }
 strings -a "$CXCOMPATDB" | grep -q 'GAMMA_GRAPHICS_BACKEND' || {
@@ -209,6 +223,7 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   echo "  source: $WINE_INSTALL"
   echo "  version: $ENGINE_VERSION_LABEL"
   echo "  gptk: ${GPTK_VERSION:-<unlabeled>}"
+  echo "  dxmt-only: $([[ "$DXMT_ONLY" -eq 1 ]] && echo yes || echo no)"
   echo "  media: $MEDIA_PROFILE ($MEDIA_INSTALL)"
   echo "  output: $ARCHIVE"
   exit 0
@@ -238,10 +253,12 @@ rm -rf "$ENGINE_TREE/redist"
 rm -f "$ENGINE_TREE/lib/wine/x86_64-unix/cxcompatdb-debug_dummy.so"
 gamma_write_engine_version_file "$ENGINE_TREE" "$ENGINE_VERSION_LABEL"
 
-[[ -d "$ENGINE_TREE/lib64/apple_gptk/wine/x86_64-windows" ]] || {
-  echo "Missing packaged D3DMetal payload at lib64/apple_gptk/wine" >&2
-  exit 1
-}
+if [[ "$DXMT_ONLY" -ne 1 ]]; then
+  [[ -d "$ENGINE_TREE/lib64/apple_gptk/wine/x86_64-windows" ]] || {
+    echo "Missing packaged D3DMetal payload at lib64/apple_gptk/wine" >&2
+    exit 1
+  }
+fi
 [[ -d "$ENGINE_TREE/lib/dxmt/x86_64-windows" ]] || {
   echo "Missing packaged DXMT payload at lib/dxmt" >&2
   exit 1
@@ -252,6 +269,11 @@ for obsolete in lib/d3dmetal lib/dxvk lib/external lib/gptk40b1 lib/gptk40b2 lib
     exit 1
   }
 done
+
+if [[ "$DXMT_ONLY" -eq 1 ]]; then
+  echo "==> Stripping GPTK/D3DMetal payload (--dxmt-only)"
+  rm -rf "$ENGINE_TREE/lib64/apple_gptk"
+fi
 
 shopt -s nullglob
 REDIST_DLL_CHECK=("$REDIST_SRC"/*/x86_64-windows/*.dll)
@@ -264,9 +286,10 @@ echo "==> Embedding vendored DirectX/VC++ redistributables"
 mkdir -p "$ENGINE_TREE/share/gamma/redist"
 rsync -a --delete "$REDIST_SRC/" "$ENGINE_TREE/share/gamma/redist/"
 
-echo "==> Embedding GAMMA Configurator"
+echo "==> Building GAMMA Configurator (SwiftUI)"
+bash "$SCRIPT_DIR/build-configurator.sh" "$STAGING/Configurator.app"
 mkdir -p "$ENGINE_TREE/share/gamma"
-cp "$CONFIGURATOR_SRC" "$ENGINE_TREE/share/gamma/configurator.py"
+cp -R "$STAGING/Configurator.app" "$ENGINE_TREE/share/gamma/Configurator.app"
 
 bash "$SCRIPT_DIR/strip-wine-install.sh" "$ENGINE_TREE"
 # Preserve MoltenVK already in the install tree (VULKAN_SOURCE=existing only

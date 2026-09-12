@@ -17,6 +17,20 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+DXMT_ONLY=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dxmt-only)
+      DXMT_ONLY=1
+      shift
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      exit 1
+      ;;
+  esac
+done
+
 prompt_path() {
   local message="$1" default="$2" reply
   read -r -p "$message [$default]: " reply || true
@@ -135,35 +149,51 @@ done
 EXE_WIN_PATH="G:\\${EXE_REL_PATH//\//\\}"
 EXE_RUN_DIR="$GAMMA_ROOT/$(dirname "$EXE_REL_PATH")"
 
-echo ""
-echo "Graphics backend:"
-echo "  1) dxmt      DXMT — D3D11/10 via Metal (default, works for 32-bit too)"
-echo "  2) d3dmetal  Apple D3DMetal — D3D11/12 via Metal (64-bit only)"
-BACKEND_CHOICE="$(prompt_path "Select backend" "1")"
-case "$BACKEND_CHOICE" in
-  1|dxmt)     GRAPHICS_BACKEND=dxmt ;;
-  2|d3dmetal) GRAPHICS_BACKEND=d3dmetal ;;
-  *)
-    echo "  Unrecognized choice '$BACKEND_CHOICE', using dxmt"
-    GRAPHICS_BACKEND=dxmt
-    ;;
-esac
+if [[ "$DXMT_ONLY" -eq 1 ]]; then
+  GRAPHICS_BACKEND=dxmt
+else
+  echo ""
+  echo "Graphics backend:"
+  echo "  1) dxmt      DXMT — D3D11/10 via Metal (default, works for 32-bit too)"
+  echo "  2) d3dmetal  Apple D3DMetal — D3D11/12 via Metal (64-bit only)"
+  BACKEND_CHOICE="$(prompt_path "Select backend" "1")"
+  case "$BACKEND_CHOICE" in
+    1|dxmt)     GRAPHICS_BACKEND=dxmt ;;
+    2|d3dmetal) GRAPHICS_BACKEND=d3dmetal ;;
+    *)
+      echo "  Unrecognized choice '$BACKEND_CHOICE', using dxmt"
+      GRAPHICS_BACKEND=dxmt
+      ;;
+  esac
+fi
 
-echo ""
-echo "Runtime dependencies:"
-echo "  1) redist  Copy bundled DLLs and register fallback overrides (default)"
-echo "  2) verbs   Install required components with winetricks"
-RUNTIME_CHOICE="$(prompt_path "Select dependency source" "1")"
-case "$RUNTIME_CHOICE" in
-  1|redist|dlls)      RUNTIME_MODE=redist ;;
-  2|verbs|winetricks) RUNTIME_MODE=verbs ;;
-  *)
-    echo "  Unrecognized choice '$RUNTIME_CHOICE', using redist"
-    RUNTIME_MODE=redist
-    ;;
-esac
+if [[ "$DXMT_ONLY" -eq 1 ]]; then
+  RUNTIME_MODE=redist
+else
+  echo ""
+  echo "Runtime dependencies:"
+  echo "  1) redist  Copy bundled DLLs and register fallback overrides (default)"
+  echo "  2) verbs   Install required components with winetricks"
+  RUNTIME_CHOICE="$(prompt_path "Select dependency source" "1")"
+  case "$RUNTIME_CHOICE" in
+    1|redist|dlls)      RUNTIME_MODE=redist ;;
+    2|verbs|winetricks) RUNTIME_MODE=verbs ;;
+    *)
+      echo "  Unrecognized choice '$RUNTIME_CHOICE', using redist"
+      RUNTIME_MODE=redist
+      ;;
+  esac
+fi
 
 RETINA_MODE=N
+
+# cxcompatdb checks this on every wine invocation from here on (wineboot,
+# reg add/query, winecfg — not just the final generated game launcher, whose
+# own app.env-sourced export only takes effect after this script exits).
+# Without it, cxcompatdb falls back to its own default (d3dmetal), which
+# fails outright against a --dxmt-only engine artifact that has no
+# lib64/apple_gptk payload at all.
+export GAMMA_GRAPHICS_BACKEND="$GRAPHICS_BACKEND"
 
 APP_SUPPORT="$HOME/Library/Application Support/$APP_NAME"
 WINEPREFIX="$APP_SUPPORT/prefix"
@@ -641,42 +671,44 @@ exec arch -x86_64 "\$ENGINE_DIR/bin/wine" \
   "\$ENGINE_DIR/lib/wine/x86_64-windows/winecfg.exe" "\$@"
 EOF
 
-# Small GUI over app.env: renders the schema in
-# runtime/configurator/configurator.py as checkboxes/fields grouped by
-# section, keyed off a sidecar configurator-state.json (holds every var's
-# value + enabled state regardless of current backend, so switching backends
-# or re-enabling a var restores exactly what was typed before). app.env
-# itself is pure generated output — no inline comments, no lines for the
-# backend that isn't selected. Source lives at
-# runtime/configurator/configurator.py, shipped copied verbatim inside the
-# engine artifact (share/gamma/configurator.py) — this script stays
-# standalone/archive-only and never builds anything from source.
-CONFIGURATOR_SRC="$ENGINE_DIR/share/gamma/configurator.py"
-[[ -f "$CONFIGURATOR_SRC" ]] || CONFIGURATOR_SRC="$ENGINE_DIR/configurator.py"
-[[ -f "$CONFIGURATOR_SRC" ]] || CONFIGURATOR_SRC="$REPO_ROOT/runtime/configurator/configurator.py"
-[[ -f "$CONFIGURATOR_SRC" ]] || {
-  echo "Error: configurator source is missing (expected in the engine artifact)" >&2
+# Native SwiftUI GUI over app.env: renders the schema (Schema.swift, ported
+# from the former runtime/configurator/configurator.py) as toggles/fields
+# grouped by section, keyed off a sidecar configurator-state.json (holds
+# every var's value + enabled state regardless of current backend, so
+# switching backends or re-enabling a var restores exactly what was typed
+# before). app.env itself is pure generated output — no inline comments, no
+# lines for the backend that isn't selected. Built by pack-engine-artifact.sh
+# (scripts/build-configurator.sh) and shipped prebuilt inside the engine
+# artifact (share/gamma/Configurator.app) — this script stays
+# standalone/archive-only and never builds anything from source. It's a real
+# nested .app bundle (not a loose binary) so it opens as a GUI window, not
+# Terminal, when launched directly or via the "Configure GAMMA" alias.
+CONFIGURATOR_SRC="$ENGINE_DIR/share/gamma/Configurator.app"
+[[ -d "$CONFIGURATOR_SRC" ]] || {
+  echo "Error: Configurator.app is missing (expected in the engine artifact)" >&2
   exit 1
 }
-cp "$CONFIGURATOR_SRC" "$APP_PATH/Contents/MacOS/configurator"
-# Bake in this install's actual app.env/state paths (may contain spaces, e.g.
-# "Application Support" — sed with '#' delimiter avoids clashing with '/').
-sed -i '' "s#__GAMMA_CONFIG_FILE__#$CONFIG_FILE#" "$APP_PATH/Contents/MacOS/configurator"
-sed -i '' "s#__GAMMA_STATE_FILE__#$STATE_FILE#" "$APP_PATH/Contents/MacOS/configurator"
+mkdir -p "$APP_PATH/Contents/Resources"
+cp -R "$CONFIGURATOR_SRC" "$APP_PATH/Contents/Resources/Configurator.app"
+mkdir -p "$APP_PATH/Contents/Resources/Configurator.app/Contents/Resources"
+cat > "$APP_PATH/Contents/Resources/Configurator.app/Contents/Resources/paths.json" <<JSON
+{"configFile": "$CONFIG_FILE", "stateFile": "$STATE_FILE"}
+JSON
 
 chmod +x \
   "$APP_PATH/Contents/MacOS/launcher" \
   "$APP_PATH/Contents/MacOS/winetricks" \
-  "$APP_PATH/Contents/MacOS/winecfg" \
-  "$APP_PATH/Contents/MacOS/configurator"
+  "$APP_PATH/Contents/MacOS/winecfg"
 
-# 5. Ad-hoc sign the bundle. The engine payload is already signed by
-#    pack-engine-artifact.sh, so only the wrapper needs a signature.
+# 5. Ad-hoc sign the bundle. The engine payload (and the Configurator.app
+#    nested inside it) is already signed by pack-engine-artifact.sh; this
+#    re-signs the wrapper scripts plus the whole bundle envelope so the
+#    paths.json we just dropped in doesn't invalidate anything upstream.
 echo "==> Step 4: Signing bundle..."
 codesign --force --sign - --timestamp=none "$APP_PATH/Contents/MacOS/launcher" 2>/dev/null || true
 codesign --force --sign - --timestamp=none "$APP_PATH/Contents/MacOS/winetricks" 2>/dev/null || true
 codesign --force --sign - --timestamp=none "$APP_PATH/Contents/MacOS/winecfg" 2>/dev/null || true
-codesign --force --sign - --timestamp=none "$APP_PATH/Contents/MacOS/configurator" 2>/dev/null || true
+codesign --force --sign - --timestamp=none "$APP_PATH/Contents/Resources/Configurator.app" 2>/dev/null || true
 if codesign --force --sign - --timestamp=none "$APP_PATH" 2>/dev/null; then
   echo "  Ad-hoc signed $APP_PATH"
 else
@@ -685,6 +717,20 @@ fi
 
 echo "==> Step 5: Registering with Launch Services..."
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP_PATH" 2>/dev/null || true
+
+echo "==> Step 6: Creating \"Configure GAMMA\" alias..."
+CONFIGURATOR_ALIAS_TARGET="$APP_PATH/Contents/Resources/Configurator.app"
+CONFIGURATOR_ALIAS_NAME="Configure GAMMA"
+if [[ ! -e "$APP_DIR_PARENT/$CONFIGURATOR_ALIAS_NAME.app" ]]; then
+  osascript <<OSA
+tell application "Finder"
+  set aliasFile to make new alias file at POSIX file "$APP_DIR_PARENT" to (POSIX file "$CONFIGURATOR_ALIAS_TARGET" as alias)
+  set name of aliasFile to "$CONFIGURATOR_ALIAS_NAME"
+end tell
+OSA
+else
+  echo "  Skipping: $APP_DIR_PARENT/$CONFIGURATOR_ALIAS_NAME.app already exists"
+fi
 
 echo ""
 echo "=========================================================="
@@ -704,5 +750,6 @@ echo "Launch via:  open \"$APP_PATH\""
 echo "Or CLI:      \"$APP_PATH/Contents/MacOS/launcher\" -dbg -nointro"
 echo "Winetricks:  \"$APP_PATH/Contents/MacOS/winetricks\" [verb ...]"
 echo "WineCfg:     \"$APP_PATH/Contents/MacOS/winecfg\""
-echo "Configurator:\"$APP_PATH/Contents/MacOS/configurator\"  (requires: pip3 install PySide6)"
+echo "Configurator: double-click \"Configure GAMMA\" next to the app in $APP_DIR_PARENT"
+echo "              or open \"$APP_PATH/Contents/Resources/Configurator.app\""
 echo "=========================================================="

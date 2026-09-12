@@ -10,6 +10,11 @@ exemption cannot regress the floor for any other shipped binary
 
 Apple GPTK/D3DMetal is staged once using CrossOver's native
 `lib64/apple_gptk/**` layout.
+
+`share/gamma/Configurator.app/**` is a separate, standalone SwiftUI helper
+app (not loaded into the Wine process, not game-critical) launched directly
+by the user — its own Info.plist `LSMinimumSystemVersion` is what gates its
+minimum OS, not this engine-payload floor, so it's exempt the same way.
 """
 import re
 import subprocess
@@ -18,6 +23,7 @@ from pathlib import Path
 
 DXMT_PATH_PREFIX = "lib/dxmt/"
 D3DMETAL_PATH_PREFIX = "lib64/apple_gptk/"
+CONFIGURATOR_PATH_PREFIX = "share/gamma/Configurator.app/"
 DXMT_MINOS_CEILING = (99, 0, 0)
 
 
@@ -34,6 +40,7 @@ def is_renderer_exempt_path(rel_path: str) -> bool:
     return (
         rel_path.startswith(DXMT_PATH_PREFIX)
         or rel_path.startswith(D3DMETAL_PATH_PREFIX)
+        or rel_path.startswith(CONFIGURATOR_PATH_PREFIX)
     )
 
 
@@ -79,8 +86,9 @@ def main(argv) -> int:
     if violations:
         print(
             f"Refusing to pack: Mach-O minos exceeds allowed ceiling "
-            f"(product floor {floor_s}; {DXMT_PATH_PREFIX}** and "
-            f"{D3DMETAL_PATH_PREFIX}** are renderer-exempt up to {ceiling_s}):",
+            f"(product floor {floor_s}; {DXMT_PATH_PREFIX}**, "
+            f"{D3DMETAL_PATH_PREFIX}**, and {CONFIGURATOR_PATH_PREFIX}** "
+            f"are exempt up to {ceiling_s}):",
             file=sys.stderr,
         )
         for ver, rel in sorted(violations):
@@ -88,7 +96,8 @@ def main(argv) -> int:
         return 1
     print(
         f"OK: staged engine Mach-O minos <= {floor_s} "
-        f"({DXMT_PATH_PREFIX}** and {D3DMETAL_PATH_PREFIX}** exempt up to {ceiling_s})"
+        f"({DXMT_PATH_PREFIX}**, {D3DMETAL_PATH_PREFIX}**, and "
+        f"{CONFIGURATOR_PATH_PREFIX}** exempt up to {ceiling_s})"
     )
     return 0
 
