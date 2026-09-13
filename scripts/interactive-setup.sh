@@ -682,7 +682,8 @@ EOF
 # artifact (share/gamma/Configurator.app) — this script stays
 # standalone/archive-only and never builds anything from source. It's a real
 # nested .app bundle (not a loose binary) so it opens as a GUI window, not
-# Terminal, when launched directly or via the "Configure GAMMA" alias.
+# Terminal, when launched directly or via the "<app name> Configurator" alias
+# (named to sort next to the main .app in Finder).
 CONFIGURATOR_SRC="$ENGINE_DIR/share/gamma/Configurator.app"
 [[ -d "$CONFIGURATOR_SRC" ]] || {
   echo "Error: Configurator.app is missing (expected in the engine artifact)" >&2
@@ -718,9 +719,9 @@ fi
 echo "==> Step 5: Registering with Launch Services..."
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP_PATH" 2>/dev/null || true
 
-echo "==> Step 6: Creating \"Configure GAMMA\" alias..."
 CONFIGURATOR_ALIAS_TARGET="$APP_PATH/Contents/Resources/Configurator.app"
-CONFIGURATOR_ALIAS_NAME="Configure GAMMA"
+CONFIGURATOR_ALIAS_NAME="$APP_NAME Configurator"
+echo "==> Step 6: Creating \"$CONFIGURATOR_ALIAS_NAME\" alias..."
 if [[ ! -e "$APP_DIR_PARENT/$CONFIGURATOR_ALIAS_NAME.app" ]]; then
   osascript <<OSA
 tell application "Finder"
@@ -750,6 +751,6 @@ echo "Launch via:  open \"$APP_PATH\""
 echo "Or CLI:      \"$APP_PATH/Contents/MacOS/launcher\" -dbg -nointro"
 echo "Winetricks:  \"$APP_PATH/Contents/MacOS/winetricks\" [verb ...]"
 echo "WineCfg:     \"$APP_PATH/Contents/MacOS/winecfg\""
-echo "Configurator: double-click \"Configure GAMMA\" next to the app in $APP_DIR_PARENT"
+echo "Configurator: double-click \"$CONFIGURATOR_ALIAS_NAME\" next to the app in $APP_DIR_PARENT"
 echo "              or open \"$APP_PATH/Contents/Resources/Configurator.app\""
 echo "=========================================================="
