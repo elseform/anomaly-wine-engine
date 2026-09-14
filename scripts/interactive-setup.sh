@@ -423,10 +423,10 @@ else
     echo "export EXE_PATH='$EXE_WIN_PATH'"
     echo "export EXE_RUN_DIR='$EXE_RUN_DIR'"
     echo ""
-    echo "export MTL_HUD_ENABLED=1"
+    echo "export MTL_HUD_ENABLED=0"
     echo "export WINEMSYNC=1"
     echo "export WINEESYNC=1"
-    echo "export ROSETTA_ADVERTISE_AVX=1"
+    echo "export ROSETTA_ADVERTISE_AVX=0"
     echo "export WINEDEBUG=\"-all\""
     echo "export DEFAULT_GAME_ARGS=\"\""
     echo "export GAMMA_RETINA_MODE=$RETINA_MODE"
@@ -465,8 +465,8 @@ fi
 export GAMMA_GRAPHICS_BACKEND="\${GAMMA_GRAPHICS_BACKEND:-$GRAPHICS_BACKEND}"
 export WINEMSYNC="\${WINEMSYNC:-1}"
 export WINEESYNC="\${WINEESYNC:-1}"
-export ROSETTA_ADVERTISE_AVX="\${ROSETTA_ADVERTISE_AVX:-1}"
-export MTL_HUD_ENABLED="\${MTL_HUD_ENABLED:-1}"
+export ROSETTA_ADVERTISE_AVX="\${ROSETTA_ADVERTISE_AVX:-0}"
+export MTL_HUD_ENABLED="\${MTL_HUD_ENABLED:-0}"
 export WINEDEBUG="\${WINEDEBUG:--all}"
 export WINEBOOT_HIDE_DIALOG=1
 export LC_ALL="en_US.UTF-8"
@@ -661,7 +661,7 @@ if [[ -f "\$CONFIG_FILE" ]]; then
   # shellcheck disable=SC1090
   source "\$CONFIG_FILE"
 fi
-export GAMMA_GRAPHICS_BACKEND="\${GAMMA_GRAPHICS_BACKEND:-d3dmetal}"
+export GAMMA_GRAPHICS_BACKEND="\${GAMMA_GRAPHICS_BACKEND:-dxmt}"
 
 echo "engine: \$ENGINE_DIR"
 echo "prefix: \$WINEPREFIX"
@@ -693,7 +693,7 @@ mkdir -p "$APP_PATH/Contents/Resources"
 cp -R "$CONFIGURATOR_SRC" "$APP_PATH/Contents/Resources/Configurator.app"
 mkdir -p "$APP_PATH/Contents/Resources/Configurator.app/Contents/Resources"
 cat > "$APP_PATH/Contents/Resources/Configurator.app/Contents/Resources/paths.json" <<JSON
-{"configFile": "$CONFIG_FILE", "stateFile": "$STATE_FILE"}
+{"configFile": "$CONFIG_FILE", "stateFile": "$STATE_FILE", "dxmtOnly": $([[ "$DXMT_ONLY" -eq 1 ]] && echo true || echo false)}
 JSON
 
 chmod +x \

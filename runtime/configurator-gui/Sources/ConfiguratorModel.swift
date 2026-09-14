@@ -5,19 +5,25 @@ final class ConfiguratorModel: ObservableObject {
     @Published var state: ConfiguratorState
     let configFile: String
     let stateFile: String
+    let dxmtOnly: Bool
     let loadError: String?
 
     init() {
         if let paths = PathsConfig.load() {
             configFile = paths.configFile
             stateFile = paths.stateFile
+            dxmtOnly = paths.dxmtOnly
             loadError = nil
             state = loadOrBootstrapState(configFile: paths.configFile, stateFile: paths.stateFile)
         } else {
             configFile = ""
             stateFile = ""
+            dxmtOnly = false
             loadError = "Could not find paths.json in the app bundle — this Configurator was not launched from an installed GAMMA.app."
             state = defaultState()
+        }
+        if dxmtOnly, state.vars["GAMMA_GRAPHICS_BACKEND"]?.value != "dxmt" {
+            state.vars["GAMMA_GRAPHICS_BACKEND"] = VarEntry(enabled: true, value: "dxmt")
         }
     }
 

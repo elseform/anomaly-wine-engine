@@ -8,10 +8,19 @@ import Foundation
 struct PathsConfig: Decodable {
     let configFile: String
     let stateFile: String
+    let dxmtOnly: Bool
 
     enum CodingKeys: String, CodingKey {
         case configFile = "configFile"
         case stateFile = "stateFile"
+        case dxmtOnly = "dxmtOnly"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        configFile = try container.decode(String.self, forKey: .configFile)
+        stateFile = try container.decode(String.self, forKey: .stateFile)
+        dxmtOnly = try container.decodeIfPresent(Bool.self, forKey: .dxmtOnly) ?? false
     }
 
     static func load() -> PathsConfig? {

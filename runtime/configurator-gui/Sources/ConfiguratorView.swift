@@ -30,12 +30,11 @@ struct SchemaRow: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(entry.key)
-                .font(.system(.body, design: .monospaced))
-                .foregroundStyle(.secondary)
+            Text(friendlyLabel(for: entry.key))
                 .frame(width: 260, alignment: .leading)
                 .lineLimit(1)
-                .truncationMode(.middle)
+                .truncationMode(.tail)
+                .help(entry.key)
 
             controls
         }
@@ -46,6 +45,10 @@ struct SchemaRow: View {
     @ViewBuilder
     private var controls: some View {
         switch entry.kind {
+        case .backend where model.dxmtOnly:
+            Text("dxmt (this engine pack has no D3DMetal)")
+                .foregroundStyle(.secondary)
+
         case .backend:
             Picker("", selection: bindingFor(entry)) {
                 Text("dxmt").tag("dxmt")
@@ -121,16 +124,15 @@ struct DXMTConfigRow: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(entry.key)
-                .font(.system(.body, design: .monospaced))
-                .foregroundStyle(.secondary)
+            Text(friendlyLabel(for: entry.key))
                 .frame(width: 260, alignment: .leading)
                 .lineLimit(1)
-                .truncationMode(.middle)
+                .truncationMode(.tail)
+                .help(entry.key)
 
             if entry.kind == .bool {
                 Picker("", selection: triStateBinding) {
-                    Text("Not included").tag(Optional<Bool>.none)
+                    Text("Default").tag(Optional<Bool>.none)
                     Text("false").tag(Optional(false))
                     Text("true").tag(Optional(true))
                 }
@@ -232,7 +234,7 @@ struct ConfiguratorView: View {
                         VStack(alignment: .leading, spacing: Layout.cardContentSpacing) {
                             HStack(spacing: 6) {
                                 SectionTitle(title: "DXMT_CONFIG")
-                                HelpTip(text: "d3d11.* / dxgi.* / dxmt.* — packed into one DXMT_CONFIG line. \"Not included\" leaves DXMT to use its own built-in default.")
+                                HelpTip(text: "d3d11.* / dxgi.* / dxmt.* — packed into one DXMT_CONFIG line. \"Default\" leaves DXMT to use its own built-in default.")
                             }
                             ForEach(dxmtConfigKeys, id: \.key) { entry in
                                 DXMTConfigRow(model: model, entry: entry)
