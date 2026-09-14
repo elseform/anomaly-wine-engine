@@ -74,3 +74,12 @@ it with `--apple-gptk` and comparing.
 DXMT selection and payload validation work, but the game has previously
 crashed during startup on a `concrt140` worker thread. This remains a runtime
 validation item; it does not change the two-backend packaging contract.
+
+DLSS under DXMT (`DXMT_ENABLE_NVEXT=1`) is fixed and confirmed working as of
+2026-09-14 — a DXMT-side NGX parameter-store type mismatch made
+`NVSDK_NGX_D3D11_EvaluateFeature` fail on every call, so no DLSS upscale ever
+actually ran regardless of in-game activation. See
+`dxmt-dlss-fix.md` in
+private notes for the root cause, fix commits, and build/deploy notes
+(private DXMT research stays there, not here, per
+`docs/documentation-standards.md`).
