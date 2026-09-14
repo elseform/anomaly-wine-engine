@@ -24,12 +24,12 @@ struct SchemaEntry {
 
 let schema: [SchemaEntry] = [
     SchemaEntry(section: "Core", family: nil, key: "GAMMA_GRAPHICS_BACKEND", kind: .backend, alwaysOn: true, quoted: false, defaultValue: "dxmt"),
-    SchemaEntry(section: "Core", family: nil, key: "MTL_HUD_ENABLED", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "1"),
+    SchemaEntry(section: "Core", family: nil, key: "MTL_HUD_ENABLED", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "0"),
     SchemaEntry(section: "Core", family: nil, key: "WINEMSYNC", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "1"),
     SchemaEntry(section: "Core", family: nil, key: "WINEESYNC", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "1"),
-    SchemaEntry(section: "Core", family: nil, key: "ROSETTA_ADVERTISE_AVX", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "1"),
+    SchemaEntry(section: "Core", family: nil, key: "ROSETTA_ADVERTISE_AVX", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "0"),
     SchemaEntry(section: "Core", family: nil, key: "WINEDEBUG", kind: .text, alwaysOn: true, quoted: true, defaultValue: "-all"),
-    SchemaEntry(section: "Core", family: nil, key: "DEFAULT_GAME_ARGS", kind: .text, alwaysOn: true, quoted: true, defaultValue: "--dbg"),
+    SchemaEntry(section: "Core", family: nil, key: "DEFAULT_GAME_ARGS", kind: .text, alwaysOn: true, quoted: true, defaultValue: ""),
     SchemaEntry(section: "Core", family: nil, key: "GAMMA_RETINA_MODE", kind: .retina, alwaysOn: true, quoted: false, defaultValue: "N"),
     SchemaEntry(section: "Core", family: nil, key: "GAMMA_RETINA_LOGPIXELS", kind: .text, alwaysOn: false, quoted: false, defaultValue: ""),
 
@@ -96,16 +96,16 @@ struct DXMTConfigEntry {
 
 // Direct port of DXMT_CONFIG_KEYS.
 let dxmtConfigKeys: [DXMTConfigEntry] = [
-    DXMTConfigEntry(key: "d3d11.maxFeatureLevel", kind: .enumChoice, choices: ["9_1", "9_2", "9_3", "10_0", "10_1", "11_0", "11_1", "12_0", "12_1"], defaultValue: "12_1"),
+    DXMTConfigEntry(key: "d3d11.maxFeatureLevel", kind: .enumChoice, choices: ["9_1", "9_2", "9_3", "10_0", "10_1", "11_0", "11_1", "12_0", "12_1"], defaultValue: "11_1"),
     DXMTConfigEntry(key: "d3d11.preferredMaxFrameRate", kind: .int, choices: nil, defaultValue: "60"),
     DXMTConfigEntry(key: "d3d11.metalSpatialUpscaleFactor", kind: .float, choices: nil, defaultValue: "2.0"),
     DXMTConfigEntry(key: "d3d11.ignoreMapFlagNoWait", kind: .bool, choices: nil, defaultValue: "false"),
     DXMTConfigEntry(key: "d3d11.sampleNaNToZero", kind: .bool, choices: nil, defaultValue: "false"),
     DXMTConfigEntry(key: "d3d11.defuseFma", kind: .bool, choices: nil, defaultValue: "false"),
     DXMTConfigEntry(key: "dxmt.shaderMetalVersion", kind: .enumChoice, choices: ["310", "320"], defaultValue: "310"),
-    DXMTConfigEntry(key: "dxgi.customVendorId", kind: .text, choices: nil, defaultValue: "0000"),
-    DXMTConfigEntry(key: "dxgi.customDeviceId", kind: .text, choices: nil, defaultValue: "0000"),
-    DXMTConfigEntry(key: "dxgi.customDeviceDesc", kind: .text, choices: nil, defaultValue: ""),
+    DXMTConfigEntry(key: "dxgi.customVendorId", kind: .text, choices: nil, defaultValue: "10DE"),
+    DXMTConfigEntry(key: "dxgi.customDeviceId", kind: .text, choices: nil, defaultValue: "2684"),
+    DXMTConfigEntry(key: "dxgi.customDeviceDesc", kind: .text, choices: nil, defaultValue: "GeForce RTX 4090"),
     DXMTConfigEntry(key: "dxgi.forceSDR", kind: .bool, choices: nil, defaultValue: "false"),
     DXMTConfigEntry(key: "dxgi.handleAltTab", kind: .bool, choices: nil, defaultValue: "false"),
 ]
