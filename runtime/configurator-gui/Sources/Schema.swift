@@ -24,45 +24,51 @@ struct SchemaEntry {
 
 let schema: [SchemaEntry] = [
     SchemaEntry(section: "Core", family: nil, key: "GAMMA_GRAPHICS_BACKEND", kind: .backend, alwaysOn: true, quoted: false, defaultValue: "dxmt"),
-    SchemaEntry(section: "Core", family: nil, key: "MTL_HUD_ENABLED", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "0"),
+
     SchemaEntry(section: "Core", family: nil, key: "WINEMSYNC", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "1"),
     SchemaEntry(section: "Core", family: nil, key: "WINEESYNC", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "1"),
     SchemaEntry(section: "Core", family: nil, key: "ROSETTA_ADVERTISE_AVX", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "0"),
-    SchemaEntry(section: "Core", family: nil, key: "WINEDEBUG", kind: .text, alwaysOn: true, quoted: true, defaultValue: "-all"),
-    SchemaEntry(section: "Core", family: nil, key: "DEFAULT_GAME_ARGS", kind: .text, alwaysOn: true, quoted: true, defaultValue: ""),
     SchemaEntry(section: "Core", family: nil, key: "GAMMA_RETINA_MODE", kind: .retina, alwaysOn: true, quoted: false, defaultValue: "N"),
     SchemaEntry(section: "Core", family: nil, key: "GAMMA_RETINA_LOGPIXELS", kind: .text, alwaysOn: false, quoted: false, defaultValue: ""),
+    SchemaEntry(section: "Core", family: nil, key: "MTL_HUD_ENABLED", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "0"),
+    SchemaEntry(section: "Core", family: nil, key: "WINEDEBUG", kind: .text, alwaysOn: true, quoted: true, defaultValue: "-all"),
 
-    SchemaEntry(section: "D3DMetal (proven)", family: "d3dmetal", key: "D3DM_ENABLE_METALFX", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "0"),
-    SchemaEntry(section: "D3DMetal (proven)", family: "d3dmetal", key: "D3DM_MAX_FPS", kind: .text, alwaysOn: true, quoted: false, defaultValue: "60"),
-    SchemaEntry(section: "D3DMetal (proven)", family: "d3dmetal", key: "D3DM_POSITION_INVARIANCE", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "1"),
-    SchemaEntry(section: "D3DMetal (proven)", family: "d3dmetal", key: "D3DM_SAMPLE_NAN_TO_ZERO", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "1"),
-    SchemaEntry(section: "D3DMetal (proven)", family: "d3dmetal", key: "D3DM_FLUSH_POS_INF_TO_NAN", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "1"),
-
-    SchemaEntry(section: "D3DMetal (untested)", family: "d3dmetal", key: "D3DM_SHOW_HUD_STATS", kind: .text, alwaysOn: false, quoted: false, defaultValue: "1"),
-    SchemaEntry(section: "D3DMetal (untested)", family: "d3dmetal", key: "D3DM_LOD_BIAS", kind: .text, alwaysOn: false, quoted: false, defaultValue: "-0.5"),
-    SchemaEntry(section: "D3DMetal (untested)", family: "d3dmetal", key: "D3DM_MIN_LOD_CLAMP", kind: .text, alwaysOn: false, quoted: false, defaultValue: "0"),
-    SchemaEntry(section: "D3DMetal (untested)", family: "d3dmetal", key: "D3DM_SUPPORT_DXR", kind: .text, alwaysOn: false, quoted: false, defaultValue: "1"),
-    SchemaEntry(section: "D3DMetal (untested)", family: "d3dmetal", key: "D3DM_MTL4", kind: .text, alwaysOn: false, quoted: false, defaultValue: "1"),
-    SchemaEntry(section: "D3DMetal (untested)", family: "d3dmetal", key: "D3DM_IGNORE_D3D11_RENDER_BARRIERS", kind: .text, alwaysOn: false, quoted: false, defaultValue: "1"),
-    SchemaEntry(section: "D3DMetal (untested)", family: "d3dmetal", key: "D3DM_BOUNDS_CHECK", kind: .text, alwaysOn: false, quoted: false, defaultValue: "1"),
-    SchemaEntry(section: "D3DMetal (untested)", family: "d3dmetal", key: "D3DM_ERROR_MODE", kind: .text, alwaysOn: false, quoted: false, defaultValue: "1"),
-    SchemaEntry(section: "D3DMetal (untested)", family: "d3dmetal", key: "D3DM_NVNGX_PATH", kind: .text, alwaysOn: false, quoted: false, defaultValue: ""),
-    SchemaEntry(section: "D3DMetal (untested)", family: "d3dmetal", key: "D3DM_VENDOR_ID", kind: .text, alwaysOn: false, quoted: false, defaultValue: "0x10de"),
-    SchemaEntry(section: "D3DMetal (untested)", family: "d3dmetal", key: "D3DM_DEVICE_ID", kind: .text, alwaysOn: false, quoted: false, defaultValue: "0x2684"),
-    SchemaEntry(section: "D3DMetal (untested)", family: "d3dmetal", key: "D3DM_DEVICE_DESCRIPTION", kind: .text, alwaysOn: false, quoted: true, defaultValue: "NVIDIA GeForce RTX 4090"),
-    SchemaEntry(section: "D3DMetal (untested)", family: "d3dmetal", key: "D3DM_DEVICE_REVISION", kind: .text, alwaysOn: false, quoted: false, defaultValue: "0"),
-    SchemaEntry(section: "D3DMetal (untested)", family: "d3dmetal", key: "D3DM_DEVICE_SUBSYS", kind: .text, alwaysOn: false, quoted: false, defaultValue: "0"),
+    SchemaEntry(section: "Core", family: nil, key: "DEFAULT_GAME_ARGS", kind: .text, alwaysOn: true, quoted: true, defaultValue: "--dbg"),
 
     SchemaEntry(section: "DXMT", family: "dxmt", key: "DXMT_METALFX_SPATIAL_SWAPCHAIN", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "0"),
-    SchemaEntry(section: "DXMT", family: "dxmt", key: "DXMT_ENABLE_NVEXT", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "0"),
-    SchemaEntry(section: "DXMT", family: "dxmt", key: "DXMT_LOG_LEVEL", kind: .text, alwaysOn: false, quoted: false, defaultValue: "info"),
-    SchemaEntry(section: "DXMT", family: "dxmt", key: "DXMT_LOG_PATH", kind: .text, alwaysOn: false, quoted: false, defaultValue: ""),
+    SchemaEntry(section: "DXMT", family: "dxmt", key: "DXMT_ENABLE_NVEXT", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "1"),
+
     SchemaEntry(section: "DXMT", family: "dxmt", key: "DXMT_SHADER_CACHE", kind: .text, alwaysOn: false, quoted: false, defaultValue: "1"),
     SchemaEntry(section: "DXMT", family: "dxmt", key: "DXMT_SHADER_CACHE_PATH", kind: .text, alwaysOn: false, quoted: false, defaultValue: ""),
+
+    SchemaEntry(section: "DXMT", family: "dxmt", key: "DXMT_LOG_LEVEL", kind: .text, alwaysOn: false, quoted: false, defaultValue: "none"),
+    SchemaEntry(section: "DXMT", family: "dxmt", key: "DXMT_LOG_PATH", kind: .text, alwaysOn: false, quoted: false, defaultValue: ""),
     SchemaEntry(section: "DXMT", family: "dxmt", key: "DXMT_CAPTURE_FRAME", kind: .text, alwaysOn: false, quoted: false, defaultValue: ""),
     SchemaEntry(section: "DXMT", family: "dxmt", key: "DXMT_CAPTURE_EXECUTABLE", kind: .text, alwaysOn: false, quoted: false, defaultValue: ""),
     SchemaEntry(section: "DXMT", family: "dxmt", key: "DXMT_CONFIG_FILE", kind: .text, alwaysOn: false, quoted: false, defaultValue: ""),
+
+    SchemaEntry(section: "D3DMetal", family: "d3dmetal", key: "D3DM_ENABLE_METALFX", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "0"),
+    SchemaEntry(section: "D3DMetal", family: "d3dmetal", key: "D3DM_MAX_FPS", kind: .text, alwaysOn: true, quoted: false, defaultValue: "60"),
+    SchemaEntry(section: "D3DMetal", family: "d3dmetal", key: "D3DM_POSITION_INVARIANCE", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "1"),
+    SchemaEntry(section: "D3DMetal", family: "d3dmetal", key: "D3DM_SAMPLE_NAN_TO_ZERO", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "1"),
+    SchemaEntry(section: "D3DMetal", family: "d3dmetal", key: "D3DM_FLUSH_POS_INF_TO_NAN", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "1"),
+
+    SchemaEntry(section: "D3DMetal", family: "d3dmetal", key: "D3DM_SHOW_HUD_STATS", kind: .text, alwaysOn: false, quoted: false, defaultValue: "1"),
+    SchemaEntry(section: "D3DMetal", family: "d3dmetal", key: "D3DM_LOD_BIAS", kind: .text, alwaysOn: false, quoted: false, defaultValue: "-0.5"),
+    SchemaEntry(section: "D3DMetal", family: "d3dmetal", key: "D3DM_MIN_LOD_CLAMP", kind: .text, alwaysOn: false, quoted: false, defaultValue: "0"),
+    SchemaEntry(section: "D3DMetal", family: "d3dmetal", key: "D3DM_SUPPORT_DXR", kind: .text, alwaysOn: false, quoted: false, defaultValue: "1"),
+    SchemaEntry(section: "D3DMetal", family: "d3dmetal", key: "D3DM_MTL4", kind: .text, alwaysOn: false, quoted: false, defaultValue: "1"),
+    SchemaEntry(section: "D3DMetal", family: "d3dmetal", key: "D3DM_IGNORE_D3D11_RENDER_BARRIERS", kind: .text, alwaysOn: false, quoted: false, defaultValue: "1"),
+    SchemaEntry(section: "D3DMetal", family: "d3dmetal", key: "D3DM_BOUNDS_CHECK", kind: .text, alwaysOn: false, quoted: false, defaultValue: "1"),
+    SchemaEntry(section: "D3DMetal", family: "d3dmetal", key: "D3DM_ERROR_MODE", kind: .text, alwaysOn: false, quoted: false, defaultValue: "1"),
+    SchemaEntry(section: "D3DMetal", family: "d3dmetal", key: "D3DM_NVNGX_PATH", kind: .text, alwaysOn: false, quoted: false, defaultValue: ""),
+    SchemaEntry(section: "D3DMetal", family: "d3dmetal", key: "D3DM_VENDOR_ID", kind: .text, alwaysOn: false, quoted: false, defaultValue: "0x10de"),
+    SchemaEntry(section: "D3DMetal", family: "d3dmetal", key: "D3DM_DEVICE_ID", kind: .text, alwaysOn: false, quoted: false, defaultValue: "0x2684"),
+    SchemaEntry(section: "D3DMetal", family: "d3dmetal", key: "D3DM_DEVICE_DESCRIPTION", kind: .text, alwaysOn: false, quoted: true, defaultValue: "NVIDIA GeForce RTX 4090"),
+    SchemaEntry(section: "D3DMetal", family: "d3dmetal", key: "D3DM_DEVICE_REVISION", kind: .text, alwaysOn: false, quoted: false, defaultValue: "0"),
+    SchemaEntry(section: "D3DMetal", family: "d3dmetal", key: "D3DM_DEVICE_SUBSYS", kind: .text, alwaysOn: false, quoted: false, defaultValue: "0"),
+
+
     // DXMT_CONFIG itself is handled separately (dxmtConfig / dxmtConfigKeys below).
 ]
 
@@ -98,14 +104,14 @@ struct DXMTConfigEntry {
 let dxmtConfigKeys: [DXMTConfigEntry] = [
     DXMTConfigEntry(key: "d3d11.maxFeatureLevel", kind: .enumChoice, choices: ["9_1", "9_2", "9_3", "10_0", "10_1", "11_0", "11_1", "12_0", "12_1"], defaultValue: "11_1"),
     DXMTConfigEntry(key: "d3d11.preferredMaxFrameRate", kind: .int, choices: nil, defaultValue: "60"),
-    DXMTConfigEntry(key: "d3d11.metalSpatialUpscaleFactor", kind: .float, choices: nil, defaultValue: "2.0"),
+    DXMTConfigEntry(key: "d3d11.metalSpatialUpscaleFactor", kind: .float, choices: nil, defaultValue: "1.0"),
     DXMTConfigEntry(key: "d3d11.ignoreMapFlagNoWait", kind: .bool, choices: nil, defaultValue: "false"),
     DXMTConfigEntry(key: "d3d11.sampleNaNToZero", kind: .bool, choices: nil, defaultValue: "false"),
     DXMTConfigEntry(key: "d3d11.defuseFma", kind: .bool, choices: nil, defaultValue: "false"),
     DXMTConfigEntry(key: "dxmt.shaderMetalVersion", kind: .enumChoice, choices: ["310", "320"], defaultValue: "310"),
-    DXMTConfigEntry(key: "dxgi.customVendorId", kind: .text, choices: nil, defaultValue: "10DE"),
-    DXMTConfigEntry(key: "dxgi.customDeviceId", kind: .text, choices: nil, defaultValue: "2684"),
-    DXMTConfigEntry(key: "dxgi.customDeviceDesc", kind: .text, choices: nil, defaultValue: "GeForce RTX 4090"),
+    DXMTConfigEntry(key: "dxgi.customVendorId", kind: .text, choices: nil, defaultValue: ""),
+    DXMTConfigEntry(key: "dxgi.customDeviceId", kind: .text, choices: nil, defaultValue: ""),
+    DXMTConfigEntry(key: "dxgi.customDeviceDesc", kind: .text, choices: nil, defaultValue: ""),
     DXMTConfigEntry(key: "dxgi.forceSDR", kind: .bool, choices: nil, defaultValue: "false"),
     DXMTConfigEntry(key: "dxgi.handleAltTab", kind: .bool, choices: nil, defaultValue: "false"),
 ]
@@ -126,7 +132,7 @@ let friendlyLabels: [String: String] = [
     "WINEESYNC": "Esync",
     "ROSETTA_ADVERTISE_AVX": "Advertise AVX Under Rosetta",
     "WINEDEBUG": "Wine Debug Channels",
-    "DEFAULT_GAME_ARGS": "Default Launch Arguments",
+    "DEFAULT_GAME_ARGS": "Launch Arguments",
     "GAMMA_RETINA_MODE": "Retina Display Mode",
     "GAMMA_RETINA_LOGPIXELS": "Retina DPI Override",
 
@@ -161,7 +167,7 @@ let friendlyLabels: [String: String] = [
     "DXMT_CAPTURE_EXECUTABLE": "Metal Frame Capture Tool",
     "DXMT_CONFIG_FILE": "DXMT Config File Override",
 
-    "d3d11.maxFeatureLevel": "Max Feature Level",
+    "d3d11.maxFeatureLevel": "Max DirectX Feature Level",
     "d3d11.preferredMaxFrameRate": "Preferred Max Frame Rate",
     "d3d11.metalSpatialUpscaleFactor": "Spatial Upscale Factor",
     "d3d11.ignoreMapFlagNoWait": "Ignore Map No-Wait Flag",

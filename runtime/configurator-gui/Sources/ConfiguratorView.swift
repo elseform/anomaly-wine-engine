@@ -46,7 +46,7 @@ struct SchemaRow: View {
     private var controls: some View {
         switch entry.kind {
         case .backend where model.dxmtOnly:
-            Text("dxmt (this engine pack has no D3DMetal)")
+            Text("dxmt")
                 .foregroundStyle(.secondary)
 
         case .backend:
