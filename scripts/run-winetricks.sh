@@ -6,14 +6,14 @@ set -euo pipefail
 
 ENGINE_DIR="$(cd "$(dirname "$0")/.." && pwd)/install/wine-cx26-x86_64"
 if [[ ! -x "$ENGINE_DIR/bin/wine" ]]; then
-  ENGINE_DIR="/Users/elseform/Applications/GAMMA.app/Contents/Resources/engine"
+  ENGINE_DIR="$HOME/Applications/GAMMA.app/Contents/Resources/engine"
 fi
 if [[ ! -x "$ENGINE_DIR/bin/wine" ]]; then
   echo "error: could not find engine wine binary (checked repo install/ and GAMMA.app)" >&2
   exit 1
 fi
 
-export WINEPREFIX="/Users/elseform/Library/Application Support/GAMMA/prefix"
+export WINEPREFIX="$HOME/Library/Application Support/GAMMA/prefix"
 
 if ! command -v winetricks >/dev/null 2>&1; then
   echo "error: winetricks not found on PATH (expected e.g. /usr/local/bin/winetricks)" >&2

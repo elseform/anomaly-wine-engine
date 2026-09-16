@@ -244,7 +244,7 @@ static void compatdb_init(void)
 {
     const char *backend = getenv( "GAMMA_GRAPHICS_BACKEND" );
 
-    if (!backend || !*backend) backend = "d3dmetal";
+    if (!backend || !*backend) backend = "dxmt";
     if (strcmp( backend, "d3dmetal" ) && strcmp( backend, "dxmt" ))
     {
         log_message( "error", "invalid GAMMA_GRAPHICS_BACKEND=%s", backend );

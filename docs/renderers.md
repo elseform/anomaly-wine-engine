@@ -1,14 +1,24 @@
 # Graphics Backends
 
-The engine exposes exactly two graphics backends: Apple D3DMetal from GPTK
-and DXMT. WineD3D still ships as one of Wine's builtins but is not
+The engine exposes exactly two graphics backends: DXMT, and Apple D3DMetal
+from GPTK. WineD3D still ships as one of Wine's builtins but is not
 user-selectable and is never used as an automatic fallback — see
 [Selection and fallback](#selection-and-fallback).
 
-GPTK's version is a staging-time choice, not a runtime one: `install-renderers.sh
---apple-gptk <path>` picks which GPTK payload (`renderers/gptk40b1`,
-`renderers/gptk40b2`, or any directory with the same `d3dmetal/{wine,external}`
-shape) gets staged into `lib64/apple_gptk`; it defaults to `gptk40b2`.
+**GPTK is not bundled in this repo.** Apple's Game Porting Toolkit is
+distributed under its own EULA (non-commercial, Apple-branded-device use
+only) and is not redistributable here. D3DMetal is therefore an optional,
+user-supplied backend: obtain GPTK yourself from Apple, then point
+`install-renderers.sh` at your own payload — either `--apple-gptk <path>` or
+the `GPTK_SRC` env var, pointing at a directory with the same
+`d3dmetal/{wine,external}` shape GPTK itself ships (a `wine/x86_64-{windows,unix}`
+tree and an `external/` directory containing `D3DMetal.framework` and
+`libd3dshared.dylib`). If no GPTK payload is found, `install-renderers.sh`
+skips D3DMetal staging and stages DXMT only — the build does not fail.
+
+GPTK's version is a staging-time choice, not a runtime one: multiple local
+GPTK payloads (e.g. different beta versions) can be compared by re-running
+`install-renderers.sh --apple-gptk <path>` against each.
 
 Selection happens at process start in `cxcompatdb.so`, built from
 `runtime/cxcompatdb/cxcompatdb.c` and loaded by CrossOver's `ntdll`.
@@ -40,7 +50,8 @@ GAMMA_GRAPHICS_BACKEND=dxmt
 ```
 
 No other selector or compatibility alias is accepted. When the variable is
-unset, D3DMetal is selected. `cxcompatdb` derives the engine root from the
+unset, DXMT is selected (GPTK/D3DMetal is optional and user-supplied — see
+above — so it is never the unset-default). `cxcompatdb` derives the engine root from the
 loaded `ntdll.so`, validates the selected backend for the current process
 architecture, adds builtin load-order entries for modules actually present,
 and prepends exactly one directory to Wine's DLL search path:
@@ -59,7 +70,7 @@ before the process exits.
 | Backend | API | Architecture | Notes |
 |---|---|---|---|
 | `dxmt` | D3D11/10 via Metal | x86_64 + i386 | Default (via `interactive_setup.py`). Requires `winemetal.dll` and the host `winemetal.so`. |
-| `d3dmetal` | D3D11/12 via Metal | x86_64 | GPTK only (version chosen at staging time, see above). A 32-bit process is terminated — no 32-bit payload exists, and there is no fallback. Use `dxmt` for 32-bit. |
+| `d3dmetal` | D3D11/12 via Metal | x86_64 | GPTK only, user-supplied (not bundled, see above). A 32-bit process is terminated — no 32-bit payload exists, and there is no fallback. Use `dxmt` for 32-bit. |
 
 GPTK's own `d3d10.dll`/`d3d10.so` ship as part of the payload — staging no
 longer carves them out. They previously caused a confirmed savegame hang by
@@ -78,8 +89,4 @@ validation item; it does not change the two-backend packaging contract.
 DLSS under DXMT (`DXMT_ENABLE_NVEXT=1`) is fixed and confirmed working as of
 2026-09-14 — a DXMT-side NGX parameter-store type mismatch made
 `NVSDK_NGX_D3D11_EvaluateFeature` fail on every call, so no DLSS upscale ever
-actually ran regardless of in-game activation. See
-`dxmt-dlss-fix.md` in
-private notes for the root cause, fix commits, and build/deploy notes
-(private DXMT research stays there, not here, per
-`docs/documentation-standards.md`).
+actually ran regardless of in-game activation.

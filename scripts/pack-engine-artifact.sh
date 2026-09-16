@@ -65,9 +65,11 @@ Usage: $(basename "$0") [--force] [--dry-run] [--dxmt-only] [--zstd|--xz]
 Build a compressed engine artifact from install/wine-cx26-x86_64 (or WINE_INSTALL).
   zstd: dist/artifacts/CX26W11-Gamma087-<N>.tar.zst (default, zstd -$ZSTD_LEVEL)
   xz:   dist/artifacts/CX26W11-Gamma087-<N>.tar.xz (--xz, xz -$XZ_LEVEL)
---dxmt-only skips the GPTK/D3DMetal payload requirement and strips it from
-the staged tree, producing dist/artifacts/CX26W11-GAMMA-DXMT-<N>.tar.zst
-instead (no numeric engine version in the filename).
+GPTK/D3DMetal is optional and user-supplied (see docs/renderers.md): if no
+GPTK payload was staged, packing is DXMT-only automatically, producing
+dist/artifacts/CX26W11-GAMMA-DXMT-<N>.tar.zst (no numeric engine version in
+the filename). --dxmt-only forces this and strips any staged GPTK payload
+from the tree even if one is present.
 --dry-run performs only a fast source/layout preflight; it does not stage,
 strip, rewrite dylib paths, sign, scan minOS, compress, or verify an archive.
 Set GAMMA_ENGINE_VERSION_LABEL to override the detected version label.
@@ -163,6 +165,13 @@ ARTIFACTS_DIR="$(gamma_engine_artifacts_dir)"
 # Read by install-renderers.sh's flag file so the artifact name records which
 # GPTK payload (gptk40b1, gptk40b2, ...) got staged into this WINE_INSTALL.
 GPTK_VERSION="$(gamma_engine_gptk_version "$WINE_INSTALL")"
+# GPTK is optional and user-supplied (see docs/renderers.md): if
+# install-renderers.sh wasn't given a GPTK payload, no lib64/apple_gptk was
+# staged, so pack DXMT-only automatically instead of hard-failing.
+if [[ "$DXMT_ONLY" -ne 1 && ! -d "$WINE_INSTALL/lib64/apple_gptk/wine/x86_64-windows" ]]; then
+  echo "==> No staged GPTK/D3DMetal payload — packing DXMT-only (pass --apple-gptk to install-renderers.sh first to include D3DMetal)"
+  DXMT_ONLY=1
+fi
 if [[ "$DXMT_ONLY" -eq 1 ]]; then
   ARCHIVE="$(gamma_engine_dxmt_archive_path_for_format "$ENGINE_VERSION_LABEL" "$ARTIFACTS_DIR" "$FORMAT")"
 else
@@ -285,6 +294,10 @@ shopt -u nullglob
 echo "==> Embedding vendored DirectX/VC++ redistributables"
 mkdir -p "$ENGINE_TREE/share/gamma/redist"
 rsync -a --delete "$REDIST_SRC/" "$ENGINE_TREE/share/gamma/redist/"
+# Strip macOS AppleDouble sidecar junk (._*) that cross-volume copies (SMB,
+# exFAT, zip round-trips) can leave next to real files — glob("*.dll") would
+# otherwise pick them up too and register bogus "*._name" DLL overrides.
+find "$ENGINE_TREE" -name '._*' -delete 2>/dev/null || true
 
 echo "==> Building GAMMA Configurator (SwiftUI)"
 bash "$SCRIPT_DIR/build-configurator.sh" "$STAGING/Configurator.app"

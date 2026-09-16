@@ -5,6 +5,7 @@ dist/
 .brew-x86/
 reference
 
+
 # macOS metadata
 .DS_Store
 *.swp

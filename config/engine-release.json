@@ -33,5 +33,5 @@
     "runtime/cxcompatdb/cxcompatdb.c",
     "runtime/redist"
   ],
-  "notes": "gamma-wine-engine provides a standalone Wine 11.0 / CX26 engine with two selectable graphics backends: Apple D3DMetal from GPTK 4.0b2 and DXMT. No WineD3D fallback: cxcompatdb terminates any process whose selected backend fails validation."
+  "notes": "gamma-wine-engine provides a standalone Wine 11.0 / CX26 engine with two selectable graphics backends: DXMT (bundled), and Apple D3DMetal from GPTK (optional, user-supplied — not bundled). No WineD3D fallback: cxcompatdb terminates any process whose selected backend fails validation."
 }

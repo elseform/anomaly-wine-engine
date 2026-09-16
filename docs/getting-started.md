@@ -21,12 +21,15 @@ see [architecture.md](architecture.md).
 
 ## 2. Create the app
 
+`interactive_setup.py` lives in `gamma-setup-tool`, not here (see
+[README.md](../README.md#1-interactive-setup-interactive_setuppy-lives-in-gamma-setup-tool)):
+
 ```bash
-python3 scripts/interactive_setup.py
+python3 ../gamma-setup-tool/sources/GAMMASetupTool/Resources/wine-engine/interactive_setup.py
 ```
 
 (Every prompt below also has a matching flag for non-interactive/scripted use — see
-`python3 scripts/interactive_setup.py --help`.)
+`--help` on the script above.)
 
 It asks for the core choices below and provides defaults for all of them:
 
@@ -57,7 +60,7 @@ covers, not interchangeably with the other.
 
 | | `verbs` | `redist` (default) |
 |---|---|---|
-| Source | `scripts/interactive_setup.py`'s winetricks call: `d3dx9_43 d3dx11_43 d3dcompiler_43 d3dcompiler_47 vcrun2022 win10 sound=coreaudio` | Every file under `runtime/redist/x86_64-windows/`: `concrt140`, `d3dcompiler_43/47`, `d3dx9_43`, `d3dx10_43`, `d3dx11_43`, `msvcp140` + 4 companion DLLs, `vcamp140`, `vccorlib140`, `vcomp140`, `vcruntime140`, `vcruntime140_1`, `vcruntime140_threads` |
+| Source | `interactive_setup.py`'s winetricks call: `d3dx9_43 d3dx11_43 d3dcompiler_43 d3dcompiler_47 vcrun2022 win10 sound=coreaudio` | Every file under `runtime/redist/x86_64-windows/`: `concrt140`, `d3dcompiler_43/47`, `d3dx9_43`, `d3dx10_43`, `d3dx11_43`, `msvcp140` + 4 companion DLLs, `vcamp140`, `vccorlib140`, `vcomp140`, `vcruntime140`, `vcruntime140_1`, `vcruntime140_threads` |
 | `d3dx10_43` | **Not installed.** No `d3dx10_43` verb is requested — winetricks has one (`winetricks list-all` confirms it), it is just never called here. D3DX10 stays on Wine's own (limited) builtin. | Installed as a native override. |
 | `vcruntime140_threads.dll` | Not provided; `vcrun2022`'s own file list omits it. | Installed as a native override. |
 | DLL override policy | Set per-verb by winetricks itself, and not uniform: e.g. `d3dx9_43` registers `native` only, while `vcrun2022`'s files (including `vcruntime140`) register `native,builtin` | `native,builtin` for every file above, uniformly — falls back to Wine's builtin if the native copy is ever missing |
@@ -192,8 +195,8 @@ change `EXE_RUN_DIR` to the corresponding macOS directory so the game can find
 its adjacent DLLs and configuration files:
 
 ```bash
-export EXE_PATH='G:\3dss5\bin\AnomalyDX10AVX.exe'
-export EXE_RUN_DIR="$HOME/gamma/3dss5/bin"
+export EXE_PATH='G:\bin\AnomalyDX10AVX.exe'
+export EXE_RUN_DIR="/path/to/your/game/install/bin"
 ```
 
 ## 4. Troubleshooting

@@ -118,9 +118,10 @@ D3DMetal declare higher minimums). Everything else — `wine`, `wineserver`, all
 
 ### Stage 5 — the app
 
-`interactive_setup.py` consumes the tarball and produces the `.app`. It is
-deliberately standalone: it calls no other script here, so it works from just
-an archive on a machine that has never seen this repo.
+`interactive_setup.py` (lives in `gamma-setup-tool`, not this repo) consumes
+the tarball and produces the `.app`. It is deliberately standalone: it calls
+no other script here, so it works from just an archive on a machine that has
+never seen this repo.
 
 ## The backend switcher
 

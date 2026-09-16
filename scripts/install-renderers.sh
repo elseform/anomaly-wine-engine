@@ -7,8 +7,11 @@
 #   lib64/apple_gptk/external/   D3DMetal host libraries and framework
 #
 # wined3d remains untouched in lib/wine and is used only when cxcompatdb
-# rejects the selected backend. DXVK is not shipped. GPTK payload defaults to
-# renderers/gptk40b2/d3dmetal; pick a different one with --apple-gptk.
+# rejects the selected backend. DXVK is not shipped. GPTK is optional and
+# user-supplied (Apple's own EULA-restricted GPTK, not bundled in this repo):
+# if no payload is found at GPTK_SRC (default renderers/gptk40b2/d3dmetal) or
+# via --apple-gptk, D3DMetal staging is skipped and only DXMT is staged. See
+# docs/renderers.md for how to supply your own GPTK payload.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -63,10 +66,13 @@ WINE_BUILD64="${WINE_BUILD64:-$WINE_SRC/build64}"
   echo "Error: DXMT source not found: $DXMT_SRC (run scripts/fetch-dxmt.sh)" >&2
   exit 1
 }
-[[ -d "$GPTK_SRC/wine/x86_64-windows" && -d "$GPTK_SRC/external" ]] || {
-  echo "Error: GPTK source not found: $GPTK_SRC (--apple-gptk or GPTK_SRC)" >&2
-  exit 1
-}
+GPTK_AVAILABLE=1
+if [[ ! -d "$GPTK_SRC/wine/x86_64-windows" || ! -d "$GPTK_SRC/external" ]]; then
+  GPTK_AVAILABLE=0
+  echo "==> No GPTK payload at $GPTK_SRC — skipping D3DMetal staging (DXMT only)."
+  echo "    D3DMetal is a user-supplied, optional backend: point --apple-gptk or"
+  echo "    GPTK_SRC at your own GPTK payload (see docs/renderers.md) to include it."
+fi
 
 echo "==> Staging graphics backends into $WINE_INSTALL"
 
@@ -135,47 +141,52 @@ fi
 echo "  Staged DXMT x86_64-windows"
 cp "$DXMT_SRC/x86_64-unix/winemetal.so" "$WINE_INSTALL/lib/dxmt/x86_64-unix/"
 
-# Label for log output only — derived from the resolved path so it reflects
-# whichever payload --apple-gptk/GPTK_SRC actually picked (gptk40b1,
-# gptk40b2, or an arbitrary path), instead of naming one version in the
-# messages while another is what actually gets staged.
-GPTK_LABEL="$(basename "$(dirname "$GPTK_SRC")")"
-[[ "$GPTK_LABEL" == "d3dmetal" ]] && GPTK_LABEL="$(basename "$GPTK_SRC")"
+if [[ "$GPTK_AVAILABLE" -eq 1 ]]; then
+  # Label for log output only — derived from the resolved path so it reflects
+  # whichever payload --apple-gptk/GPTK_SRC actually picked (gptk40b1,
+  # gptk40b2, or an arbitrary path), instead of naming one version in the
+  # messages while another is what actually gets staged.
+  GPTK_LABEL="$(basename "$(dirname "$GPTK_SRC")")"
+  [[ "$GPTK_LABEL" == "d3dmetal" ]] && GPTK_LABEL="$(basename "$GPTK_SRC")"
 
-echo "--> D3DMetal GPTK ($GPTK_LABEL) from $GPTK_SRC"
-GPTK_DST="$WINE_INSTALL/lib64/apple_gptk"
-mkdir -p "$GPTK_DST/wine/x86_64-windows" \
-         "$GPTK_DST/wine/x86_64-unix" \
-         "$GPTK_DST/external"
-cp -R "$GPTK_SRC/external/." "$GPTK_DST/external/"
+  echo "--> D3DMetal GPTK ($GPTK_LABEL) from $GPTK_SRC"
+  GPTK_DST="$WINE_INSTALL/lib64/apple_gptk"
+  mkdir -p "$GPTK_DST/wine/x86_64-windows" \
+           "$GPTK_DST/wine/x86_64-unix" \
+           "$GPTK_DST/external"
+  cp -R "$GPTK_SRC/external/." "$GPTK_DST/external/"
 
-# Full upstream payload, no per-module exclusion. GPTK's own d3d10 bridge
-# previously caused a confirmed savegame hang sharing libd3dshared state with
-# d3d11 (see docs/renderers.md) — comparing GPTK payloads wholesale via
-# --apple-gptk is now how that gets re-tested, not a file-level carve-out.
-cp -R "$GPTK_SRC/wine/x86_64-windows/." "$GPTK_DST/wine/x86_64-windows/"
-cp -RP "$GPTK_SRC/wine/x86_64-unix/." "$GPTK_DST/wine/x86_64-unix/"
+  # Full upstream payload, no per-module exclusion. GPTK's own d3d10 bridge
+  # previously caused a confirmed savegame hang sharing libd3dshared state with
+  # d3d11 (see docs/renderers.md) — comparing GPTK payloads wholesale via
+  # --apple-gptk is now how that gets re-tested, not a file-level carve-out.
+  cp -R "$GPTK_SRC/wine/x86_64-windows/." "$GPTK_DST/wine/x86_64-windows/"
+  cp -RP "$GPTK_SRC/wine/x86_64-unix/." "$GPTK_DST/wine/x86_64-unix/"
 
-# GPTK ships its NGX/DLSS shim only as nvngx-on-metalfx — there is no
-# separate plain nvngx module to collide with. Renamed to nvngx here (source
-# payload untouched) so Wine's own builtin resolution finds it under the
-# name games actually probe for; cxcompatdb's graphics_modules[] already
-# lists "nvngx" for exactly this. The launcher additionally copies it (as
-# nvngx.dll, alongside nvapi64.dll) into the prefix's system32 when
-# D3DM_ENABLE_METALFX=1 — see interactive-setup.sh.
-if [[ -f "$GPTK_DST/wine/x86_64-windows/nvngx-on-metalfx.dll" ]]; then
-  mv "$GPTK_DST/wine/x86_64-windows/nvngx-on-metalfx.dll" "$GPTK_DST/wine/x86_64-windows/nvngx.dll"
+  # GPTK ships its NGX/DLSS shim only as nvngx-on-metalfx — there is no
+  # separate plain nvngx module to collide with. Renamed to nvngx here (source
+  # payload untouched) so Wine's own builtin resolution finds it under the
+  # name games actually probe for; cxcompatdb's graphics_modules[] already
+  # lists "nvngx" for exactly this. The launcher additionally copies it (as
+  # nvngx.dll, alongside nvapi64.dll) into the prefix's system32 when
+  # D3DM_ENABLE_METALFX=1 — see interactive_setup.py.
+  if [[ -f "$GPTK_DST/wine/x86_64-windows/nvngx-on-metalfx.dll" ]]; then
+    mv "$GPTK_DST/wine/x86_64-windows/nvngx-on-metalfx.dll" "$GPTK_DST/wine/x86_64-windows/nvngx.dll"
+  fi
+  if [[ -f "$GPTK_DST/wine/x86_64-unix/nvngx-on-metalfx.so" ]]; then
+    mv "$GPTK_DST/wine/x86_64-unix/nvngx-on-metalfx.so" "$GPTK_DST/wine/x86_64-unix/nvngx.so"
+  fi
+
+  # Flag file read by pack-engine-artifact.sh (gamma_engine_gptk_version in
+  # engine-common.sh) so the packed artifact's filename records which GPTK
+  # payload got staged. Rewritten every run, matching the rest of this
+  # directory's wholesale-replace treatment.
+  printf '%s\n' "$GPTK_LABEL" >"$GPTK_DST/gptk-version.txt"
+
+  echo "  Staged GPTK ($GPTK_LABEL) in lib64/apple_gptk"
+  echo "==> Backends staged: d3dmetal, dxmt. wined3d.dll still ships (manual DllOverrides"
+  echo "    only) — cxcompatdb no longer falls back to it automatically on failure."
+else
+  echo "==> Backend staged: dxmt only. wined3d.dll still ships (manual DllOverrides"
+  echo "    only) — cxcompatdb no longer falls back to it automatically on failure."
 fi
-if [[ -f "$GPTK_DST/wine/x86_64-unix/nvngx-on-metalfx.so" ]]; then
-  mv "$GPTK_DST/wine/x86_64-unix/nvngx-on-metalfx.so" "$GPTK_DST/wine/x86_64-unix/nvngx.so"
-fi
-
-# Flag file read by pack-engine-artifact.sh (gamma_engine_gptk_version in
-# engine-common.sh) so the packed artifact's filename records which GPTK
-# payload got staged. Rewritten every run, matching the rest of this
-# directory's wholesale-replace treatment.
-printf '%s\n' "$GPTK_LABEL" >"$GPTK_DST/gptk-version.txt"
-
-echo "  Staged GPTK ($GPTK_LABEL) in lib64/apple_gptk"
-echo "==> Backends staged: d3dmetal, dxmt. wined3d.dll still ships (manual DllOverrides"
-echo "    only) — cxcompatdb no longer falls back to it automatically on failure."

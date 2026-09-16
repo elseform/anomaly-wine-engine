@@ -18,13 +18,14 @@
 | [Patch Set](patches/README.md) | What each patch does and why one is excluded |
 | [Why deps build from source](docs/why-no-prebuilt-deps.md) | The `.brew-x86` situation |
 | [Versioning Policy](docs/versioning-policy.md) | Version-label / artifact-basename format, when to bump, CX/Wine base bumps |
+| [Manual Setup](docs/manual-setup.md) | Prefix/launch steps by hand, without `interactive_setup.py` (lives in `gamma-setup-tool`) |
 
 ### Key Features
 
 - **Base Runtime**: CrossOver 26.3.0 built on **Wine 11.0** (`x86_64` under Rosetta 2 on Apple Silicon).
 - **Switchable Graphics Backends**: D3DMetal and DXMT ship side by side using CrossOver's directory convention; WineD3D remains an internal fallback. See [docs/renderers.md](docs/renderers.md).
   - **DXMT**: Default (via `interactive_setup.py`). D3D11/10 via Metal, and the only Metal backend for 32-bit processes.
-  - **Apple D3DMetal (GPTK 4.0b2)**: Selectable alternative, 64-bit Direct3D 11/12 via Metal.
+  - **Apple D3DMetal (GPTK)**: Selectable alternative, 64-bit Direct3D 11/12 via Metal. Optional and user-supplied — GPTK is Apple's own licensed toolkit, not bundled in this repo. See [docs/renderers.md](docs/renderers.md).
 - **Dynamic Backend Switcher (`cxcompatdb.so`)**: Intercepts process startup and prepends the selected backend to the DLL search path — `GAMMA_GRAPHICS_BACKEND=d3dmetal|dxmt`, with no DLL file modifications in the prefix.
 - **Darwin Mach Semaphore Sync (`WINEMSYNC=1`)**: In-process shared memory thread synchronization, eliminating wineserver IPC overhead and micro-stuttering across X-Ray Engine's worker threads.
 - **Engine-Level Stability Patches**:
@@ -40,13 +41,13 @@
 |---|---|---|
 | **Development Staging Tree** | `install/wine-cx26-x86_64/` | Live uncompressed build tree (`bin/wine`, `bin/wineserver`, `lib/dxmt/`, `lib64/apple_gptk/`) |
 | **Packaged Release Tarball** | `dist/artifacts/<artifactBasename>-<N>.tar.zst` — basename derived from `config/engine-version.txt`, e.g. `CX26W11-Gamma087-2.tar.zst` | Codesigned, stripped, standalone production archive |
-| **Setup Tool Script** | `gamma-setup-tool/sources/GAMMASetupTool/Resources/wine-engine/interactive_setup.py` + `Anomaly.icns` | Vendored (copied, not symlinked) into `GAMMA Setup Tool.app` — re-copy after changing the script here; the engine archive itself is *not* bundled, `gamma-setup-tool` downloads it from a published release (`scripts/publish-release.sh`) at setup time |
+| **Interactive Setup Script** | `gamma-setup-tool/sources/GAMMASetupTool/Resources/wine-engine/interactive_setup.py` + `Anomaly.icns` | Lives in `gamma-setup-tool`, not here — `gamma-setup-tool`'s own `build.sh` bundles it into `GAMMA Setup Tool.app`. The engine archive itself is *not* bundled there either; `gamma-setup-tool` downloads it from a published release (`scripts/publish-release.sh`) at setup time |
 
 ---
 
 ## Dedicated Scripts
 
-### 1. Interactive Setup (`scripts/interactive_setup.py`)
+### 1. Interactive Setup (`interactive_setup.py`, lives in `gamma-setup-tool`)
 
 Builds a fully self-contained `.app` from an engine `.tar.zst` (or explicit legacy `.tar.xz`): extracts the engine, bootstraps a
 prefix, installs dependencies through winetricks by default (or bundled redist as an explicit
@@ -57,8 +58,14 @@ helpers. Standalone, stdlib-only Python — calls no other repo script and needs
 The generated `app.env` also exposes `EXE_PATH` and `EXE_RUN_DIR`, so the target can be changed
 later without rebuilding the app.
 
+The script itself now lives at
+`gamma-setup-tool/sources/GAMMASetupTool/Resources/wine-engine/interactive_setup.py` (moved out
+of this repo to end the two-copy vendoring drift — `gamma-setup-tool/build.sh` was the only thing
+that ever needed a copy of it). Run it standalone from there:
+
 ```bash
-python3 scripts/interactive_setup.py
+python3 ../gamma-setup-tool/sources/GAMMASetupTool/Resources/wine-engine/interactive_setup.py \
+  --archive dist/artifacts/<artifact>.tar.zst
 ```
 
 Every prompt above also has a matching flag (`--archive`, `--app-name`, `--app-parent`,
@@ -99,124 +106,14 @@ scripts/publish-release.sh --dry-run
 scripts/publish-release.sh
 ```
 
-## How to Create & Configure a New Prefix Manually
+## Manual Prefix Setup
 
-If you wish to create a custom prefix without the script, follow these steps:
+`scripts/interactive_setup.py` automates prefix creation, drive mappings,
+registry values, and dependency installation. For doing any of that by hand
+(debugging, or understanding what the script does), see
+[docs/manual-setup.md](docs/manual-setup.md).
 
-### Step 1: Initialize Prefix
-
-```bash
-export WINE_DIR="$PWD/install/wine-cx26-x86_64"
-export WINEPREFIX="$HOME/Library/Application Support/GAMMA/prefix"
-
-# Clean prior server instance
-arch -x86_64 "$WINE_DIR/bin/wineserver" -k 2>/dev/null || true
-mkdir -p "$WINEPREFIX"
-
-# Bootstrap
-WINEPREFIX="$WINEPREFIX" arch -x86_64 "$WINE_DIR/bin/wine" wineboot -u
-WINEPREFIX="$WINEPREFIX" arch -x86_64 "$WINE_DIR/bin/wineserver" -w
-```
-
-### Step 2: Configure Drive Mappings & User Profiles
-
-```bash
-# Drive C: and Z:
-mkdir -p "$WINEPREFIX/dosdevices"
-ln -sfn "/" "$WINEPREFIX/dosdevices/z:"
-ln -sfn "../drive_c" "$WINEPREFIX/dosdevices/c:"
-
-# Drive G: (pointing to your game installation folder)
-ln -sfn "$HOME/gamma" "$WINEPREFIX/dosdevices/g:"
-
-# User Profile Symlinks
-mkdir -p "$WINEPREFIX/drive_c/users/Sikarugir"
-ln -sfn "Sikarugir" "$WINEPREFIX/drive_c/users/crossover"
-ln -sfn "Sikarugir" "$WINEPREFIX/drive_c/users/$USER"
-```
-
-### Step 3: Set Base Runtime Registry Values
-
-```bash
-WINEPREFIX="$WINEPREFIX" arch -x86_64 "$WINE_DIR/bin/wine" reg add "HKEY_CURRENT_USER\Software\Wine\Drivers" /v Graphics /t REG_SZ /d mac /f
-WINEPREFIX="$WINEPREFIX" arch -x86_64 "$WINE_DIR/bin/wine" reg add "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v "winemenubuilder.exe" /t REG_SZ /d "" /f
-```
-
-Do not add renderer or helper-library overrides here. `cxcompatdb` selects the
-renderer. The verbs in the next step install their native DLLs and create
-their own overrides.
-
-### Step 4: Install Winetricks Verbs
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks -o /tmp/winetricks
-chmod +x /tmp/winetricks
-
-WINE="$WINE_DIR/bin/wine" WINESERVER="$WINE_DIR/bin/wineserver" WINEPREFIX="$WINEPREFIX" \
-  /tmp/winetricks -q \
-  d3dx9_43 \
-  d3dx11_43 \
-  d3dcompiler_43 \
-  d3dcompiler_47 \
-  vcrun2022 \
-  win10 \
-  sound=coreaudio
-
-WINEPREFIX="$WINEPREFIX" arch -x86_64 "$WINE_DIR/bin/wineserver" -w
-```
-
----
-
-## How to Launch the Game Manually
-
-To run the game with full performance and DirectInput mouse capture:
-
-```bash
-export WINEPREFIX="$HOME/Library/Application Support/GAMMA/prefix"
-export WINEMSYNC=1
-export ROSETTA_ADVERTISE_AVX=1
-export MTL_HUD_ENABLED=1
-
-# Change to the game's bin directory so xrCore loads local DLLs
-cd "$HOME/gamma/3dss5/bin"
-
-# Launch Anomaly
-arch -x86_64 "$PWD/install/wine-cx26-x86_64/bin/wine" "G:\3dss5\bin\AnomalyDX11AVX.exe" -dbg
-```
-
----
-
-## Build & Maintenance Commands
-
-- **Build Wine from Source**:
-
-  ```bash
-  bash scripts/build-wine.sh --cx 26 --without-vulkan
-  ```
-
-- **Install Renderers (D3DMetal + DXMT)** — chained automatically by `build-wine.sh`
-  (skip with `--skip-renderers`); run standalone to re-stage them:
-
-  ```bash
-  bash scripts/install-renderers.sh install/wine-cx26-x86_64
-  ```
-
-- **Fetch latest DXMT build**:
-
-  ```bash
-  bash scripts/fetch-dxmt.sh
-  ```
-
-  `renderers/dxmt/` currently carries a locally-built, non-upstream payload
-  (`fix2-3-winemetal-cbuffer-9434028` — Fix 2 + Fix 3 from the
-  DXMT GPU page-fault fix
-  plan, built from the `dxmt` fork; see
-  a private build archive), not the upstream CI
-  artifact this script fetches. Running `fetch-dxmt.sh` overwrites it with
-  vanilla `3Shain/dxmt`.
-
-- **Package Release Archive**:
-
-  ```bash
-  bash scripts/pack-engine-artifact.sh --force
-  ```
+`renderers/dxmt/` currently carries a locally-built, non-upstream payload
+(`fix2-3-winemetal-cbuffer-9434028` — a GPU page-fault fix built from a
+custom `dxmt` fork), not the upstream CI artifact `scripts/fetch-dxmt.sh`
+fetches. Running that script overwrites it with vanilla `3Shain/dxmt`.
