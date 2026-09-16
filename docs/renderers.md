@@ -58,12 +58,12 @@ before the process exits.
 
 | Backend | API | Architecture | Notes |
 |---|---|---|---|
-| `dxmt` | D3D11/10 via Metal | x86_64 + i386 | Default (via `interactive-setup.sh`). Requires `winemetal.dll` and the host `winemetal.so`. |
+| `dxmt` | D3D11/10 via Metal | x86_64 + i386 | Default (via `interactive_setup.py`). Requires `winemetal.dll` and the host `winemetal.so`. |
 | `d3dmetal` | D3D11/12 via Metal | x86_64 | GPTK only (version chosen at staging time, see above). A 32-bit process is terminated — no 32-bit payload exists, and there is no fallback. Use `dxmt` for 32-bit. |
 
 GPTK's own `d3d10.dll`/`d3d10.so` ship as part of the payload — staging no
 longer carves them out. They previously caused a confirmed savegame hang by
-sharing D3DMetal state with D3D11, so `interactive-setup.sh` still adds a
+sharing D3DMetal state with D3D11, so `interactive_setup.py` still adds a
 per-application `d3d10=builtin` DllOverride pinning a D3DMetal game to Wine's
 own independent D3D10 implementation instead, regardless of which GPTK
 payload is staged. Re-test the hang against a specific GPTK build by staging

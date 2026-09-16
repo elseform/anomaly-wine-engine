@@ -22,8 +22,11 @@ see [architecture.md](architecture.md).
 ## 2. Create the app
 
 ```bash
-bash scripts/interactive-setup.sh
+python3 scripts/interactive_setup.py
 ```
+
+(Every prompt below also has a matching flag for non-interactive/scripted use — see
+`python3 scripts/interactive_setup.py --help`.)
 
 It asks for the core choices below and provides defaults for all of them:
 
@@ -54,7 +57,7 @@ covers, not interchangeably with the other.
 
 | | `verbs` | `redist` (default) |
 |---|---|---|
-| Source | `scripts/interactive-setup.sh`'s winetricks call: `d3dx9_43 d3dx11_43 d3dcompiler_43 d3dcompiler_47 vcrun2022 win10 sound=coreaudio` | Every file under `runtime/redist/x86_64-windows/`: `concrt140`, `d3dcompiler_43/47`, `d3dx9_43`, `d3dx10_43`, `d3dx11_43`, `msvcp140` + 4 companion DLLs, `vcamp140`, `vccorlib140`, `vcomp140`, `vcruntime140`, `vcruntime140_1`, `vcruntime140_threads` |
+| Source | `scripts/interactive_setup.py`'s winetricks call: `d3dx9_43 d3dx11_43 d3dcompiler_43 d3dcompiler_47 vcrun2022 win10 sound=coreaudio` | Every file under `runtime/redist/x86_64-windows/`: `concrt140`, `d3dcompiler_43/47`, `d3dx9_43`, `d3dx10_43`, `d3dx11_43`, `msvcp140` + 4 companion DLLs, `vcamp140`, `vccorlib140`, `vcomp140`, `vcruntime140`, `vcruntime140_1`, `vcruntime140_threads` |
 | `d3dx10_43` | **Not installed.** No `d3dx10_43` verb is requested — winetricks has one (`winetricks list-all` confirms it), it is just never called here. D3DX10 stays on Wine's own (limited) builtin. | Installed as a native override. |
 | `vcruntime140_threads.dll` | Not provided; `vcrun2022`'s own file list omits it. | Installed as a native override. |
 | DLL override policy | Set per-verb by winetricks itself, and not uniform: e.g. `d3dx9_43` registers `native` only, while `vcrun2022`'s files (including `vcruntime140`) register `native,builtin` | `native,builtin` for every file above, uniformly — falls back to Wine's builtin if the native copy is ever missing |
@@ -138,7 +141,7 @@ export GAMMA_GRAPHICS_BACKEND=dxmt
 
 | Backend | What it is | Notes |
 |---|---|---|
-| `dxmt` | DXMT, D3D11/10 → Metal | Default (via `interactive-setup.sh`). The only Metal backend for 32-bit processes. |
+| `dxmt` | DXMT, D3D11/10 → Metal | Default (via `interactive_setup.py`). The only Metal backend for 32-bit processes. |
 | `d3dmetal` | Apple D3DMetal (GPTK), D3D11/12 → Metal | 64-bit only. GPTK version is a build-time choice — see `scripts/install-renderers.sh --apple-gptk`. |
 
 WineD3D is not selectable, and there is no fallback to it: if the chosen
@@ -148,7 +151,7 @@ instead of silently degrading. The engine never tries the other Metal backend.
 **`d3dmetal` gets one extra, permanent registry override that `dxmt` does
 not.** GPTK's own `d3d10.dll`/`d3d10.so` ship as part of the D3DMetal
 payload — they share `libd3dshared` state with D3D11 and caused a confirmed
-savegame hang. `interactive-setup.sh` writes a one-time, per-executable
+savegame hang. `interactive_setup.py` writes a one-time, per-executable
 override instead (`HKEY_CURRENT_USER\Software\Wine\AppDefaults\<exe>\DllOverrides`,
 `d3d10=builtin`), pinning that one process to Wine's own D3D10 rather than
 leaving resolution to `cxcompatdb`. This is **not** something `cxcompatdb`
@@ -178,7 +181,7 @@ export DXMT_ENABLE_NVEXT=1
 backend's `nvngx.dll`/`nvapi64.dll` into the prefix's `system32` on next
 launch (some NGX/DLSS detection paths check for the files there directly),
 restoring whatever was there before once the toggle goes back off. See
-`interactive-setup.sh`'s generated launcher.
+`interactive_setup.py`'s generated launcher.
 
 `DEFAULT_GAME_ARGS` sets the arguments used for Finder/Dock launches; anything
 passed on the command line overrides it.
@@ -253,7 +256,7 @@ The first run compiles a lot from source and takes a long time; see
 [why-no-prebuilt-deps.md](why-no-prebuilt-deps.md) for why bottles cannot be
 used. `pack-engine-artifact.sh` writes
 `dist/artifacts/<artifactBasename>.tar.zst` plus a `.sha256` and a
-`.manifest.json`, then `interactive-setup.sh` picks it up.
+`.manifest.json`, then `interactive_setup.py` picks it up.
 
 For what each script does and how they fit together, read
 [architecture.md](architecture.md).
