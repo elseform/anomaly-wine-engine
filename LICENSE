@@ -34,5 +34,8 @@ this repo builds against or optionally stages:
 - Apple's Game Porting Toolkit (GPTK) / D3DMetal — optional, user-supplied,
   never bundled here; obtain and use it under Apple's own GPTK license.
 - DXMT (`renderers/dxmt/`) — see its own NOTICE for upstream attribution.
-- Vendored Microsoft redistributables (`runtime/redist/`) — distributed
-  under Microsoft's own redistributable terms.
+- Microsoft redistributables (DirectX, Visual C++) — not vendored or bundled
+  here. The engine only declares which files it needs in
+  `config/redist-manifest.json`; `runtime/redist-fetch/gamma_redist.py`
+  fetches them from Microsoft's own public installers at wrapper-setup time,
+  under Microsoft's redistributable terms.

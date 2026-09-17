@@ -45,12 +45,14 @@ It asks for the core choices below and provides defaults for all of them:
 
 Then it extracts the engine, bootstraps a Wine prefix, installs the required
 dependencies, writes the launcher, and ad-hoc signs the bundle. `redist`
-copies the bundled DLL payload (`d3dx9_43`, `d3dx10_43`, `d3dx11_43`,
-`d3dcompiler_43/47`, `concrt140`/`msvcp140`/`vc*140` family) and registers its
-fallback overrides — no network access needed. Select `verbs` instead when you
-need what winetricks covers that `redist` doesn't (see the comparison below);
-it installs its components via winetricks, which create their own DLL
-overrides. If no usable winetricks exists, setup downloads the current script
+obtains the DLL set the engine declares (`d3dx9_43`, `d3dx10_43`, `d3dx11_43`,
+`d3dcompiler_47`, `concrt140`/`msvcp140`/`mfc140`/`vc*140` family) from
+Microsoft's own pinned installers and registers its fallback overrides. The
+installers are cached, and a user-supplied copy of any of them wins over both
+cache and network, so a machine that already has them never goes online.
+Select `verbs` instead when you need what winetricks covers that `redist`
+doesn't (see the comparison below); it installs its components via winetricks,
+which create their own DLL overrides. If no usable winetricks exists, setup downloads the current script
 into the app's external cache.
 
 ### `verbs` and `redist` are not equivalent
@@ -60,15 +62,15 @@ covers, not interchangeably with the other.
 
 | | `verbs` | `redist` (default) |
 |---|---|---|
-| Source | `interactive_setup.py`'s winetricks call: `d3dx9_43 d3dx11_43 d3dcompiler_43 d3dcompiler_47 vcrun2022 win10 sound=coreaudio` | Every file under `runtime/redist/x86_64-windows/`: `concrt140`, `d3dcompiler_43/47`, `d3dx9_43`, `d3dx10_43`, `d3dx11_43`, `msvcp140` + 4 companion DLLs, `vcamp140`, `vccorlib140`, `vcomp140`, `vcruntime140`, `vcruntime140_1`, `vcruntime140_threads` |
+| Source | `interactive_setup.py`'s winetricks call: `d3dx9_43 d3dx11_43 d3dcompiler_43 d3dcompiler_47 vcrun2022 win10 sound=coreaudio` | Every file declared in the engine's own `share/gamma/redist-manifest.json`: `concrt140`, `d3dcompiler_47`, `d3dx9_43`, `d3dx10_43`, `d3dx11_43`, `msvcp140` + 4 companion DLLs, `vcamp140`, `vccorlib140`, `vcomp140`, `vcruntime140`, `vcruntime140_1`, `vcruntime140_threads` |
 | `d3dx10_43` | **Not installed.** No `d3dx10_43` verb is requested — winetricks has one (`winetricks list-all` confirms it), it is just never called here. D3DX10 stays on Wine's own (limited) builtin. | Installed as a native override. |
 | `vcruntime140_threads.dll` | Not provided; `vcrun2022`'s own file list omits it. | Installed as a native override. |
 | DLL override policy | Set per-verb by winetricks itself, and not uniform: e.g. `d3dx9_43` registers `native` only, while `vcrun2022`'s files (including `vcruntime140`) register `native,builtin` | `native,builtin` for every file above, uniformly — falls back to Wine's builtin if the native copy is ever missing |
-| Provenance | Genuine Microsoft installers, downloaded (and cached) by winetricks | Whatever is checked into `runtime/redist/`; update it manually to move to a newer vcredist |
+| Provenance | Genuine Microsoft installers, downloaded (and cached) by winetricks | Genuine Microsoft installers too, pinned by URL *and* SHA-256 in the manifest and fetched by `share/gamma/redist-fetch/gamma_redist.py`; every extracted DLL is verified against its own recorded SHA-256. The one exception is `d3dcompiler_47.dll`, which has no public installer and is taken from the `mozilla/fxc2` build winetricks also uses. Moving to a newer vcredist means re-pinning with `scripts/write-redist-manifest.py` |
 
 (`verbs` row checked against a live prefix's
 `HKEY_CURRENT_USER\Software\Wine\DllOverrides`; `redist` row read from this
-script's own redist-branch loop, which is unconditional. Override value
+script's own redist branch, which is unconditional. Override value
 names are prefixed with `*`, e.g. `*vcruntime140`.)
 
 Practically: content that specifically needs D3DX10 (or, less likely,

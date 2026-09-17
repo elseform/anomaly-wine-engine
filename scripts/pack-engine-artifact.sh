@@ -198,15 +198,21 @@ for obsolete in lib/d3dmetal lib/dxvk lib/external lib/gptk40b1 lib/gptk40b2 lib
     exit 1
   }
 done
-REDIST_SRC="$OGOM/runtime/redist"
-# Vendored redist DLLs are grouped one subdirectory per package
-# (d3dcompiler_47/, directx_Jun2010_redist/, vcrun2022/, ...), each with an
-# x86_64-windows/*.dll set. 64-bit only; there is no i386-windows anymore.
-shopt -s nullglob
-REDIST_DLL_CHECK=("$REDIST_SRC"/*/x86_64-windows/*.dll)
-shopt -u nullglob
-[[ ${#REDIST_DLL_CHECK[@]} -gt 0 ]] || {
-  echo "Missing vendored redist DLLs at $REDIST_SRC — see runtime/redist/README or interactive-setup.sh history." >&2
+# The Microsoft redistributables are Microsoft's to distribute, not ours, so
+# the archive carries a declaration of what it needs plus the code that fetches
+# it from Microsoft's own pinned installers at wrapper-setup time.
+REDIST_MANIFEST_SRC="$OGOM/config/redist-manifest.json"
+REDIST_FETCH_SRC="$OGOM/runtime/redist-fetch"
+[[ -f "$REDIST_MANIFEST_SRC" ]] || {
+  echo "Missing redist manifest at $REDIST_MANIFEST_SRC — regenerate it with scripts/write-redist-manifest.py." >&2
+  exit 1
+}
+[[ -f "$REDIST_FETCH_SRC/gamma_redist.py" ]] || {
+  echo "Missing redist fetcher at $REDIST_FETCH_SRC/gamma_redist.py." >&2
+  exit 1
+}
+python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$REDIST_MANIFEST_SRC" || {
+  echo "Refusing to pack an unparsable redist manifest: $REDIST_MANIFEST_SRC" >&2
   exit 1
 }
 CONFIGURATOR_GUI_SRC="$OGOM/runtime/configurator-gui/Sources"
@@ -284,25 +290,25 @@ if [[ "$DXMT_ONLY" -eq 1 ]]; then
   rm -rf "$ENGINE_TREE/lib64/apple_gptk"
 fi
 
-shopt -s nullglob
-REDIST_DLL_CHECK=("$REDIST_SRC"/*/x86_64-windows/*.dll)
-shopt -u nullglob
-[[ ${#REDIST_DLL_CHECK[@]} -gt 0 ]] || {
-  echo "Missing vendored redist DLLs at $REDIST_SRC — see runtime/redist/README or interactive-setup.sh history." >&2
+echo "==> Embedding the DirectX/VC++ redistributable manifest and fetcher"
+mkdir -p "$ENGINE_TREE/share/gamma/redist-fetch"
+cp "$REDIST_MANIFEST_SRC" "$ENGINE_TREE/share/gamma/redist-manifest.json"
+rsync -a --delete --exclude '__pycache__' \
+  "$REDIST_FETCH_SRC/" "$ENGINE_TREE/share/gamma/redist-fetch/"
+[[ ! -e "$ENGINE_TREE/share/gamma/redist" ]] || {
+  echo "Refusing to pack bundled redist DLLs at share/gamma/redist" >&2
   exit 1
 }
-echo "==> Embedding vendored DirectX/VC++ redistributables"
-mkdir -p "$ENGINE_TREE/share/gamma/redist"
-rsync -a --delete "$REDIST_SRC/" "$ENGINE_TREE/share/gamma/redist/"
-# Strip macOS AppleDouble sidecar junk (._*) that cross-volume copies (SMB,
-# exFAT, zip round-trips) can leave next to real files — glob("*.dll") would
-# otherwise pick them up too and register bogus "*._name" DLL overrides.
-find "$ENGINE_TREE" -name '._*' -delete 2>/dev/null || true
 
 echo "==> Building GAMMA Configurator (SwiftUI)"
 bash "$SCRIPT_DIR/build-configurator.sh" "$STAGING/Configurator.app"
 mkdir -p "$ENGINE_TREE/share/gamma"
 cp -R "$STAGING/Configurator.app" "$ENGINE_TREE/share/gamma/Configurator.app"
+# Sweep again before signing: everything staged after the first sweep (the
+# configurator build above included) can carry Finder metadata of its own.
+# `._*` are macOS AppleDouble sidecars, which cross-volume copies (SMB, exFAT,
+# zip round-trips) leave next to real files.
+find "$ENGINE_TREE" \( -name '.DS_Store' -o -name '._*' \) -delete 2>/dev/null || true
 
 bash "$SCRIPT_DIR/strip-wine-install.sh" "$ENGINE_TREE"
 # Preserve MoltenVK already in the install tree (VULKAN_SOURCE=existing only
