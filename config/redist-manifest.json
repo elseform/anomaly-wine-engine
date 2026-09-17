@@ -1,0 +1,334 @@
+{
+  "schemaVersion": 1,
+  "description": "Microsoft redistributable DLLs the GAMMA Wine engine needs in its prefix, and the public installers they are extracted from. Regenerate with scripts/write-redist-manifest.py.",
+  "installers": {
+    "vc_redist_x64": {
+      "url": "https://download.visualstudio.microsoft.com/download/pr/bd1c8d9d-ba95-4eee-bc6e-df1fcc876373/CC0FF0EB1DC3F5188AE6300FAEF32BF5BEEBA4BDD6E8E445A9184072096B713B/VC_redist.x64.exe",
+      "alias": "https://aka.ms/vs/17/release/vc_redist.x64.exe",
+      "filename": "VC_redist.x64.exe",
+      "sha256": "cc0ff0eb1dc3f5188ae6300faef32bf5beeba4bdd6e8e445a9184072096b713b",
+      "container": "wix-burn",
+      "sizeLabel": "24 MB",
+      "title": "Microsoft Visual C++ 2015-2022 Redistributable (x64)",
+      "publisher": "Microsoft"
+    },
+    "directx_jun2010_redist": {
+      "url": "https://download.microsoft.com/download/8/4/A/84A35BF1-DAFE-4AE8-82AF-AD2AE20B6B14/directx_Jun2010_redist.exe",
+      "filename": "directx_Jun2010_redist.exe",
+      "sha256": "053f76dcbb28802e23341b6a787e3b0791c0fa5c8d4d011b1044172dbf89c73b",
+      "container": "cab",
+      "sizeLabel": "96 MB",
+      "title": "DirectX End-User Runtime (June 2010 redistributable)",
+      "publisher": "Microsoft"
+    },
+    "fxc2_d3dcompiler_47": {
+      "url": "https://raw.githubusercontent.com/mozilla/fxc2/9aba9b11079303d5577e0e3eb455f4d00f3b5946/dll/d3dcompiler_47.dll",
+      "filename": "d3dcompiler_47.dll",
+      "sha256": "4432bbd1a390874f3f0a503d45cc48d346abc3a8c0213c289f4b615bf0ee84f3",
+      "container": "raw",
+      "sizeLabel": "4 MB",
+      "title": "Direct3D HLSL compiler 10.0.17134.12, as redistributed by mozilla/fxc2",
+      "publisher": "Microsoft, via mozilla/fxc2",
+      "note": "The same build winetricks' d3dcompiler_47 verb installs. Microsoft publishes no standalone redistributable for this DLL, and the 6.3.9600.16384 build the engine used to bundle has no public installer at all."
+    }
+  },
+  "files": [
+    {
+      "target": "concrt140.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a12",
+        "concrt140.dll_amd64"
+      ],
+      "sha256": "2405355f0a58067b258f8df33c327e3a3d716eaac5a3a5aebb757842d85bd376",
+      "size": 324208
+    },
+    {
+      "target": "d3dcompiler_47.dll",
+      "installer": "fxc2_d3dcompiler_47",
+      "memberPath": [],
+      "sha256": "4432bbd1a390874f3f0a503d45cc48d346abc3a8c0213c289f4b615bf0ee84f3",
+      "size": 4346120
+    },
+    {
+      "target": "d3dx10_43.dll",
+      "installer": "directx_jun2010_redist",
+      "memberPath": [
+        "Jun2010_d3dx10_43_x64.cab",
+        "d3dx10_43.dll"
+      ],
+      "sha256": "9bffa1ea073d79e9954cb398fc91b93ed9dc79ed2205995d4b949f1cc2ad3bd1",
+      "size": 511328
+    },
+    {
+      "target": "d3dx11_43.dll",
+      "installer": "directx_jun2010_redist",
+      "memberPath": [
+        "Jun2010_d3dx11_43_x64.cab",
+        "d3dx11_43.dll"
+      ],
+      "sha256": "981e42629df751217406e7150477cddc853b79abd6a8568a1566298ed8f7bd59",
+      "size": 276832
+    },
+    {
+      "target": "d3dx9_43.dll",
+      "installer": "directx_jun2010_redist",
+      "memberPath": [
+        "Jun2010_d3dx9_43_x64.cab",
+        "d3dx9_43.dll"
+      ],
+      "sha256": "84b900dbd7fa978d6e0caee26fc54f2f61d92c9c75d10b35f00e3e82cd1d67b4",
+      "size": 2401112
+    },
+    {
+      "target": "mfc140.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a13",
+        "mfc140.dll_amd64"
+      ],
+      "sha256": "2eba4e78edea7a9654075cf0bfcbf9ba7faa3332c40be6f96317f2b707925cc3",
+      "size": 5629600
+    },
+    {
+      "target": "mfc140chs.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a13",
+        "mfc140chs.dll_amd64"
+      ],
+      "sha256": "02db5a7589a6c0469dc08c6e0e33644e0e0509fb06ec64f213e00c30ac1157ee",
+      "size": 51360
+    },
+    {
+      "target": "mfc140cht.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a13",
+        "mfc140cht.dll_amd64"
+      ],
+      "sha256": "85ead493fba021337d5eaa09281de09e0dc2aa630f9856a3bc7a52f0336c062a",
+      "size": 51328
+    },
+    {
+      "target": "mfc140deu.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a13",
+        "mfc140deu.dll_amd64"
+      ],
+      "sha256": "9e7b3e798db10d5a4b8372bdeef7ee47cd027bcc70220d91b94297b518171ec3",
+      "size": 80008
+    },
+    {
+      "target": "mfc140enu.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a13",
+        "mfc140enu.dll_amd64"
+      ],
+      "sha256": "59b7da456a5716e167da8a736151c1ae841fc9db21c606bef35666f2836b4b54",
+      "size": 70272
+    },
+    {
+      "target": "mfc140esn.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a13",
+        "mfc140esn.dll_amd64"
+      ],
+      "sha256": "3d1de91a735343b8e970dcebe233ecfe2c32b3ad62f2ec24b389c0c17a960b44",
+      "size": 78928
+    },
+    {
+      "target": "mfc140fra.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a13",
+        "mfc140fra.dll_amd64"
+      ],
+      "sha256": "b49e3f79abf030d9cfe95e4302ed02e53f357dcb9083555340fdb3b40845e619",
+      "size": 80000
+    },
+    {
+      "target": "mfc140ita.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a13",
+        "mfc140ita.dll_amd64"
+      ],
+      "sha256": "b7947dba144d3188605ede7d0432ea7c7668ac8a853dd7e1c06d17dce7fe5c5f",
+      "size": 77952
+    },
+    {
+      "target": "mfc140jpn.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a13",
+        "mfc140jpn.dll_amd64"
+      ],
+      "sha256": "88935eeb6641e9a7981d7a74b19260f4a21f05b99ea9756b65d4e3ad0b0fc93b",
+      "size": 59008
+    },
+    {
+      "target": "mfc140kor.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a13",
+        "mfc140kor.dll_amd64"
+      ],
+      "sha256": "12c87451b0760104155aa7133a38ad2093c8eefc754dbd0994197b1f201bd08c",
+      "size": 58448
+    },
+    {
+      "target": "mfc140rus.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a13",
+        "mfc140rus.dll_amd64"
+      ],
+      "sha256": "452d45451e712e3231a4a3222657ca612d66d59c76d467c9822aad4aa2a1d95a",
+      "size": 75856
+    },
+    {
+      "target": "mfc140u.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a13",
+        "mfc140u.dll_amd64"
+      ],
+      "sha256": "643ce7fe6a203c53a96a00f272a1a5b42d5b0c320c84364a6fe866307a19bb65",
+      "size": 5664848
+    },
+    {
+      "target": "mfcm140.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a11",
+        "mfcm140.dll_amd64"
+      ],
+      "sha256": "075f599425f6d3bda354a9560fc3f7111fb80f642ab6e55e2b2971bcd69494ac",
+      "size": 96392
+    },
+    {
+      "target": "mfcm140u.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a11",
+        "mfcm140u.dll_amd64"
+      ],
+      "sha256": "21ac15f807ae8bc7c178039e7d9d29e53003b16f152d9102c629af95cba2f433",
+      "size": 96336
+    },
+    {
+      "target": "msvcp140.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a12",
+        "msvcp140.dll_amd64"
+      ],
+      "sha256": "0f885b509a685d2bbfa652fed26b5fb31d88fbdab0a978c641d1c7b8aa460aa9",
+      "size": 557728
+    },
+    {
+      "target": "msvcp140_1.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a12",
+        "msvcp140_1.dll_amd64"
+      ],
+      "sha256": "bfad5aef4c63a669e3c140655cdfdf395b6c979b400a447bd5dcb65ed8826c3d",
+      "size": 35952
+    },
+    {
+      "target": "msvcp140_2.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a12",
+        "msvcp140_2.dll_amd64"
+      ],
+      "sha256": "3ea06f0ee098b4823cb79599df3780e7f23cce52c19aac31d2a0d47efe33a5e9",
+      "size": 280200
+    },
+    {
+      "target": "msvcp140_atomic_wait.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a12",
+        "msvcp140_atomic_wait.dll_amd64"
+      ],
+      "sha256": "640b2aefced484d0368eea5bdd06addd0658a3a70a49256e560d6923b404a479",
+      "size": 50304
+    },
+    {
+      "target": "msvcp140_codecvt_ids.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a12",
+        "msvcp140_codecvt_ids.dll_amd64"
+      ],
+      "sha256": "f2069a52880ec885ee7f0511186100eb7fada0411a2b4948fafea7735b878a18",
+      "size": 31872
+    },
+    {
+      "target": "vcamp140.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a12",
+        "vcamp140.dll_amd64"
+      ],
+      "sha256": "52af68f35476bd03d7b97752b01bef358ffdda568d150057d6ce809f77c4f704",
+      "size": 418944
+    },
+    {
+      "target": "vccorlib140.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a12",
+        "vccorlib140.dll_amd64"
+      ],
+      "sha256": "19839407c3fdbc824e5bce189bf68ddf8097f12ec28b757797ffa0415c144ddd",
+      "size": 352384
+    },
+    {
+      "target": "vcomp140.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a12",
+        "vcomp140.dll_amd64"
+      ],
+      "sha256": "55aba23cdcd6484fbb06f4155b8ca75adfce7a881f10afd0c49457165e677164",
+      "size": 193152
+    },
+    {
+      "target": "vcruntime140.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a12",
+        "vcruntime140.dll_amd64"
+      ],
+      "sha256": "d5e4d9a3e835fa679450145d6a7d94e36573a509317111904d9b3712c30d9066",
+      "size": 124544
+    },
+    {
+      "target": "vcruntime140_1.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a12",
+        "vcruntime140_1.dll_amd64"
+      ],
+      "sha256": "1f2d41c4aa5db0bc33ebf7b66d72943a817d7ce6cbe880502a9403823633093f",
+      "size": 49792
+    },
+    {
+      "target": "vcruntime140_threads.dll",
+      "installer": "vc_redist_x64",
+      "memberPath": [
+        "a12",
+        "vcruntime140_threads.dll_amd64"
+      ],
+      "sha256": "219915cf20822f34d5e7c1fdd4e21ae7f3396881096c51036225fb8f84b47afa",
+      "size": 38528
+    }
+  ]
+}
