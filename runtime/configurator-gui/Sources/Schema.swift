@@ -1,10 +1,11 @@
 import Foundation
 
-// Direct port of runtime/configurator/configurator.py's SCHEMA. Keep this
-// list byte-for-byte equivalent to the Python source (same keys, sections,
-// kinds, always_on/quoted flags, defaults) — it defines what app.env lines
-// get written, and existing installs' app.env/configurator-state.json must
-// stay compatible across the Python -> Swift rewrite.
+// Started as a port of the former runtime/configurator/configurator.py's
+// SCHEMA; this is the only copy now. It defines what app.env lines get
+// written, so keys, sections, kinds and always_on/quoted flags must stay
+// compatible with existing installs' app.env/configurator-state.json.
+// Defaults must match the app.env seed in gamma-setup-tool's
+// interactive_setup.py, which is what a new wrapper actually starts from.
 enum SchemaKind {
     case bool
     case text
@@ -33,7 +34,7 @@ let schema: [SchemaEntry] = [
     SchemaEntry(section: "Core", family: nil, key: "MTL_HUD_ENABLED", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "0"),
     SchemaEntry(section: "Core", family: nil, key: "WINEDEBUG", kind: .text, alwaysOn: true, quoted: true, defaultValue: "-all"),
 
-    SchemaEntry(section: "Core", family: nil, key: "DEFAULT_GAME_ARGS", kind: .text, alwaysOn: true, quoted: true, defaultValue: "--dbg"),
+    SchemaEntry(section: "Core", family: nil, key: "DEFAULT_GAME_ARGS", kind: .text, alwaysOn: true, quoted: true, defaultValue: "--dxgi-old"),
 
     SchemaEntry(section: "DXMT", family: "dxmt", key: "DXMT_METALFX_SPATIAL_SWAPCHAIN", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "0"),
     SchemaEntry(section: "DXMT", family: "dxmt", key: "DXMT_ENABLE_NVEXT", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "1"),
@@ -98,6 +99,9 @@ struct DXMTConfigEntry {
     let kind: DXMTConfigKind
     let choices: [String]?
     let defaultValue: String
+    /// Whether a brand-new state (no app.env to seed from) packs this key
+    /// into DXMT_CONFIG. Everything else stays off until someone enables it.
+    var enabledByDefault = false
 }
 
 // Direct port of DXMT_CONFIG_KEYS.
@@ -106,7 +110,7 @@ let dxmtConfigKeys: [DXMTConfigEntry] = [
     DXMTConfigEntry(key: "d3d11.preferredMaxFrameRate", kind: .int, choices: nil, defaultValue: "60"),
     DXMTConfigEntry(key: "d3d11.metalSpatialUpscaleFactor", kind: .float, choices: nil, defaultValue: "1.0"),
     DXMTConfigEntry(key: "d3d11.ignoreMapFlagNoWait", kind: .bool, choices: nil, defaultValue: "false"),
-    DXMTConfigEntry(key: "d3d11.sampleNaNToZero", kind: .bool, choices: nil, defaultValue: "false"),
+    DXMTConfigEntry(key: "d3d11.sampleNaNToZero", kind: .bool, choices: nil, defaultValue: "true", enabledByDefault: true),
     DXMTConfigEntry(key: "d3d11.defuseFma", kind: .bool, choices: nil, defaultValue: "false"),
     DXMTConfigEntry(key: "dxmt.shaderMetalVersion", kind: .enumChoice, choices: ["310", "320"], defaultValue: "310"),
     DXMTConfigEntry(key: "dxgi.customVendorId", kind: .text, choices: nil, defaultValue: ""),

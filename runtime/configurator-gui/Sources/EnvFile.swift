@@ -110,7 +110,7 @@ func defaultState() -> ConfiguratorState {
         state.vars[entry.key] = VarEntry(enabled: entry.alwaysOn, value: entry.defaultValue)
     }
     for entry in dxmtConfigKeys {
-        state.dxmtConfig[entry.key] = VarEntry(enabled: false, value: entry.defaultValue)
+        state.dxmtConfig[entry.key] = VarEntry(enabled: entry.enabledByDefault, value: entry.defaultValue)
     }
     return state
 }
@@ -119,6 +119,15 @@ func defaultState() -> ConfiguratorState {
 func bootstrapState(configFile: String) -> ConfiguratorState {
     var state = defaultState()
     let parsed = parseEnvLines(path: configFile)
+    // An app.env that exists is authoritative for DXMT_CONFIG: generateEnv
+    // omits the line entirely when nothing is enabled, so a missing line means
+    // "all off", not "use the defaults". Only a state with no app.env at all
+    // keeps the enabled-by-default keys.
+    if !parsed.vars.isEmpty {
+        for key in state.dxmtConfig.keys {
+            state.dxmtConfig[key]?.enabled = false
+        }
+    }
     for (key, entry) in parsed.vars {
         if key == "DXMT_CONFIG" {
             for (subkey, value) in parseDXMTConfig(unquote(entry.rawValue)) {

@@ -41,7 +41,7 @@ final class ConfiguratorModel: ObservableObject {
     }
 
     func dxmtEntry(for entry: DXMTConfigEntry) -> VarEntry {
-        state.dxmtConfig[entry.key] ?? VarEntry(enabled: false, value: entry.defaultValue)
+        state.dxmtConfig[entry.key] ?? VarEntry(enabled: entry.enabledByDefault, value: entry.defaultValue)
     }
 
     func setDXMT(_ key: String, enabled: Bool, value: String) {
