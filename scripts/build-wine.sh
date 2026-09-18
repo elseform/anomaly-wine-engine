@@ -562,7 +562,6 @@ if [[ "$CONFIGURE_ONLY" -eq 0 ]]; then
     echo "+ $SCRIPT_DIR/build-cxcompatdb.sh"
   else
     WINE_SRC="$WINE_SRC" WINE_INSTALL="$WINE_INSTALL" "$SCRIPT_DIR/build-cxcompatdb.sh"
-    rm -f "$WINE_INSTALL/lib/wine/x86_64-unix/cxcompatdb-debug_dummy.so"
   fi
   if [[ "$DRY_RUN" -eq 1 ]]; then
     echo "+ GRAPHICS_INSTALL=${GRAPHICS_INSTALL:-} VULKAN_MODE=$VULKAN_MODE $SCRIPT_DIR/bundle-wine-dylibs.sh"

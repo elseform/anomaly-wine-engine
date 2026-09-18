@@ -265,7 +265,6 @@ rsync -a --delete \
   "$WINE_INSTALL/" "$ENGINE_TREE/"
 find "$ENGINE_TREE" -name '.DS_Store' -delete 2>/dev/null || true
 rm -rf "$ENGINE_TREE/redist"
-rm -f "$ENGINE_TREE/lib/wine/x86_64-unix/cxcompatdb-debug_dummy.so"
 gamma_write_engine_version_file "$ENGINE_TREE" "$ENGINE_VERSION_LABEL"
 
 if [[ "$DXMT_ONLY" -ne 1 ]]; then
