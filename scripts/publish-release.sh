@@ -3,8 +3,8 @@
 # archive as a GitHub Release, so gamma-setup-tool can download it at
 # runtime instead of requiring a local build.
 #
-# This does NOT build the engine — that still happens locally or in the
-# offline VM per docs/engine/offline-vm-build.md and pack-engine-artifact.sh.
+# This does NOT build the engine — that happens locally per docs/building.md
+# (build-wine.sh, then pack-engine-artifact.sh).
 # This script only uploads an artifact that already exists on disk.
 #
 # Requires the `gh` CLI, authenticated against a GitHub account with push
@@ -90,8 +90,8 @@ NOTES="Engine: ${VERSION_LABEL}
 Artifact: ${ARTIFACT_BASENAME}
 SHA256: $(cut -d' ' -f1 "$SHA256_PATH")
 
-Built locally / via the offline VM pipeline (docs/engine/offline-vm-build.md).
-See config/engine-release.json for the full patch list."
+Requires an Apple Silicon Mac running macOS 15 or newer.
+Built per docs/building.md; see config/engine-release.json for the full patch list."
 
 echo "Tag:      $TAG"
 echo "Title:    $VERSION_LABEL"

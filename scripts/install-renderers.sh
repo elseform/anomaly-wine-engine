@@ -6,8 +6,9 @@
 #   lib64/apple_gptk/wine/       Apple D3DMetal GPTK (x86_64), full upstream payload
 #   lib64/apple_gptk/external/   D3DMetal host libraries and framework
 #
-# wined3d remains untouched in lib/wine and is used only when cxcompatdb
-# rejects the selected backend. DXVK is not shipped. GPTK is optional and
+# wined3d remains untouched in lib/wine but is never a fallback: cxcompatdb
+# terminates the process when the selected backend fails validation. DXVK is
+# not shipped. GPTK is optional and
 # user-supplied (Apple's own EULA-restricted GPTK, not bundled in this repo):
 # if no payload is found at GPTK_SRC (default renderers/gptk40b2/d3dmetal) or
 # via --apple-gptk, D3DMetal staging is skipped and only DXMT is staged. See
@@ -128,6 +129,9 @@ rm -rf "$WINE_INSTALL/lib/d3dmetal" \
        "$WINE_INSTALL/lib/apple_gptk" \
        "$WINE_INSTALL/lib64/apple_gptk"
 rm -f "$WINE_INSTALL/lib/wine/x86_64-unix/winemetal.so"
+# DXMT is x86_64-only; an i386 winemetal.dll left by an early build would
+# otherwise ship forever.
+rm -f "$WINE_INSTALL/lib/wine/i386-windows/winemetal.dll"
 
 echo "--> DXMT from $DXMT_SRC"
 rm -rf "$WINE_INSTALL/lib/dxmt"

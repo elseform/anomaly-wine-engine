@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Extract llvm-mingw and CrossOver source archives from tools/archives/ into build/.
+# Extract the llvm-mingw and CrossOver source archives from reference/ into
+# build/. Both archives are local-only (reference/ is not tracked); override the
+# directory with OGOM_ARCHIVES_DIR.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -7,8 +9,7 @@ if [[ -z "${OGOM:-}" ]]; then
   export OGOM="$(cd "$SCRIPT_DIR/.." && pwd)"
 fi
 
-SOURCES_DIR="${OGOM_SOURCES_DIR:-$OGOM/sources}"
-ARCHIVES_DIR="${OGOM_ARCHIVES_DIR:-$SOURCES_DIR}"
+ARCHIVES_DIR="${OGOM_ARCHIVES_DIR:-$OGOM/reference}"
 BUILD_DIR="${OGOM_BUILD_DIR:-$OGOM/build}"
 LLVM_MINGW_NAME="llvm-mingw-20260616-ucrt-macos-universal"
 LLVM_MINGW_ARCHIVE="$ARCHIVES_DIR/${LLVM_MINGW_NAME}.tar.xz"

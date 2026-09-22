@@ -6,6 +6,7 @@ ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 OUTPUT=""
 VERSION_LABEL=""
+BUILD_NUMBER=""
 NTDLL_SHA256=""
 ARTIFACT=""
 ARTIFACT_SHA256=""
@@ -15,6 +16,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --output) OUTPUT="$2"; shift 2 ;;
     --version) VERSION_LABEL="$2"; shift 2 ;;
+    --build-number) BUILD_NUMBER="$2"; shift 2 ;;
     --ntdll-sha256) NTDLL_SHA256="$2"; shift 2 ;;
     --artifact) ARTIFACT="$2"; shift 2 ;;
     --artifact-sha256) ARTIFACT_SHA256="$2"; shift 2 ;;
@@ -27,7 +29,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -n "$OUTPUT" && -n "$VERSION_LABEL" && -n "$NTDLL_SHA256" ]] || {
-  echo "Usage: $(basename "$0") --output FILE --version LABEL --ntdll-sha256 HEX [--config FILE] [--artifact NAME --artifact-sha256 HEX]" >&2
+  echo "Usage: $(basename "$0") --output FILE --version LABEL --ntdll-sha256 HEX [--build-number N] [--config FILE] [--artifact NAME --artifact-sha256 HEX]" >&2
   exit 1
 }
 [[ "$VERSION_LABEL" =~ ^[A-Za-z0-9._()[:space:]-]+$ ]] || {
@@ -38,6 +40,10 @@ done
   echo "Invalid NTDLL SHA-256" >&2
   exit 1
 }
+if [[ -n "$BUILD_NUMBER" && ! "$BUILD_NUMBER" =~ ^[0-9]+$ ]]; then
+  echo "Invalid build number: $BUILD_NUMBER" >&2
+  exit 1
+fi
 if [[ -n "$ARTIFACT_SHA256" && ! "$ARTIFACT_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
   echo "Invalid artifact SHA-256" >&2
   exit 1
@@ -53,15 +59,16 @@ mkdir -p "$(dirname "$OUTPUT")"
 # patch list in one canonical file. The version and checksums are build outputs
 # and intentionally replace their config counterparts here.
 python3 - "$RELEASE_CONFIG" "$OUTPUT" "$VERSION_LABEL" "$NTDLL_SHA256" \
-  "$ARTIFACT" "$ARTIFACT_SHA256" <<'PY'
+  "$ARTIFACT" "$ARTIFACT_SHA256" "$BUILD_NUMBER" <<'PY'
 import json
 import sys
 
-config_path, output_path, version, ntdll_sha, artifact, artifact_sha = sys.argv[1:]
+config_path, output_path, version, ntdll_sha, artifact, artifact_sha, build_number = sys.argv[1:]
 with open(config_path, encoding="utf-8") as stream:
     manifest = json.load(stream)
 
 manifest["versionLabel"] = version
+manifest["buildNumber"] = int(build_number) if build_number else None
 manifest["ntdllSHA256"] = ntdll_sha
 manifest["artifact"] = artifact or None
 manifest["artifactSHA256"] = artifact_sha or None

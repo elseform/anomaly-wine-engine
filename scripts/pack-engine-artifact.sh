@@ -177,6 +177,15 @@ if [[ "$DXMT_ONLY" -eq 1 ]]; then
 else
   ARCHIVE="$(gamma_engine_archive_path_for_format "$ENGINE_VERSION_LABEL" "$ARTIFACTS_DIR" "$FORMAT" "$GPTK_VERSION")"
 fi
+# The -<N> build counter, also recorded in the manifest as buildNumber so a
+# consumer never has to parse it out of a filename.
+BUILD_NUMBER="$(basename "$ARCHIVE")"
+BUILD_NUMBER="${BUILD_NUMBER%%.tar.*}"
+BUILD_NUMBER="${BUILD_NUMBER##*-}"
+[[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]] || {
+  echo "Cannot derive the build number from $(basename "$ARCHIVE")" >&2
+  exit 1
+}
 VERSION_FILE="$ARTIFACTS_DIR/engine-version.txt"
 STAMP_FILE="$ARTIFACTS_DIR/.pack-stamp"
 
@@ -198,6 +207,25 @@ for obsolete in lib/d3dmetal lib/dxvk lib/external lib/gptk40b1 lib/gptk40b2 lib
     exit 1
   }
 done
+# The install tree only picks up renderers/dxmt when install-renderers.sh runs,
+# so a payload committed since then would silently not ship.
+DXMT_PAYLOAD="${DXMT_SRC:-$OGOM/renderers/dxmt}"
+dxmt_stale=()
+while IFS= read -r -d '' payload_file; do
+  rel="${payload_file#"$DXMT_PAYLOAD"/}"
+  cmp -s "$payload_file" "$WINE_INSTALL/lib/dxmt/$rel" || dxmt_stale+=("lib/dxmt/$rel")
+done < <(find "$DXMT_PAYLOAD/x86_64-windows" "$DXMT_PAYLOAD/x86_64-unix" -type f -print0)
+if [[ -f "$DXMT_PAYLOAD/x86_64-windows/winemetal.dll" ]] &&
+   ! cmp -s "$DXMT_PAYLOAD/x86_64-windows/winemetal.dll" "$WINE_INSTALL/lib/wine/x86_64-windows/winemetal.dll"; then
+  dxmt_stale+=("lib/wine/x86_64-windows/winemetal.dll")
+fi
+[[ ! -e "$WINE_INSTALL/lib/wine/i386-windows/winemetal.dll" ]] || dxmt_stale+=("lib/wine/i386-windows/winemetal.dll (obsolete)")
+if [[ ${#dxmt_stale[@]} -gt 0 ]]; then
+  echo "Refusing to pack: the install tree does not match $DXMT_PAYLOAD:" >&2
+  printf '  %s\n' "${dxmt_stale[@]}" >&2
+  echo "Run scripts/install-renderers.sh $WINE_INSTALL first." >&2
+  exit 1
+fi
 # The Microsoft redistributables are Microsoft's to distribute, not ours, so
 # the archive carries a declaration of what it needs plus the code that fetches
 # it from Microsoft's own pinned installers at wrapper-setup time.
@@ -346,6 +374,7 @@ NTDLL_SHA256="$(shasum -a 256 "$NTDLL" | awk '{print $1}')"
 bash "$SCRIPT_DIR/write-engine-manifest.sh" \
   --output "$ENGINE_TREE/engine-manifest.json" \
   --version "$ENGINE_VERSION_LABEL" \
+  --build-number "$BUILD_NUMBER" \
   --ntdll-sha256 "$NTDLL_SHA256"
 
 mkdir -p "$ARTIFACTS_DIR"
@@ -405,6 +434,7 @@ printf '%s  %s\n' "$ARTIFACT_SHA256" "$(basename "$ARCHIVE")" >"${ARCHIVE}.sha25
 bash "$SCRIPT_DIR/write-engine-manifest.sh" \
   --output "${ARCHIVE}.manifest.json" \
   --version "$ENGINE_VERSION_LABEL" \
+  --build-number "$BUILD_NUMBER" \
   --ntdll-sha256 "$NTDLL_SHA256" \
   --artifact "$(basename "$ARCHIVE")" \
   --artifact-sha256 "$ARTIFACT_SHA256"

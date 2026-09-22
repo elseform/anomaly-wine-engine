@@ -4,8 +4,9 @@
   "versionLabel": "CX26.3.0-W11-Gamma087",
   "base": {
     "crossover": "26.3.0",
-    "wine": "11.0"
+    "wine": "11.16"
   },
+  "minimumMacOS": "15.0",
   "hostArchitecture": "x86_64",
   "windowsArchitectures": [
     "i386",
@@ -34,5 +35,5 @@
     "config/redist-manifest.json",
     "runtime/redist-fetch/gamma_redist.py"
   ],
-  "notes": "gamma-wine-engine provides a standalone Wine 11.0 / CX26 engine with two selectable graphics backends: DXMT (bundled), and Apple D3DMetal from GPTK (optional, user-supplied — not bundled). No WineD3D fallback: cxcompatdb terminates any process whose selected backend fails validation."
+  "notes": "gamma-wine-engine provides a standalone Wine 11.16 / CrossOver 26.3 engine for Apple Silicon Macs running macOS 15 or newer, with two selectable graphics backends: DXMT (bundled), and Apple D3DMetal from GPTK (optional, user-supplied — not bundled). No WineD3D fallback: cxcompatdb terminates any process whose selected backend fails validation."
 }
