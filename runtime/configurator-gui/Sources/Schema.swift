@@ -34,7 +34,7 @@ let schema: [SchemaEntry] = [
     SchemaEntry(section: "Core", family: nil, key: "MTL_HUD_ENABLED", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "0"),
     SchemaEntry(section: "Core", family: nil, key: "WINEDEBUG", kind: .text, alwaysOn: true, quoted: true, defaultValue: "-all"),
 
-    SchemaEntry(section: "Core", family: nil, key: "DEFAULT_GAME_ARGS", kind: .text, alwaysOn: true, quoted: true, defaultValue: "--dxgi-old"),
+    SchemaEntry(section: "Core", family: nil, key: "DEFAULT_GAME_ARGS", kind: .text, alwaysOn: true, quoted: true, defaultValue: ""),
 
     SchemaEntry(section: "DXMT", family: "dxmt", key: "DXMT_METALFX_SPATIAL_SWAPCHAIN", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "0"),
     SchemaEntry(section: "DXMT", family: "dxmt", key: "DXMT_ENABLE_NVEXT", kind: .bool, alwaysOn: true, quoted: false, defaultValue: "1"),
