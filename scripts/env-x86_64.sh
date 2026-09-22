@@ -139,6 +139,10 @@ export GAMMA_CROSSOVER_VERSION="${GAMMA_CROSSOVER_VERSION:-26.3.0}"
 # macOS 11+ for Rosetta 2. A lower floor needs a full Wine rebuild.
 export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-10.15}"
 export GAMMA_MIN_OS="${GAMMA_MIN_OS:-$MACOSX_DEPLOYMENT_TARGET}"
+# Oldest macOS the shipped engine supports (Apple Silicon, macOS 15). Renderer
+# payloads and the Configurator may target up to it; pack-minos-scan.py
+# refuses anything newer.
+export GAMMA_PRODUCT_MIN_OS="${GAMMA_PRODUCT_MIN_OS:-15.0}"
 export GAMMA_MACOSX_VERSION_MIN_FLAG="-mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}"
 export ARCH_CMD="arch -x86_64"
 

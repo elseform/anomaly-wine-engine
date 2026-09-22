@@ -24,5 +24,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-This build was produced from a locally maintained fork of DXMT, not the
-unmodified upstream CI artifact — see README.md for what was changed and why.
+This build was produced from a locally maintained fork of DXMT
+(elseform/dxmt, branch vsync-updates, commit b7f6717), not the unmodified
+upstream CI artifact: release build, stripped, macOS 15 deployment target.
