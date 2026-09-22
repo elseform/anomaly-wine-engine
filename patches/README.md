@@ -1,9 +1,10 @@
 # Engine Patch Set
 
-This document details the active patch set applied to CrossOver 26.3.0 / Wine 11.0 in `gamma-wine-engine`.
+This document details the active patch set applied to CrossOver 26.3.0 (Wine 11.16) in `gamma-wine-engine`.
 
-14 patches are applied automatically in sequence by `scripts/build-wine.sh`,
-which fails loudly if a listed patch file is missing. The same list is recorded
+15 patches are applied automatically in sequence by `scripts/build-wine.sh`
+(14, without `w1-win32u-vulkan-soname.patch`, when building with Vulkan). It
+fails loudly if a listed patch file is missing. The same list is recorded
 in `config/engine-release.json` and lands in the release manifest.
 
 ---

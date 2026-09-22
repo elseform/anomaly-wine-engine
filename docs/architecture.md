@@ -1,210 +1,124 @@
-# How This Repo Works
+# Architecture
 
-What each piece is, how a build flows from source archive to `.app`, and the
-conventions worth knowing before changing anything.
+What the engine archive is, how it selects a graphics backend at runtime, and
+the pieces that ship next to Wine. For producing an archive, see
+[building.md](building.md); for how `gamma-setup-tool` consumes it, see
+[setup-tool-contract.md](setup-tool-contract.md).
 
-For using the result, see [getting-started.md](getting-started.md). For the
-graphics backends specifically, see [renderers.md](renderers.md).
+## What this repository produces
 
----
+One artifact: a relocatable Wine 11.16 / CrossOver 26.3.0 engine, built for
+`x86_64` and run under Rosetta 2 on Apple Silicon Macs with macOS 15 or newer.
 
-## What this repo produces
-
-One artifact: a relocatable Wine 11.0 / CrossOver 26.3.0 engine for `x86_64`
-under Rosetta 2, packed as a tarball rooted at `wswine.bundle/`, with D3DMetal
-GPTK (defaults to 4.0b2, staging-time choice) and DXMT baked in.
-
-```
-dist/artifacts/<artifactBasename>.tar.zst
-                                   .sha256
-                                   .manifest.json
+```text
+dist/artifacts/CX26W11-GAMMA-DXMT-<N>.tar.zst
+                                  .tar.zst.sha256
+                                  .tar.zst.manifest.json
 ```
 
-`<artifactBasename>` is derived from the version label (e.g.
-`CX26W11-Gamma086` from `CX26.3.0-W11-Gamma086`) — see
-[Versioning Policy](versioning-policy.md).
+The engine is not an app on its own. `gamma-setup-tool` extracts it into a
+wrapper app, creates a Wine prefix, and writes the launcher; see
+[getting-started.md](getting-started.md).
 
-The `wswine.bundle/` root is not cosmetic — it is what `gamma-setup-tool`'s
-`installEngine()` expects to find when it extracts an engine.
+## Archive layout
 
-## Directory map
-
-| Path | Contents |
-|---|---|
-| `scripts/` | The entire build and packaging pipeline (15 files) |
-| `patches/` | Wine/CrossOver source patches, applied in a fixed order |
-| `runtime/cxcompatdb/` | `cxcompatdb.c` — the backend switcher, built into the engine |
-| `config/` | Release metadata, version label, entitlements |
-| `sources/` | Upstream inputs: CrossOver tarball, llvm-mingw, GPTK4, DXMT |
-| `build/` | Extracted and patched trees; produced, never edited by hand |
-| `install/` | The live uncompressed engine tree |
-| `dist/artifacts/` | Packaged releases |
-| `.brew-x86/` | Project-local x86_64 Homebrew |
-| `docs/` | These documents |
-
-`build/`, `install/`, `dist/`, `sources/` and `.brew-x86/` are gitignored.
-
-## The pipeline
-
-### Stage 0 — environment
-
-`scripts/env-x86_64.sh` is sourced by every build script and defines the whole
-path universe: `WINE_SRC`, `WINE_INSTALL`, `HOMEBREW_PREFIX`,
-`GRAPHICS_INSTALL`, `MEDIA_INSTALL`, `ENTITLEMENTS_PLIST`, the minOS floor, and
-the CrossOver.app auto-detection. It also loads an optional gitignored `.env`.
-
-`scripts/engine-common.sh` holds the version-label and artifact-naming helpers
-used by the packaging scripts.
-
-Neither is executable on its own.
-
-### Stage 1 — sources
-
-`prepare-build-deps.sh --cx 26` extracts `sources/crossover-sources-26.3.0.tar.gz`
-and the llvm-mingw toolchain into `build/`. It is called automatically by
-`build-wine.sh`, so you rarely run it directly.
-
-`fetch-dxmt.sh` pulls the newest successful DXMT CI build from `3Shain/dxmt`
-via `gh run download` into `sources/dxmt`. D3DMetal comes from
-`sources/gptk40b2/d3dmetal`.
-
-### Stage 2 — build Wine
-
-`build-wine.sh` is the main entry point and does, in order:
-
-1. Parse flags, source the environment, extract sources
-2. Optionally bootstrap `.brew-x86` and install build dependencies
-3. Sanitize `PATH` so nothing picks up arm64 `/opt/homebrew` tools
-4. Apply `patches/` in a fixed sequence (idempotent — safe to re-run)
-5. `configure` out-of-tree in `build64/` with the minOS baked into `CFLAGS`
-6. `make` and `make install` into `install/wine-cx26-x86_64/`
-7. Chain `build-cxcompatdb.sh`, `bundle-wine-dylibs.sh`, `install-renderers.sh`
-8. Write the engine version file
-
-Everything runs under `arch -x86_64`. `--dry-run` prints the commands without
-executing them, which is the cheapest way to check a change.
-
-`build-media-stack.sh` builds the GLib/GStreamer stack for `winegstreamer`
-separately; `build-wine.sh` wires it in automatically if it finds one.
-
-### Stage 3 — assemble the tree
-
-- `build-cxcompatdb.sh` compiles `runtime/cxcompatdb/cxcompatdb.c` into the
-  production `lib/wine/x86_64-unix/cxcompatdb.so`
-- `bundle-wine-dylibs.sh` copies Homebrew runtime dylibs into the tree and
-  rewrites their install names to `@loader_path`, making the tree relocatable
-- `install-renderers.sh` stages GPTK under `lib64/apple_gptk` (default
-  `renderers/gptk40b2`, override with `--apple-gptk <path>`), DXMT under
-  `lib/dxmt`, and restores any Wine builtin a previous run shadowed
-
-### Stage 4 — package
-
-`pack-engine-artifact.sh` orchestrates the release:
-
-```
-rsync install tree → staging/wswine.bundle
-  → strip-wine-install.sh     drop headers, man pages, dev binaries, DWARF
-  → bundle-wine-dylibs.sh     re-relink in the staged copy
-  → sign-wine.sh              codesign every Mach-O
-  → pack-minos-scan.py        fail if any binary's minos exceeds the floor
-  → tar + xz/zstd
-  → write-engine-manifest.sh  manifest, twice: pre-tar and post-tar with sha256
+```text
+wswine.bundle/
+  bin/                          wine, wineserver, and the other Wine tools
+  lib/wine/x86_64-windows/      Wine's PE builtins, plus a copy of winemetal.dll
+  lib/wine/i386-windows/        Wine's 32-bit PE builtins
+  lib/wine/x86_64-unix/         Wine's unix side, bundled dylibs, cxcompatdb.so
+  lib/dxmt/x86_64-windows/      DXMT: d3d10core, d3d11, d3d12, dxgi, nvapi64, nvngx, winemetal
+  lib/dxmt/x86_64-unix/         DXMT's host bridge, winemetal.so
+  share/gamma/Configurator.app  settings editor, copied into each wrapper
+  share/gamma/redist-manifest.json
+  share/gamma/redist-fetch/     gamma_redist.py, which installs the Microsoft runtime files
+  engine-manifest.json          identity, build number, base versions, patch list
+  version                       the version label
 ```
 
-The minOS gate is the strictest check: the floor is 10.15, and only
-`lib/dxmt/**` and `lib64/apple_gptk/**` are exempt (upstream DXMT and Apple's
-D3DMetal declare higher minimums). Everything else — `wine`, `wineserver`, all
-`.so` files, all bundled dylibs — must not regress the floor.
+A build that includes Apple's D3DMetal adds `lib64/apple_gptk/`; GPTK is not
+distributed with this repository (see [renderers.md](renderers.md)).
 
-### Stage 5 — the app
+Every Mach-O is signed (ad-hoc unless `SIGN_IDENTITY` is set). Wine's PE
+modules are stripped of debug data during packing.
 
-`interactive_setup.py` (lives in `gamma-setup-tool`, not this repo) consumes
-the tarball and produces the `.app`. It is deliberately standalone: it calls
-no other script here, so it works from just an archive on a machine that has
-never seen this repo.
+## Backend selection at runtime
 
-## The backend switcher
+`cxcompatdb.so` (`runtime/cxcompatdb/cxcompatdb.c`) is loaded by CrossOver's
+`ntdll` in every Wine process. It reads `GAMMA_GRAPHICS_BACKEND`
+(`dxmt` or `d3dmetal`, default `dxmt`), finds the engine root from the loaded
+`ntdll.so`, and validates the backend for the process's architecture. For
+`dxmt` it requires `d3d11`, `dxgi` and `winemetal` in
+`lib/dxmt/<arch>-windows/` and `lib/dxmt/x86_64-unix/winemetal.so`. It then sets
+a builtin load order for each graphics module present there and puts
+`lib/dxmt` first on Wine's DLL search path.
 
-`cxcompatdb.so` is a small unix-side plugin that CrossOver's `ntdll` loads at
-process start. It accepts only `GAMMA_GRAPHICS_BACKEND=d3dmetal|dxmt`, validates
-the selected backend for the running architecture, and calls
-`prepend_dll_path()` once. There is no WineD3D fallback: if validation fails
-for any reason — invalid env value, missing/corrupt module for the running
-architecture, missing native support library — it terminates the process
-instead. It has no external database, compatibility aliases, automatic
-backend chain, or DirectX/VC++ helper policy.
+There is no fallback. If validation fails, the process exits with a
+`gamma-cxcompatdb:` line on stderr giving the reason. DXMT is x86_64-only, so a
+32-bit process under `dxmt` is terminated too.
 
-Because it runs per process, this also applies to 32-bit children of a
-64-bit game: D3DMetal has no 32-bit payload, so any 32-bit process spawned
-under `GAMMA_GRAPHICS_BACKEND=d3dmetal` is terminated by this constructor.
-Use `dxmt` when a 32-bit process needs a Metal backend.
+Two consequences of this layout:
 
-Full detail, including the tree layout it depends on and why `winemetal` is
-special, is in [renderers.md](renderers.md).
+- `lib/wine/x86_64-windows/winemetal.dll` is a copy of DXMT's `winemetal.dll`
+  (debug data stripped) so that `wineboot` finds it and creates the prefix
+  entry. The copy in `lib/dxmt` is the one that loads.
+- The prefix's `system32` holds Wine's own `d3d11.dll`, `dxgi.dll` and
+  `winemetal.dll` from `wineboot`. They are marked as builtins, so Wine loads
+  the modules from its DLL search path — `lib/dxmt` first — instead.
+
+A launch from a terminal prints the selected backend:
+
+```text
+gamma-cxcompatdb:info: graphics backend=dxmt machine=x86_64-windows path=…/lib/dxmt
+```
+
+## Configurator
+
+`runtime/configurator-gui/` is a small SwiftUI app, built by
+`scripts/build-configurator.sh` during packing (Apple Silicon, macOS 15). The
+setup tool copies it into each wrapper, where it edits the wrapper's `app.env`.
+
+- **Where settings live.** It finds `app.env` through
+  `Contents/Resources/configurator-paths.json` in the wrapper, a legacy
+  `paths.json` inside its own bundle, or
+  `~/Library/Application Support/<App name>/app.env`. If none exists it shows
+  an error and disables editing.
+- **Which backends it offers.** It offers D3DMetal only when the engine next to
+  it contains `lib64/apple_gptk/wine/x86_64-windows/d3d11.dll`; otherwise the
+  backend is fixed to DXMT and D3DMetal settings are hidden.
+- **Storage.** `app.env` is the only store. Enabled settings are
+  `export KEY=VALUE`, disabled ones keep their value as `#export KEY=VALUE`,
+  DXMT's sub-options are packed into one `DXMT_CONFIG` line, and unrecognised
+  lines are kept. Hand edits are therefore never lost. Installs from before this
+  design also have a `configurator-state.json`, read once to recover the values
+  of disabled settings.
+- **Keys.** `Sources/Schema.swift` defines every key, its section, and its
+  default. Defaults must match the seed the setup tool writes.
+
+## Microsoft runtime files
+
+The engine ships no Microsoft DLLs. `config/redist-manifest.json` (packed as
+`share/gamma/redist-manifest.json`) lists the Visual C++ 2022 and DirectX files
+the game needs, each with the Microsoft installer it comes from, pinned by URL
+and SHA-256. At wrapper creation `gamma_redist.py` downloads the installers
+(or uses local copies), extracts the files with the system `bsdtar` and plain
+Python (no `cabextract` or `7z`), checks every file's SHA-256, and installs them
+into the prefix. `d3dcompiler_47.dll` has no public Microsoft installer; it comes
+from the `mozilla/fxc2` build that winetricks also uses.
 
 ## Patches
 
-`patches/` holds 16 files; 15 are applied by `build-wine.sh` on a
-`--without-vulkan` build (14 with Vulkan — `w1-win32u-vulkan-soname.patch` is
-only needed when configure finds no Vulkan at all).
-
-The apply step is built to be idempotent and to fail loudly:
-
-- Each patch is tried forward, then reverse-probed to detect "already applied"
-- Some patches overlap textually; those have explicit **guard clauses** that
-  grep the source for a marker string instead of relying on the reverse probe
-- `remove_obsolete_patch()` reverses out superseded patches
-- A patch file listed but missing is a hard error, never a silent skip
-
-Two rules learned the hard way, both documented in
-[patches/README.md](../patches/README.md):
-
-- **`maplestory-cx26-message-wait-handoff.patch` must stay out.** Upstream
-  applies it to every CX26 build; here it makes the main thread spin on Cocoa
-  events and freezes the game on UI clicks.
-- **Patch filenames are provenance, not branding.** 11 keep a `cyder-` prefix
-  from the pipeline this repo was forked from and are referenced by exact
-  filename; the GAMMA rename deliberately left them alone.
-
-`config/engine-release.json` records the patch list and lands in the release
-manifest, so a shipped artifact says exactly what went into it.
+`patches/` holds the source patches `build-wine.sh` applies to CrossOver
+26.3.0; the list is recorded in `config/engine-release.json` and in every
+manifest. Details and the patches deliberately left out are in
+[patches/README.md](../patches/README.md). Filenames with a `cyder-` prefix are
+kept for provenance.
 
 ## Conventions
 
-**Paths.** Every script derives its root as `$SCRIPT_DIR/..`. `OGOM` is a
-legacy alias for that root, still used inside `env-x86_64.sh`.
-
-**Environment variables.** `GAMMA_*` only. The `CYDER_*` fallback (from before
-the rename) was removed 2026-09-11; nothing reads or exports `CYDER_*` anymore.
-
-**Versioning.** `config/engine-version.txt` is the single source of truth for
-the version label (e.g. `CX26.3.0-W11-Gamma086` at time of writing);
-`config/engine-release.json`'s `versionLabel` mirrors it. The compact
-artifact basename and sequence (e.g. `CX26W11-Gamma086-5`) used for the output filename are
-no longer a separately hand-typed field — `gamma_engine_artifact_basename` in
-`scripts/engine-common.sh` derives it mechanically from the label. See
-[Versioning Policy](versioning-policy.md) for the exact format and what
-triggers a bump.
-
-**Signing.** Ad-hoc (`-`) by default, which is what local development and
-end-user re-signing need. Release builds export
-`SIGN_IDENTITY="Developer ID Application: …"`, which also switches on a secure
-timestamp, since notarization rejects unstamped signatures.
-
-**CrossOver.app** is auto-detected in `~/Applications` or `/Applications` only
-as an optional MoltenVK source for a Vulkan-enabled Wine build. Renderer
-staging never references it at runtime.
-
-**Useful knobs.** `GAMMA_ENGINE_COMPRESS_LEVEL` trades archive size against
-packing time (default `zstd -6`; `xz -6` is explicit compatibility mode); `GAMMA_SKIP_ENGINE_STRIP=1` and
-`GAMMA_KEEP_DEBUG_SYMBOLS=1` help when debugging a packaged tree;
-`--skip-renderers` builds Wine without staging any backend.
-
-## Current state
-
-- D3DMetal and DXMT are the only selectable backends
-- D3DMetal defaults to GPTK 4.0b2 (swap via `install-renderers.sh --apple-gptk`)
-  and uses CrossOver's native directory layout
-- The full patch sequence is verified to apply to a pristine CX 26.3.0 tree
-  (15/15), but a complete from-scratch `build-wine.sh` run has not been
-  re-timed since the patch-list fixes
+- Every script derives the repository root from its own location; `OGOM` is a
+  legacy name for that root inside `env-x86_64.sh`.
+- Environment variables use the `GAMMA_` prefix.
+- `CrossOver.app` is only used, when present, as an optional MoltenVK source for
+  a Vulkan-enabled build; the engine never references it at runtime.

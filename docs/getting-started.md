@@ -1,267 +1,109 @@
 # Getting Started
 
-How to go from this repo to a working `.app` you can double-click, and how to
-change its settings afterwards.
-
-If you only want to *run* the game, you need §1 and §2. Everything after that
-is tuning and troubleshooting.
-
----
+How to turn an engine archive into a game app, change its settings, and find
+out what went wrong. To build an archive yourself, see
+[building.md](building.md).
 
 ## 1. Requirements
 
-- Apple Silicon Mac with Rosetta 2 installed (`softwareupdate --install-rosetta`)
-- macOS 10.15 or newer
-- A copy of the game on disk, e.g. `~/gamma`
-- An engine archive: either a prebuilt `dist/artifacts/*.tar.zst`, or one you
-  build yourself (see [§5](#5-building-the-engine-yourself))
-
-Nothing else is required to *use* an engine archive. Building one needs more —
-see [architecture.md](architecture.md).
+- An Apple Silicon Mac with macOS 15 or newer, and Rosetta 2
+  (`softwareupdate --install-rosetta`).
+- An existing S.T.A.L.K.E.R. G.A.M.M.A. installation.
+- An engine archive (`CX26W11-GAMMA-DXMT-<N>.tar.zst`).
 
 ## 2. Create the app
 
-`interactive_setup.py` lives in `gamma-setup-tool`, not here (see
-[README.md](../README.md#1-interactive-setup-interactive_setuppy-lives-in-gamma-setup-tool)):
+Use [GAMMA Setup Tool](https://github.com/elseform/gamma-setup-tool): choose an
+app name, the GAMMA folder that contains `ModOrganizer.exe`, and the engine
+archive. It creates the app in `~/Applications`.
+
+The setup tool runs its `interactive_setup.py`, which can also be used directly
+from a checkout of the setup tool; every prompt has a matching flag (`--help`):
 
 ```bash
-python3 ../gamma-setup-tool/sources/GAMMASetupTool/Resources/wine-engine/interactive_setup.py
+python3 sources/GAMMASetupTool/Resources/wine-engine/interactive_setup.py \
+  --archive /path/to/CX26W11-GAMMA-DXMT-<N>.tar.zst
 ```
 
-(Every prompt below also has a matching flag for non-interactive/scripted use — see
-`--help` on the script above.)
+Setup extracts the engine into the app, creates a Wine prefix, mounts the game
+root as `G:` and the host root as `Z:`, and installs the Visual C++ and DirectX
+runtime files the engine declares. Those come from Microsoft's own installers,
+pinned by checksum and cached for later runs; a directory of installers you
+already have can be passed with `--redist-installer-dir`. The script's
+`--runtime-mode verbs` installs through winetricks instead, which covers a
+slightly different set (no `d3dx10_43`, no `vcruntime140_threads`).
 
-It asks for the core choices below and provides defaults for all of them:
-
-| Prompt | Default |
-|---|---|
-| Path to engine archive | newest `.tar.zst` archive in `dist/artifacts/` |
-| Name for the .app bundle | `GAMMA` |
-| Directory to place the .app in | `~/Applications` |
-| Path to game root (G: drive) | `~/gamma` |
-| Path to .exe, relative to game root | `sept/bin/AnomalyDX11.exe` |
-| Graphics backend | `dxmt` |
-| Runtime dependencies | `redist` |
-
-Then it extracts the engine, bootstraps a Wine prefix, installs the required
-dependencies, writes the launcher, and ad-hoc signs the bundle. `redist`
-obtains the DLL set the engine declares (`d3dx9_43`, `d3dx10_43`, `d3dx11_43`,
-`d3dcompiler_47`, `concrt140`/`msvcp140`/`mfc140`/`vc*140` family) from
-Microsoft's own pinned installers and registers its fallback overrides. The
-installers are cached, and a user-supplied copy of any of them wins over both
-cache and network, so a machine that already has them never goes online.
-Select `verbs` instead when you need what winetricks covers that `redist`
-doesn't (see the comparison below); it installs its components via winetricks,
-which create their own DLL overrides. If no usable winetricks exists, setup downloads the current script
-into the app's external cache.
-
-### `verbs` and `redist` are not equivalent
-
-They do not stage the same DLL set — pick one because you need what it
-covers, not interchangeably with the other.
-
-| | `verbs` | `redist` (default) |
-|---|---|---|
-| Source | `interactive_setup.py`'s winetricks call: `d3dx9_43 d3dx11_43 d3dcompiler_43 d3dcompiler_47 vcrun2022 win10 sound=coreaudio` | Every file declared in the engine's own `share/gamma/redist-manifest.json`: `concrt140`, `d3dcompiler_47`, `d3dx9_43`, `d3dx10_43`, `d3dx11_43`, `msvcp140` + 4 companion DLLs, `vcamp140`, `vccorlib140`, `vcomp140`, `vcruntime140`, `vcruntime140_1`, `vcruntime140_threads` |
-| `d3dx10_43` | **Not installed.** No `d3dx10_43` verb is requested — winetricks has one (`winetricks list-all` confirms it), it is just never called here. D3DX10 stays on Wine's own (limited) builtin. | Installed as a native override. |
-| `vcruntime140_threads.dll` | Not provided; `vcrun2022`'s own file list omits it. | Installed as a native override. |
-| DLL override policy | Set per-verb by winetricks itself, and not uniform: e.g. `d3dx9_43` registers `native` only, while `vcrun2022`'s files (including `vcruntime140`) register `native,builtin` | `native,builtin` for every file above, uniformly — falls back to Wine's builtin if the native copy is ever missing |
-| Provenance | Genuine Microsoft installers, downloaded (and cached) by winetricks | Genuine Microsoft installers too, pinned by URL *and* SHA-256 in the manifest and fetched by `share/gamma/redist-fetch/gamma_redist.py`; every extracted DLL is verified against its own recorded SHA-256. The one exception is `d3dcompiler_47.dll`, which has no public installer and is taken from the `mozilla/fxc2` build winetricks also uses. Moving to a newer vcredist means re-pinning with `scripts/write-redist-manifest.py` |
-
-(`verbs` row checked against a live prefix's
-`HKEY_CURRENT_USER\Software\Wine\DllOverrides`; `redist` row read from this
-script's own redist branch, which is unconditional. Override value
-names are prefixed with `*`, e.g. `*vcruntime140`.)
-
-Practically: content that specifically needs D3DX10 (or, less likely,
-`vcruntime140_threads.dll`) behaves differently depending on which mode
-created the prefix. Neither mode is recorded anywhere after setup finishes.
-Because override policy isn't a clean two-way split (`vcruntime140` reads
-`native,builtin` under *both* modes), check `d3dx10_43` instead — it only
-ever exists under `redist`:
+Launch the app from Finder, or from a terminal to see log output:
 
 ```bash
-WINEPREFIX="$HOME/Library/Application Support/<AppName>/prefix" \
-  arch -x86_64 ~/Applications/<AppName>.app/Contents/Resources/engine/bin/wine \
-  reg query "HKEY_CURRENT_USER\Software\Wine\DllOverrides" /v "*d3dx10_43"
-```
-
-Found → `redist`. `Unable to find the specified registry value` → `verbs`.
-
-Launch it from Finder, or from a terminal to see log output:
-
-```bash
-open ~/Applications/GAMMA.app
-# or
-~/Applications/GAMMA.app/Contents/MacOS/launcher -dbg -nointro
+open ~/Applications/<App>.app
+~/Applications/<App>.app/Contents/MacOS/launcher -dbg -nointro
 ```
 
 ### Where things live
 
-```
-~/Applications/GAMMA.app/Contents/MacOS/launcher       thin launcher
-~/Applications/GAMMA.app/Contents/MacOS/winetricks    prefix-aware winetricks launcher
-~/Applications/GAMMA.app/Contents/MacOS/winecfg       prefix-aware WineCfg launcher
-~/Applications/GAMMA.app/Contents/Resources/engine/    the engine (read-only)
-
-~/Library/Application Support/GAMMA/prefix             Wine prefix
-~/Library/Application Support/GAMMA/app.env            your settings
+```text
+~/Applications/<App>.app                              the app, with the engine inside
+~/Applications/<App> Configurator                     alias to the app's settings editor
+~/Library/Application Support/<App>/prefix            Wine prefix
+~/Library/Application Support/<App>/app.env           settings
 ```
 
-The prefix and settings deliberately sit **outside** the bundle. The app stays
-signed and replaceable, and your saves/config survive rebuilding it.
-
-Run additional winetricks verbs through the generated helper so they use this
-app's bundled Wine engine and prefix:
+The prefix and settings sit outside the app, so the app can be replaced
+without losing saves or settings. The app also contains `winetricks` and
+`winecfg` helpers bound to its own engine and prefix:
 
 ```bash
-~/Applications/GAMMA.app/Contents/MacOS/winetricks settings list
-~/Applications/GAMMA.app/Contents/MacOS/winetricks -q d3dcompiler_47
-~/Applications/GAMMA.app/Contents/MacOS/winecfg
+~/Applications/<App>.app/Contents/MacOS/winetricks settings list
+~/Applications/<App>.app/Contents/MacOS/winecfg
 ```
-
-The helper finds Homebrew winetricks in its standard Apple Silicon or Intel
-location, then falls back to `PATH`. Set `WINETRICKS_BIN` to an executable path
-when using another installation.
 
 ## 3. Changing settings
 
-Everything is in one file:
+Open the `<App> Configurator` alias. It edits
+`~/Library/Application Support/<App>/app.env`, which the launcher sources on
+every start. Changes apply on the next launch; nothing is rebuilt.
 
-```
-~/Library/Application Support/<AppName>/app.env
-```
+`app.env` is plain shell and can also be edited by hand. The Configurator reads
+hand edits back the next time it opens. A setting that is switched off keeps its
+value as a commented line, e.g. `#export DXMT_LOG_LEVEL=debug`.
 
-Plain bash, sourced by the launcher on every start, *before* its defaults — so
-whatever you set there wins. Edit, save, relaunch. No rebuild, and editing it
-cannot break the bundle signature.
+Some settings:
 
-The file is generated with every renderer option present but commented out,
-each with a description and its value range, so you rarely need to look
-anything up. Switching renderer is one line:
-
-```bash
-export GAMMA_GRAPHICS_BACKEND=dxmt
-```
-
-| Backend | What it is | Notes |
-|---|---|---|
-| `dxmt` | DXMT, D3D11/10 → Metal | Default (via `interactive_setup.py`). The only Metal backend for 32-bit processes. |
-| `d3dmetal` | Apple D3DMetal (GPTK), D3D11/12 → Metal | 64-bit only. GPTK version is a build-time choice — see `scripts/install-renderers.sh --apple-gptk`. |
-
-WineD3D is not selectable, and there is no fallback to it: if the chosen
-backend fails validation for a process, `cxcompatdb` terminates that process
-instead of silently degrading. The engine never tries the other Metal backend.
-
-**`d3dmetal` gets one extra, permanent registry override that `dxmt` does
-not.** GPTK's own `d3d10.dll`/`d3d10.so` ship as part of the D3DMetal
-payload — they share `libd3dshared` state with D3D11 and caused a confirmed
-savegame hang. `interactive_setup.py` writes a one-time, per-executable
-override instead (`HKEY_CURRENT_USER\Software\Wine\AppDefaults\<exe>\DllOverrides`,
-`d3d10=builtin`), pinning that one process to Wine's own D3D10 rather than
-leaving resolution to `cxcompatdb`. This is **not** something `cxcompatdb`
-does — it has no override policy of its own (see [architecture.md § The
-backend switcher](architecture.md#the-backend-switcher)); this override is
-written once, at setup time, by the setup script itself, and only when
-`GAMMA_GRAPHICS_BACKEND` was `d3dmetal` at the time. Switching to `dxmt` in
-`app.env` afterward does not remove it (harmless — DXMT ships its own
-`d3d10core.dll` and never goes through this path), and setting up a fresh
-app with `dxmt` selected never writes it in the first place. Also documented
-in [renderers.md § Selection and fallback](renderers.md#selection-and-fallback).
-
-A couple of examples of what the commented blocks offer:
-
-```bash
-# D3DMetal
-export D3DM_ENABLE_METALFX=1
-export D3DM_MAX_FPS=120
-
-# DXMT
-export DXMT_METALFX_SPATIAL_SWAPCHAIN=1
-export DXMT_CONFIG="d3d11.metalSpatialUpscaleFactor=1.5;d3d11.preferredMaxFrameRate=120"
-export DXMT_ENABLE_NVEXT=1
-```
-
-`D3DM_ENABLE_METALFX` and `DXMT_ENABLE_NVEXT` each additionally copy their own
-backend's `nvngx.dll`/`nvapi64.dll` into the prefix's `system32` on next
-launch (some NGX/DLSS detection paths check for the files there directly),
-restoring whatever was there before once the toggle goes back off. See
-`interactive_setup.py`'s generated launcher.
-
-`DEFAULT_GAME_ARGS` sets the arguments used for Finder/Dock launches; anything
-passed on the command line overrides it.
-
-The target executable is configurable there too. `EXE_PATH` is the Windows
-path passed to Wine. When switching to an executable in another directory,
-change `EXE_RUN_DIR` to the corresponding macOS directory so the game can find
-its adjacent DLLs and configuration files:
-
-```bash
-export EXE_PATH='G:\bin\AnomalyDX10AVX.exe'
-export EXE_RUN_DIR="/path/to/your/game/install/bin"
-```
+| Key | Effect |
+|---|---|
+| `DEFAULT_GAME_ARGS` | Arguments for Finder and Dock launches; arguments given on the command line win |
+| `EXE_PATH`, `EXE_RUN_DIR` | The Windows path of the game executable and the macOS directory it runs in |
+| `DXMT_CONFIG` | DXMT options, e.g. `d3d11.displaySync=true;d3d11.preferredMaxFrameRate=120;` |
+| `DXMT_ENABLE_NVEXT` | `1` copies DXMT's `nvngx.dll` and `nvapi64.dll` into the prefix so DLSS can be detected; `0` restores what was there |
+| `DXMT_METALFX_SPATIAL_SWAPCHAIN` | MetalFX spatial upscaling of the final image |
+| `MTL_HUD_ENABLED` | Apple's Metal performance HUD |
+| `WINEDEBUG` | Wine debug channels (`-all` silences them) |
 
 ## 4. Troubleshooting
 
-**Which backend actually loaded?** Launch from a terminal. `cxcompatdb` prints
-one line to stderr, and `WINEDEBUG=-all` does not silence it:
+**Which backend loaded?** Launch from a terminal. `cxcompatdb` prints one line
+to stderr even with `WINEDEBUG=-all`:
 
-```
+```text
 gamma-cxcompatdb:info: graphics backend=dxmt machine=x86_64-windows path=…/lib/dxmt
 ```
 
-What `cxcompatdb` actually does (and does not do — it has no DLL-override or
-redist/verbs policy of its own) is in
-[architecture.md § The backend switcher](architecture.md#the-backend-switcher).
+**The game exits immediately with no `graphics backend=` line.** Backend
+validation failed and the process was terminated; there is no fallback. The
+`gamma-cxcompatdb:` line before it names the missing piece. See
+[renderers.md](renderers.md).
 
-**The process exited immediately with no `graphics backend=` line.** Backend
-validation failed and `cxcompatdb` terminated the process — there is no
-fallback to WineD3D. The preceding stderr line gives the reason: a missing or
-invalid DLL for the current architecture, a missing `winemetal` bridge for
-DXMT, or missing D3DMetal host support.
+**The app will not open on an older Mac.** The engine needs macOS 15 or newer
+on Apple Silicon.
 
-**32-bit process terminated under `d3dmetal`.** D3DMetal ships no 32-bit
-payload, and there is no fallback — the process is killed. Set
-`GAMMA_GRAPHICS_BACKEND=dxmt` when 32-bit Metal support is required.
+**The game freezes on menu or UI clicks.** That was caused by
+`maplestory-cx26-message-wait-handoff.patch`, which this engine deliberately
+does not apply; see [patches/README.md](../patches/README.md).
 
-**DXMT crashes during startup.** Known and unresolved — the game dies just
-after material loading with a `FATAL ERROR / invalid_parameter_handler` dialog.
-Use `d3dmetal` for now. Details, what has been ruled out, and how to pick the
-investigation back up are in
-[renderers.md](renderers.md#known-issue-dxmt-crashes-during-startup).
+**Start over.** Delete the app and `~/Library/Application Support/<App>/`,
+then create the app again. Do not delete only `app.env`: it also holds the game
+path (`EXE_PATH`, `EXE_RUN_DIR`), which only setup writes.
 
-**The game freezes on menu or UI clicks.** This was caused by
-`maplestory-cx26-message-wait-handoff.patch`, which is deliberately not applied
-in this repo. If you see it again, check nothing re-added it — see
-[patches/README.md](../patches/README.md).
-
-**Start over.** Delete `~/Library/Application Support/<AppName>/` and re-run
-the setup script. Deleting only `app.env` regenerates the settings file with
-current defaults while keeping the prefix.
-
-**Uninstall.** Delete the `.app` and `~/Library/Application Support/<AppName>/`.
-Nothing is installed anywhere else.
-
-## 5. Building the engine yourself
-
-Only needed if you want to change patches, renderers, or Wine itself.
-
-```bash
-# first time: project-local x86_64 Homebrew + build dependencies
-bash scripts/build-wine.sh --cx 26 --without-vulkan --bootstrap-brew --install-deps
-
-# subsequent builds
-bash scripts/build-wine.sh --cx 26 --without-vulkan
-
-# package it
-bash scripts/pack-engine-artifact.sh --force
-```
-
-The first run compiles a lot from source and takes a long time; see
-[why-no-prebuilt-deps.md](why-no-prebuilt-deps.md) for why bottles cannot be
-used. `pack-engine-artifact.sh` writes
-`dist/artifacts/<artifactBasename>.tar.zst` plus a `.sha256` and a
-`.manifest.json`, then `interactive_setup.py` picks it up.
-
-For what each script does and how they fit together, read
-[architecture.md](architecture.md).
+**Uninstall.** Delete the app, its Configurator alias, and
+`~/Library/Application Support/<App>/`.

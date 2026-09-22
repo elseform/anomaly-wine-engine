@@ -117,7 +117,7 @@ gamma_engine_version_from_tarball() {
 # hand-typed field (artifactBasename in engine-release.json) that had to be
 # kept in sync with versionLabel/engine-version.txt by hand and could drift;
 # it is now always computed from the label, so there is exactly one place a
-# version number is typed. See docs/versioning-policy.md.
+# version number is typed. See docs/building.md, "Versioning".
 gamma_engine_artifact_basename_from_label() {
   local label gptk_version="${2:-}"
   label="$(gamma_engine_version_label_trim "${1:-}")"

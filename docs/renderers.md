@@ -26,18 +26,21 @@ Selection happens at process start in `cxcompatdb.so`, built from
 ## Engine layout
 
 ```text
-lib/wine/x86_64-windows/          Wine builtins, plus winemetal.dll
-lib/wine/i386-windows/            Wine builtins, plus winemetal.dll
+lib/wine/x86_64-windows/          Wine builtins, plus a copy of winemetal.dll
+lib/wine/i386-windows/            Wine's 32-bit builtins
 lib/wine/x86_64-unix/             Wine builtins, plus cxcompatdb.so
-lib/dxmt/                         DXMT: x86_64, i386, and winemetal.so
+lib/dxmt/x86_64-windows/          DXMT (x86_64 only)
+lib/dxmt/x86_64-unix/             winemetal.so, DXMT's host bridge
 lib64/apple_gptk/wine/            Apple D3DMetal GPTK (version staged via --apple-gptk)
 lib64/apple_gptk/external/        libd3dshared.dylib and D3DMetal.framework
 ```
 
 This follows CrossOver 26.3.0's renderer placement. Backend files never
-replace Wine's Direct3D builtins. `winemetal.dll` is the narrow exception: it
-also lives in `lib/wine/<arch>` because `wineboot` must discover it there and
-create the corresponding fake DLL in the prefix. `winemetal.so` remains only
+replace Wine's Direct3D builtins. `winemetal.dll` is the narrow exception: a
+copy also lives in `lib/wine/x86_64-windows` because `wineboot` must discover it
+there and create the corresponding fake DLL in the prefix. The copy in
+`lib/dxmt` is the one that loads, because `cxcompatdb` puts `lib/dxmt` first on
+the DLL search path. `winemetal.so` remains only
 under `lib/dxmt/x86_64-unix`, matching CrossOver.
 
 ## Selection and fallback
@@ -69,8 +72,8 @@ before the process exits.
 
 | Backend | API | Architecture | Notes |
 |---|---|---|---|
-| `dxmt` | D3D11/10 via Metal | x86_64 + i386 | Default (via `interactive_setup.py`). Requires `winemetal.dll` and the host `winemetal.so`. |
-| `d3dmetal` | D3D11/12 via Metal | x86_64 | GPTK only, user-supplied (not bundled, see above). A 32-bit process is terminated — no 32-bit payload exists, and there is no fallback. Use `dxmt` for 32-bit. |
+| `dxmt` | D3D11/10 via Metal | x86_64 | Default, and the only backend in DXMT-only builds. Requires `winemetal.dll` and the host `winemetal.so`. A 32-bit process is terminated. |
+| `d3dmetal` | D3D11/12 via Metal | x86_64 | GPTK only, user-supplied (not bundled, see above). A 32-bit process is terminated. |
 
 GPTK's own `d3d10.dll`/`d3d10.so` ship as part of the payload — staging no
 longer carves them out. They previously caused a confirmed savegame hang by

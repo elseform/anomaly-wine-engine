@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs winetricks against the GAMMA prefix, using this engine's own Wine
 # build (not system Wine) via Rosetta, matching how GAMMA.app itself launches
-# wine (see Contents/MacOS/launcher and scripts/interactive-setup.sh).
+# wine (see Contents/MacOS/launcher, written by gamma-setup-tool's interactive_setup.py).
 set -euo pipefail
 
 ENGINE_DIR="$(cd "$(dirname "$0")/.." && pwd)/install/wine-cx26-x86_64"
