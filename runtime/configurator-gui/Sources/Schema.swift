@@ -108,6 +108,8 @@ struct DXMTConfigEntry {
 let dxmtConfigKeys: [DXMTConfigEntry] = [
     DXMTConfigEntry(key: "d3d11.maxFeatureLevel", kind: .enumChoice, choices: ["9_1", "9_2", "9_3", "10_0", "10_1", "11_0", "11_1", "12_0", "12_1"], defaultValue: "11_1"),
     DXMTConfigEntry(key: "d3d11.preferredMaxFrameRate", kind: .int, choices: nil, defaultValue: "60"),
+    // DXMT Tristate: auto follows the game's Present sync interval (vsync-updates builds only).
+    DXMTConfigEntry(key: "d3d11.displaySync", kind: .enumChoice, choices: ["auto", "true", "false"], defaultValue: "auto"),
     DXMTConfigEntry(key: "d3d11.metalSpatialUpscaleFactor", kind: .float, choices: nil, defaultValue: "1.0"),
     DXMTConfigEntry(key: "d3d11.ignoreMapFlagNoWait", kind: .bool, choices: nil, defaultValue: "false"),
     DXMTConfigEntry(key: "d3d11.sampleNaNToZero", kind: .bool, choices: nil, defaultValue: "true", enabledByDefault: true),
@@ -173,6 +175,7 @@ let friendlyLabels: [String: String] = [
 
     "d3d11.maxFeatureLevel": "Max DirectX Feature Level",
     "d3d11.preferredMaxFrameRate": "Preferred Max Frame Rate",
+    "d3d11.displaySync": "Metal Display Sync (V-Sync)",
     "d3d11.metalSpatialUpscaleFactor": "Spatial Upscale Factor",
     "d3d11.ignoreMapFlagNoWait": "Ignore Map No-Wait Flag",
     "d3d11.sampleNaNToZero": "Clamp NaN Samples To Zero",
