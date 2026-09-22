@@ -3,7 +3,7 @@ import Foundation
 // Started as a port of the former runtime/configurator/configurator.py's
 // SCHEMA; this is the only copy now. It defines what app.env lines get
 // written, so keys, sections, kinds and always_on/quoted flags must stay
-// compatible with existing installs' app.env/configurator-state.json.
+// compatible with existing installs' app.env files.
 // Defaults must match the app.env seed in gamma-setup-tool's
 // interactive_setup.py, which is what a new wrapper actually starts from.
 enum SchemaKind {
@@ -122,7 +122,7 @@ let dxmtConfigKeys: [DXMTConfigEntry] = [
     DXMTConfigEntry(key: "dxgi.handleAltTab", kind: .bool, choices: nil, defaultValue: "false"),
 ]
 
-// EXE_PATH/EXE_RUN_DIR are owned by interactive-setup.sh, never rendered as
+// EXE_PATH/EXE_RUN_DIR are owned by interactive_setup.py, never rendered as
 // GUI fields; carried through every regeneration as opaque strings.
 let passthroughKeys = ["EXE_PATH", "EXE_RUN_DIR"]
 

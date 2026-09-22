@@ -4,27 +4,31 @@ import Foundation
 final class ConfiguratorModel: ObservableObject {
     @Published var state: ConfiguratorState
     let configFile: String
-    let stateFile: String
+    /// True when the engine ships only DXMT, or the installer asked for it.
     let dxmtOnly: Bool
     let loadError: String?
 
-    init() {
-        if let paths = PathsConfig.load() {
+    init(install: InstallLayout = .current()) {
+        let d3dmetalAvailable = install.d3dmetalAvailable
+        if let paths = PathsConfig.load(install: install) {
             configFile = paths.configFile
-            stateFile = paths.stateFile
-            dxmtOnly = paths.dxmtOnly
+            dxmtOnly = paths.dxmtOnly || !d3dmetalAvailable
             loadError = nil
-            state = loadOrBootstrapState(configFile: paths.configFile, stateFile: paths.stateFile)
+            state = loadState(configFile: paths.configFile, legacyStateFile: paths.stateFile)
         } else {
             configFile = ""
-            stateFile = ""
-            dxmtOnly = false
-            loadError = "Could not find paths.json in the app bundle — this Configurator was not launched from an installed GAMMA.app."
+            dxmtOnly = !d3dmetalAvailable
+            loadError = "Could not find this install's app.env. The Configurator must be opened from inside an installed GAMMA wrapper; settings cannot be saved."
             state = defaultState()
         }
         if dxmtOnly, state.vars["GAMMA_GRAPHICS_BACKEND"]?.value != "dxmt" {
             state.vars["GAMMA_GRAPHICS_BACKEND"] = VarEntry(enabled: true, value: "dxmt")
+            persist()
         }
+    }
+
+    var canEdit: Bool {
+        loadError == nil
     }
 
     var backend: String {
@@ -51,6 +55,6 @@ final class ConfiguratorModel: ObservableObject {
 
     private func persist() {
         guard !configFile.isEmpty else { return }
-        saveStateAndEnv(&state, configFile: configFile, stateFile: stateFile)
+        saveEnv(&state, configFile: configFile)
     }
 }

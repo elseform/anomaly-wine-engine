@@ -12,7 +12,7 @@ struct CommitTextField: View {
             .disabled(!isEnabled)
             .focused($isFocused)
             .onSubmit(onCommit)
-            .onChange(of: isFocused) { focused in
+            .onChange(of: isFocused) { _, focused in
                 if !focused { onCommit() }
             }
     }
@@ -39,7 +39,7 @@ struct SchemaRow: View {
             controls
         }
         .onAppear(perform: sync)
-        .onChange(of: model.backend) { _ in sync() }
+        .onChange(of: model.backend) { sync() }
     }
 
     @ViewBuilder
@@ -73,7 +73,7 @@ struct SchemaRow: View {
                     Toggle(isOn: $rowEnabled) { EmptyView() }
                         .toggleStyle(.checkbox)
                         .labelsHidden()
-                        .onChange(of: rowEnabled) { enabled in
+                        .onChange(of: rowEnabled) { _, enabled in
                             model.setVar(entry.key, enabled: enabled, value: text)
                         }
                 }
@@ -143,7 +143,7 @@ struct DXMTConfigRow: View {
                     Toggle(isOn: $included) { EmptyView() }
                         .toggleStyle(.checkbox)
                         .labelsHidden()
-                        .onChange(of: included) { enabled in
+                        .onChange(of: included) { _, enabled in
                             model.setDXMT(entry.key, enabled: enabled, value: text)
                         }
                     fieldControl
@@ -214,39 +214,45 @@ struct ConfiguratorView: View {
                     }
                 }
 
-                ForEach(schemaSections, id: \.self) { section in
-                    let entries = schema.filter { $0.section == section }
-                    let family = entries.first?.family
-                    if family == nil || family == model.backend {
-                        WizardCard {
-                            VStack(alignment: .leading, spacing: Layout.cardContentSpacing) {
-                                SectionTitle(title: section)
-                                ForEach(entries, id: \.key) { entry in
-                                    SchemaRow(model: model, entry: entry)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if model.backend == "dxmt" {
-                    WizardCard {
-                        VStack(alignment: .leading, spacing: Layout.cardContentSpacing) {
-                            HStack(spacing: 6) {
-                                SectionTitle(title: "DXMT_CONFIG")
-                                HelpTip(text: "d3d11.* / dxgi.* / dxmt.* — packed into one DXMT_CONFIG line. \"Default\" leaves DXMT to use its own built-in default.")
-                            }
-                            ForEach(dxmtConfigKeys, id: \.key) { entry in
-                                DXMTConfigRow(model: model, entry: entry)
-                            }
-                        }
-                    }
-                }
+                settingsCards
+                    .disabled(!model.canEdit)
             }
             .padding(.horizontal, Layout.contentHorizontalPadding)
             .padding(.vertical, Layout.contentVerticalPadding)
         }
         .frame(minWidth: Layout.windowMinimumWidth, minHeight: Layout.windowMinimumHeight)
         .background(WindowMinimumSize(width: Layout.windowMinimumWidth, height: Layout.windowMinimumHeight))
+    }
+
+    @ViewBuilder
+    private var settingsCards: some View {
+        ForEach(schemaSections, id: \.self) { section in
+            let entries = schema.filter { $0.section == section }
+            let family = entries.first?.family
+            if family == nil || family == model.backend {
+                WizardCard {
+                    VStack(alignment: .leading, spacing: Layout.cardContentSpacing) {
+                        SectionTitle(title: section)
+                        ForEach(entries, id: \.key) { entry in
+                            SchemaRow(model: model, entry: entry)
+                        }
+                    }
+                }
+            }
+        }
+
+        if model.backend == "dxmt" {
+            WizardCard {
+                VStack(alignment: .leading, spacing: Layout.cardContentSpacing) {
+                    HStack(spacing: 6) {
+                        SectionTitle(title: "DXMT_CONFIG")
+                        HelpTip(text: "d3d11.* / dxgi.* / dxmt.* — packed into one DXMT_CONFIG line. \"Default\" leaves DXMT to use its own built-in default.")
+                    }
+                    ForEach(dxmtConfigKeys, id: \.key) { entry in
+                        DXMTConfigRow(model: model, entry: entry)
+                    }
+                }
+            }
+        }
     }
 }

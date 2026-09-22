@@ -3,7 +3,8 @@
 # runtime/configurator-gui/Sources/*.swift; mirrors gamma-setup-tool/build.sh's
 # swiftc-direct, no-Xcode packaging approach. Invoked by pack-engine-artifact.sh
 # so the built Configurator.app ships prebuilt inside the engine artifact
-# (share/gamma/Configurator.app); interactive-setup.sh just copies it per-install.
+# (share/gamma/Configurator.app); gamma-setup-tool's interactive_setup.py copies
+# it into each wrapper. Apple Silicon only, macOS 15 or newer (the product floor).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,7 +22,7 @@ mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 swiftc \
   -parse-as-library \
   -O \
-  -target arm64-apple-macosx13.0 \
+  -target arm64-apple-macosx15.0 \
   -framework SwiftUI \
   -framework AppKit \
   "$REPO_ROOT"/runtime/configurator-gui/Sources/*.swift \
@@ -50,7 +51,7 @@ cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
   <key>CFBundleVersion</key>
   <string>1.0</string>
   <key>LSMinimumSystemVersion</key>
-  <string>13.0</string>
+  <string>15.0</string>
   <key>LSUIElement</key>
   <false/>
   <key>NSHighResolutionCapable</key>

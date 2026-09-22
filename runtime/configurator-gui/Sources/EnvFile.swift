@@ -1,11 +1,15 @@
 import Foundation
 
-// Port of configurator.py's state/file-I/O layer (atomic_write, parse_env_lines,
-// bootstrap_state_from_env, generate_env, save_state_and_env, ...). Must keep
-// the exact app.env line format ("export KEY=VALUE" / "#export KEY=VALUE",
-// quoting rules, the packed DXMT_CONFIG line, foreign-line passthrough) and
-// the configurator-state.json shape so existing installs stay compatible and
-// scripts that `source` app.env keep working unmodified.
+// app.env is the Configurator's only store. The launcher sources it, and every
+// setting's value and on/off state is recoverable from it: an enabled setting
+// is "export KEY=VALUE", a disabled one keeps its value as "#export KEY=VALUE",
+// DXMT_CONFIG sub-keys are packed into one line, EXE_PATH/EXE_RUN_DIR pass
+// through, and unrecognised lines are kept verbatim. Keep that format stable;
+// existing installs' app.env files and the scripts that source them rely on it.
+//
+// Installs made before this change also have a configurator-state.json next to
+// app.env. It is read once, only to recover the values of settings that were
+// disabled (and therefore absent from app.env), and is never written again.
 
 struct VarEntry: Codable {
     var enabled: Bool
@@ -115,59 +119,48 @@ func defaultState() -> ConfiguratorState {
     return state
 }
 
-/// First-ever launch: seed state from whatever interactive-setup.sh wrote.
-func bootstrapState(configFile: String) -> ConfiguratorState {
+/// Values of settings that are disabled and therefore missing from an
+/// app.env written by a Configurator from before app.env became the only
+/// store. Read-only; the file is never written again.
+private func legacyDisabledValues(stateFile: String?) -> [String: String] {
+    guard let stateFile,
+          let data = FileManager.default.contents(atPath: stateFile),
+          let legacy = try? JSONDecoder().decode(ConfiguratorState.self, from: data) else {
+        return [:]
+    }
+    return legacy.vars.compactMapValues { $0.enabled ? nil : $0.value }
+}
+
+/// Everything the Configurator shows comes from app.env. A missing app.env
+/// means a brand-new install: schema defaults, which the first save writes.
+func loadState(configFile: String, legacyStateFile: String? = nil) -> ConfiguratorState {
     var state = defaultState()
+    guard FileManager.default.fileExists(atPath: configFile) else { return state }
     let parsed = parseEnvLines(path: configFile)
-    // An app.env that exists is authoritative for DXMT_CONFIG: generateEnv
-    // omits the line entirely when nothing is enabled, so a missing line means
-    // "all off", not "use the defaults". Only a state with no app.env at all
-    // keeps the enabled-by-default keys.
-    if !parsed.vars.isEmpty {
-        for key in state.dxmtConfig.keys {
-            state.dxmtConfig[key]?.enabled = false
+    let legacy = legacyDisabledValues(stateFile: legacyStateFile)
+
+    for entry in schema {
+        if let line = parsed.vars[entry.key] {
+            let value = entry.quoted ? unquote(line.rawValue) : line.rawValue
+            state.vars[entry.key] = VarEntry(enabled: line.enabled || entry.alwaysOn, value: value)
+        } else if !entry.alwaysOn {
+            state.vars[entry.key] = VarEntry(enabled: false, value: legacy[entry.key] ?? entry.defaultValue)
         }
     }
-    for (key, entry) in parsed.vars {
-        if key == "DXMT_CONFIG" {
-            for (subkey, value) in parseDXMTConfig(unquote(entry.rawValue)) {
-                if state.dxmtConfig[subkey] != nil {
-                    state.dxmtConfig[subkey] = VarEntry(enabled: true, value: value)
-                }
-            }
-            continue
+
+    // An existing app.env is authoritative for DXMT_CONFIG: no enabled line
+    // means every sub-key is off, not "use the defaults".
+    let packed = parsed.vars["DXMT_CONFIG"].flatMap { $0.enabled ? parseDXMTConfig(unquote($0.rawValue)) : nil } ?? [:]
+    for entry in dxmtConfigKeys {
+        if let value = packed[entry.key] {
+            state.dxmtConfig[entry.key] = VarEntry(enabled: true, value: value)
+        } else {
+            state.dxmtConfig[entry.key] = VarEntry(enabled: false, value: entry.defaultValue)
         }
-        guard let schemaEntry = schemaByKey[key] else { continue }
-        let value = schemaEntry.quoted ? unquote(entry.rawValue) : entry.rawValue
-        state.vars[key] = VarEntry(enabled: entry.enabled, value: value)
     }
+
     state.passthrough = parsed.passthrough
     state.foreignLines = parsed.foreign
-    return state
-}
-
-/// Pick up anything hand-added to app.env since the last regeneration.
-func mergeForeignLines(_ state: inout ConfiguratorState, configFile: String) {
-    let parsed = parseEnvLines(path: configFile)
-    var known = Set(state.foreignLines)
-    for line in parsed.foreign where !known.contains(line) {
-        state.foreignLines.append(line)
-        known.insert(line)
-    }
-}
-
-func loadOrBootstrapState(configFile: String, stateFile: String) -> ConfiguratorState {
-    var state: ConfiguratorState
-    if let data = FileManager.default.contents(atPath: stateFile),
-       let decoded = try? JSONDecoder().decode(ConfiguratorState.self, from: data) {
-        state = decoded
-    } else {
-        state = bootstrapState(configFile: configFile)
-        if let data = try? JSONEncoder.prettyPrinted.encode(state) {
-            try? atomicWrite(path: stateFile, text: String(data: data, encoding: .utf8) ?? "")
-        }
-    }
-    mergeForeignLines(&state, configFile: configFile)
     return state
 }
 
@@ -185,14 +178,18 @@ func generateEnv(_ state: ConfiguratorState) -> String {
     for entry in schema {
         if let family = entry.family, family != backend { continue }
         let varEntry = state.vars[entry.key] ?? VarEntry(enabled: entry.alwaysOn, value: entry.defaultValue)
-        guard entry.alwaysOn || varEntry.enabled else { continue }
         let outValue = entry.quoted ? "\"\(varEntry.value)\"" : varEntry.value
-        lines.append("export \(entry.key)=\(outValue)")
+        if entry.alwaysOn || varEntry.enabled {
+            lines.append("export \(entry.key)=\(outValue)")
+        } else if !varEntry.value.isEmpty, varEntry.value != entry.defaultValue {
+            // Disabled with a non-default value: keep it for when the row is
+            // re-enabled. A disabled default needs no line at all.
+            lines.append("#export \(entry.key)=\(outValue)")
+        }
     }
 
     if backend == "dxmt" {
-        // Iterate in schema order (not dictionary order) to match the
-        // Python implementation's insertion-order dict iteration.
+        // Schema order, not dictionary order, so the line is stable.
         let serialized = dxmtConfigKeys.compactMap { entry -> String? in
             guard let value = state.dxmtConfig[entry.key], value.enabled else { return nil }
             return "\(entry.key)=\(value.value);"
@@ -206,18 +203,14 @@ func generateEnv(_ state: ConfiguratorState) -> String {
     return lines.joined(separator: "\n") + "\n"
 }
 
-func saveStateAndEnv(_ state: inout ConfiguratorState, configFile: String, stateFile: String) {
-    mergeForeignLines(&state, configFile: configFile)
-    if let data = try? JSONEncoder.prettyPrinted.encode(state) {
-        try? atomicWrite(path: stateFile, text: String(data: data, encoding: .utf8) ?? "")
+/// Writes app.env. Lines added to the file by hand since it was loaded are
+/// picked up first so a save never drops them.
+func saveEnv(_ state: inout ConfiguratorState, configFile: String) {
+    let current = parseEnvLines(path: configFile)
+    var known = Set(state.foreignLines)
+    for line in current.foreign where !known.contains(line) {
+        state.foreignLines.append(line)
+        known.insert(line)
     }
     try? atomicWrite(path: configFile, text: generateEnv(state))
-}
-
-extension JSONEncoder {
-    static var prettyPrinted: JSONEncoder {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return encoder
-    }
 }
