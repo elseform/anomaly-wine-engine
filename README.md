@@ -22,7 +22,6 @@ The engine is packed as `dist/artifacts/CX26W11-GAMMA-DXMT-<N>.tar.zst`. [GAMMA 
 - **Backend switcher (`cxcompatdb.so`)** — selects DXMT (or a user-supplied D3DMetal) per process from `GAMMA_GRAPHICS_BACKEND`, without modifying DLLs in the prefix, and terminates the process rather than falling back to WineD3D when the backend is incomplete.
 - **Msync (`WINEMSYNC=1`)** — Mach-semaphore synchronization in shared memory instead of wineserver round trips.
 - **Stability patches** — wineserver socket and async fixes, `ntdll` frame-walk guards, and a hardware memory barrier in `NtFlushProcessWriteBuffers` that avoids stalls under Rosetta 2. The CrossOver message-wait handoff patch that freezes the game on UI clicks is deliberately not applied.
-- **No redistributed Microsoft files** — the engine declares the Visual C++ and DirectX files it needs; they are fetched from Microsoft's own installers, pinned by checksum, when the app is created.
 - **Relocatable** — bundled libraries are linked `@loader_path`-relative and every Mach-O is signed.
 
 ## Quick build
