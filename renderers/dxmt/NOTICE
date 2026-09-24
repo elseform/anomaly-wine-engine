@@ -25,5 +25,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 This build was produced from a locally maintained fork of DXMT
-(elseform/dxmt, branch vsync-updates, commit b7f6717), not the unmodified
-upstream CI artifact: release build, stripped, macOS 15 deployment target.
+(elseform/dxmt, commit b7f6717, tag 0.80-gamma, published on the release
+branch), not the unmodified upstream CI artifact: release build, stripped,
+macOS 15 deployment target.
