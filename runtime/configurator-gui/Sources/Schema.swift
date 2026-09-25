@@ -99,21 +99,21 @@ let passthroughKeys = ["EXE_PATH", "EXE_RUN_DIR"]
 
 let pointerComment = "# Edit via Contents/Resources/Configurator.app — see it for descriptions and valid ranges."
 
-// User-facing labels shown by default; the raw env-var/DXMT_CONFIG key is
-// shown on hover (.help) instead, so this file stays the single place that
-// needs updating when a key's wording changes.
+// User-facing labels and one-line descriptions shown by default; the raw
+// env-var/DXMT_CONFIG key is shown on hover (.help) instead, so this file
+// stays the single place that needs updating when a key's wording changes.
 let friendlyLabels: [String: String] = [
-    "MTL_HUD_ENABLED": "Metal Performance HUD",
+    "MTL_HUD_ENABLED": "Performance Overlay",
     "WINEMSYNC": "Msync",
     "WINEESYNC": "Esync",
     "ROSETTA_ADVERTISE_AVX": "Advertise AVX Under Rosetta",
     "WINEDEBUG": "Wine Debug Channels",
     "DEFAULT_GAME_ARGS": "Launch Arguments",
-    "GAMMA_RETINA_MODE": "Retina Display Mode",
+    "GAMMA_RETINA_MODE": "Retina Resolution",
     "GAMMA_RETINA_LOGPIXELS": "Retina DPI Override",
 
-    "DXMT_METALFX_SPATIAL_SWAPCHAIN": "MetalFX Spatial Upscaling",
-    "DXMT_ENABLE_NVEXT": "DLSS Support (NVAPI)",
+    "DXMT_METALFX_SPATIAL_SWAPCHAIN": "MetalFX Upscaling",
+    "DXMT_ENABLE_NVEXT": "DLSS Support",
     "DXMT_LOG_LEVEL": "Log Level",
     "DXMT_LOG_PATH": "Log File Path",
     "DXMT_SHADER_CACHE": "Shader Cache",
@@ -124,17 +124,52 @@ let friendlyLabels: [String: String] = [
 
     "d3d11.maxFeatureLevel": "Max DirectX Feature Level",
     "d3d11.preferredMaxFrameRate": "Preferred Max Frame Rate",
-    "d3d11.displaySync": "Metal Display Sync (V-Sync)",
-    "d3d11.metalSpatialUpscaleFactor": "Spatial Upscale Factor",
+    "d3d11.displaySync": "V-Sync",
+    "d3d11.metalSpatialUpscaleFactor": "Upscale Factor",
     "d3d11.ignoreMapFlagNoWait": "Ignore Map No-Wait Flag",
     "d3d11.sampleNaNToZero": "Clamp NaN Samples To Zero",
     "d3d11.defuseFma": "Disable Fused Multiply-Add",
-    "dxmt.shaderMetalVersion": "Shader Metal Language Version",
+    "dxmt.shaderMetalVersion": "Metal Shading Language Version",
     "dxgi.customVendorId": "Custom Vendor ID",
     "dxgi.customDeviceId": "Custom Device ID",
     "dxgi.customDeviceDesc": "Custom Device Description",
     "dxgi.forceSDR": "Force SDR Output",
     "dxgi.handleAltTab": "Handle Alt+Tab",
+]
+
+let friendlyDescriptions: [String: String] = [
+    "MTL_HUD_ENABLED": "Shows Apple's Metal HUD with frame rate and GPU stats.",
+    "WINEMSYNC": "Faster thread synchronization in Wine. Turn off only to troubleshoot.",
+    "WINEESYNC": "Fallback thread synchronization in Wine. Turn off only to troubleshoot.",
+    "ROSETTA_ADVERTISE_AVX": "Tells the game the CPU supports AVX under Rosetta.",
+    "WINEDEBUG": "Which Wine debug messages are logged. \"-all\" logs none.",
+    "DEFAULT_GAME_ARGS": "Extra arguments passed to the program the app launches.",
+    "GAMMA_RETINA_MODE": "Lets the game use your display's full Retina resolution.",
+    "GAMMA_RETINA_LOGPIXELS": "Windows DPI to use in Retina mode.",
+
+    "DXMT_METALFX_SPATIAL_SWAPCHAIN": "Upscales the final image with Apple MetalFX.",
+    "DXMT_ENABLE_NVEXT": "Needed for the game's DLSS options.",
+    "DXMT_LOG_LEVEL": "How much DXMT writes to its log.",
+    "DXMT_LOG_PATH": "Folder for DXMT log files. \"none\" writes no log files.",
+    "DXMT_SHADER_CACHE": "Set to 0 to turn off DXMT's shader cache.",
+    "DXMT_SHADER_CACHE_PATH": "Absolute path of the folder for the shader cache.",
+    "DXMT_CAPTURE_FRAME": "Captures this frame number automatically.",
+    "DXMT_CAPTURE_EXECUTABLE": "Executable name, without extension, to allow Metal frame capture for. F10 captures a frame.",
+    "DXMT_CONFIG_FILE": "Path of a dxmt.conf file to read DXMT options from.",
+
+    "d3d11.maxFeatureLevel": "Highest DirectX 11 feature level reported to the game.",
+    "d3d11.preferredMaxFrameRate": "Frame rate cap paced by Metal. Use a factor of your display's refresh rate, like 30, 60 or 120.",
+    "d3d11.displaySync": "Syncs frames to the display. Auto follows the game's own V-Sync setting.",
+    "d3d11.metalSpatialUpscaleFactor": "Output size multiplier, above 1.0. For example, 1.33 turns 1080p into 1440p.",
+    "d3d11.ignoreMapFlagNoWait": "Workaround for games that mishandle a D3D11 no-wait map flag.",
+    "d3d11.sampleNaNToZero": "Reads invalid (NaN) texture samples as zero.",
+    "d3d11.defuseFma": "Compiles shaders without fused multiply-add.",
+    "dxmt.shaderMetalVersion": "310 is Metal 3.1 (macOS 14+), 320 is Metal 3.2 (macOS 15+). Default uses the newest supported.",
+    "dxgi.customVendorId": "GPU vendor ID reported to the game.",
+    "dxgi.customDeviceId": "GPU device ID reported to the game.",
+    "dxgi.customDeviceDesc": "GPU name reported to the game.",
+    "dxgi.forceSDR": "Never uses HDR output.",
+    "dxgi.handleAltTab": "Lets DXMT handle Cmd+Tab in exclusive fullscreen.",
 ]
 
 /// A row in the window: an app.env key or a DXMT_CONFIG sub-key.
@@ -155,7 +190,7 @@ struct SettingGroup {
     var help: String? = nil
 }
 
-/// Always-visible cards, in window order: settings a player actually changes.
+/// Always-visible sections, in window order: settings a player actually changes.
 let mainGroups: [SettingGroup] = [
     SettingGroup(title: "Display & Performance", settings: [
         .dxmt("d3d11.displaySync"),
@@ -164,17 +199,17 @@ let mainGroups: [SettingGroup] = [
         .dxmt("d3d11.metalSpatialUpscaleFactor"),
         .env("MTL_HUD_ENABLED"),
     ]),
-    SettingGroup(title: "Rendering Fixes", settings: [
-        .dxmt("d3d11.sampleNaNToZero"),
-        .dxmt("d3d11.defuseFma"),
-    ], help: "\"Default\" leaves the option out of DXMT_CONFIG, so DXMT uses its own built-in default."),
-]
-
-/// Subgroups of the collapsed Advanced section, in window order.
-let advancedGroups: [SettingGroup] = [
     SettingGroup(title: "Game", settings: [
         .env("DEFAULT_GAME_ARGS"),
     ]),
+    SettingGroup(title: "Rendering Fixes", settings: [
+        .dxmt("d3d11.sampleNaNToZero"),
+        .dxmt("d3d11.defuseFma"),
+    ], help: "Default leaves the option to DXMT's own built-in default."),
+]
+
+/// Sections shown under Advanced, in window order.
+let advancedGroups: [SettingGroup] = [
     SettingGroup(title: "Display", settings: [
         .env("GAMMA_RETINA_MODE"),
         .env("GAMMA_RETINA_LOGPIXELS"),
@@ -219,4 +254,8 @@ let dxmtConfigByKey: [String: DXMTConfigEntry] = Dictionary(uniqueKeysWithValues
 
 func friendlyLabel(for key: String) -> String {
     friendlyLabels[key] ?? key
+}
+
+func friendlyDescription(for key: String) -> String? {
+    friendlyDescriptions[key]
 }

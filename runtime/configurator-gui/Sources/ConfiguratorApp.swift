@@ -15,6 +15,6 @@ struct ConfiguratorApp: App {
         WindowGroup("GAMMA Configurator") {
             ConfiguratorView()
         }
-        .defaultSize(width: Layout.windowDefaultWidth, height: Layout.windowDefaultHeight)
+        .windowResizability(.contentSize)
     }
 }

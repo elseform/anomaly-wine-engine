@@ -78,8 +78,37 @@ private func parseEnvLine(_ line: String) -> (key: String, enabled: Bool, value:
     guard let eq = s.firstIndex(of: "=") else { return nil }
     let key = String(s[s.startIndex..<eq])
     guard !key.isEmpty, key.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" }) else { return nil }
-    let value = String(s[s.index(after: eq)...])
+    let value = shellWord(s[s.index(after: eq)...])
     return (key, enabled, value)
+}
+
+/// The value as the shell reads it: one word, ending at the first unquoted
+/// space or tab, so a hand-written trailing "# comment" is not taken as
+/// part of it. Quotes are kept; callers unquote where the schema says so.
+private func shellWord(_ text: Substring) -> String {
+    var quote: Character?
+    var escaped = false
+    var end = text.endIndex
+    for index in text.indices {
+        let character = text[index]
+        if escaped {
+            escaped = false
+        } else if let open = quote {
+            if character == "\\" && open == "\"" {
+                escaped = true
+            } else if character == open {
+                quote = nil
+            }
+        } else if character == "\\" {
+            escaped = true
+        } else if character == "\"" || character == "'" {
+            quote = character
+        } else if character == " " || character == "\t" {
+            end = index
+            break
+        }
+    }
+    return String(text[..<end])
 }
 
 struct ParsedEnv {

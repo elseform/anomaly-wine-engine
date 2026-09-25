@@ -1,10 +1,15 @@
 import Foundation
+import Observation
 
 @MainActor
-final class ConfiguratorModel: ObservableObject {
-    @Published var state: ConfiguratorState
-    let configFile: String
-    let loadError: String?
+@Observable
+final class ConfiguratorModel {
+    var state: ConfiguratorState
+    /// Bumped by resetToDefaults so rows, which keep their own editing
+    /// state, are rebuilt from the new values.
+    private(set) var revision = 0
+    @ObservationIgnored let configFile: String
+    @ObservationIgnored let loadError: String?
 
     init(install: InstallLayout = .current()) {
         if let paths = PathsConfig.load(install: install) {
@@ -25,6 +30,17 @@ final class ConfiguratorModel: ObservableObject {
 
     var canEdit: Bool {
         loadError == nil
+    }
+
+    /// Puts every setting back to what a new install starts with. Launcher
+    /// paths (passthrough keys) and lines the Configurator doesn't own are
+    /// kept.
+    func resetToDefaults() {
+        let defaults = defaultState()
+        state.vars = defaults.vars
+        state.dxmtConfig = defaults.dxmtConfig
+        revision += 1
+        persist()
     }
 
     /// Whether an app.env on/off switch (bool "1" or retina "Y") is on.

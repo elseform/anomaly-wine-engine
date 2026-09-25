@@ -28,6 +28,7 @@ swiftc \
   "$REPO_ROOT"/runtime/configurator-gui/Sources/*.swift \
   -o "$BINARY"
 chmod +x "$BINARY"
+cp "$REPO_ROOT/runtime/configurator-gui/Resources/Configurator.icns" "$RESOURCES_DIR/Configurator.icns"
 
 cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -37,6 +38,8 @@ cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
   <key>CFBundleDevelopmentRegion</key>
   <string>en</string>
   <key>CFBundleExecutable</key>
+  <string>Configurator</string>
+  <key>CFBundleIconFile</key>
   <string>Configurator</string>
   <key>CFBundleIdentifier</key>
   <string>com.gamma.wine-engine.configurator</string>

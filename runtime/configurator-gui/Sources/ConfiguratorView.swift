@@ -1,189 +1,141 @@
 import SwiftUI
 
-struct CommitTextField: View {
-    @Binding var text: String
-    var isEnabled = true
-    var onCommit: () -> Void
-    @FocusState private var isFocused: Bool
-
-    var body: some View {
-        TextField("", text: $text)
-            .textFieldStyle(.roundedBorder)
-            .disabled(!isEnabled)
-            .focused($isFocused)
-            .onSubmit(onCommit)
-            .onChange(of: isFocused) { _, focused in
-                if !focused { onCommit() }
-            }
-    }
-}
-
-/// One schema row: retina toggle / always-on bool toggle /
-/// always-on text field / optional (checkbox-gated) text field. Mirrors
-/// configurator.py's ConfiguratorWindow._build_row branch-for-branch.
+/// One app.env row: a switch for on/off keys, otherwise a text field,
+/// with a checkbox in front when the key is optional. Rows keep their own
+/// editing state, seeded from the model when the row is created.
 struct SchemaRow: View {
-    @ObservedObject var model: ConfiguratorModel
+    let model: ConfiguratorModel
     let entry: SchemaEntry
 
-    @State private var text: String = ""
-    @State private var rowEnabled: Bool = true
+    @State private var text: String
+    @State private var enabled: Bool
+    @State private var isOn: Bool
 
-    var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(friendlyLabel(for: entry.key))
-                .frame(width: 260, alignment: .leading)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .help(entry.key)
-
-            controls
-        }
-        .onAppear(perform: sync)
+    init(model: ConfiguratorModel, entry: SchemaEntry) {
+        self.model = model
+        self.entry = entry
+        let current = model.varEntry(for: entry)
+        let value = current.value.trimmingCharacters(in: .whitespaces)
+        _text = State(initialValue: current.value)
+        _enabled = State(initialValue: current.enabled)
+        _isOn = State(initialValue: value == (entry.kind == .retina ? "Y" : "1"))
     }
 
-    @ViewBuilder
-    private var controls: some View {
+    var body: some View {
         switch entry.kind {
         case .retina:
-            Toggle(isOn: retinaBinding) { EmptyView() }
-                .toggleStyle(.checkbox)
-                .labelsHidden()
+            Toggle(isOn: $isOn) { SettingLabel(key: entry.key) }
+                .onChange(of: isOn) { _, on in
+                    model.setVar(entry.key, enabled: true, value: on ? "Y" : "N")
+                }
 
         case .bool where entry.alwaysOn:
-            Toggle(isOn: boolBinding) { EmptyView() }
-                .toggleStyle(.checkbox)
-                .labelsHidden()
+            Toggle(isOn: $isOn) { SettingLabel(key: entry.key) }
+                .onChange(of: isOn) { _, on in
+                    model.setVar(entry.key, enabled: true, value: on ? "1" : "0")
+                }
 
         default:
-            HStack {
-                if !entry.alwaysOn {
-                    Toggle(isOn: $rowEnabled) { EmptyView() }
-                        .toggleStyle(.checkbox)
-                        .labelsHidden()
-                        .onChange(of: rowEnabled) { _, enabled in
-                            model.setVar(entry.key, enabled: enabled, value: text)
-                        }
+            LabeledContent {
+                HStack {
+                    if !entry.alwaysOn {
+                        Toggle("Use", isOn: $enabled)
+                            .toggleStyle(.checkbox)
+                            .labelsHidden()
+                            .onChange(of: enabled) { _, enabled in
+                                model.setVar(entry.key, enabled: enabled, value: text)
+                            }
+                    }
+                    CommitTextField(text: $text, isEnabled: entry.alwaysOn || enabled) {
+                        model.setVar(entry.key, enabled: entry.alwaysOn || enabled, value: text)
+                    }
                 }
-                CommitTextField(text: $text, isEnabled: entry.alwaysOn || rowEnabled) {
-                    model.setVar(entry.key, enabled: entry.alwaysOn || rowEnabled, value: text)
-                }
+            } label: {
+                SettingLabel(key: entry.key)
             }
         }
     }
-
-    private func sync() {
-        let current = model.varEntry(for: entry)
-        text = current.value
-        rowEnabled = current.enabled
-    }
-
-    private var retinaBinding: Binding<Bool> {
-        Binding(
-            get: { model.varEntry(for: entry).value.trimmingCharacters(in: .whitespaces) == "Y" },
-            set: { model.setVar(entry.key, enabled: true, value: $0 ? "Y" : "N") }
-        )
-    }
-
-    private var boolBinding: Binding<Bool> {
-        Binding(
-            get: { model.varEntry(for: entry).value.trimmingCharacters(in: .whitespaces) == "1" },
-            set: { model.setVar(entry.key, enabled: true, value: $0 ? "1" : "0") }
-        )
-    }
 }
 
-/// One DXMT_CONFIG sub-key row: tri-state for bool (enabled+true / enabled+false
-/// / not included), checkbox + field for everything else. Mirrors
-/// configurator.py's _build_dxmt_config_form.
+/// One DXMT_CONFIG row. Booleans and fixed choices are a picker whose
+/// "Default" leaves the key out of DXMT_CONFIG; numbers and text are a
+/// checkbox plus field.
 struct DXMTConfigRow: View {
-    @ObservedObject var model: ConfiguratorModel
+    let model: ConfiguratorModel
     let entry: DXMTConfigEntry
 
-    @State private var included = false
-    @State private var text = ""
+    @State private var included: Bool
+    @State private var text: String
+    @State private var choice: String?
+
+    init(model: ConfiguratorModel, entry: DXMTConfigEntry) {
+        self.model = model
+        self.entry = entry
+        let current = model.dxmtEntry(for: entry)
+        let value = entry.kind == .bool ? current.value.lowercased() : current.value
+        _included = State(initialValue: current.enabled)
+        _text = State(initialValue: value)
+        _choice = State(initialValue: current.enabled ? value : nil)
+    }
+
+    private var options: [String]? {
+        switch entry.kind {
+        case .bool: ["true", "false"]
+        case .enumChoice: entry.choices
+        default: nil
+        }
+    }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(friendlyLabel(for: entry.key))
-                .frame(width: 260, alignment: .leading)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .help(entry.key)
-
-            if entry.kind == .bool {
-                Picker("", selection: triStateBinding) {
-                    Text("Default").tag(Optional<Bool>.none)
-                    Text("false").tag(Optional(false))
-                    Text("true").tag(Optional(true))
+        if let options {
+            Picker(selection: $choice) {
+                Text("Default").tag(String?.none)
+                ForEach(options, id: \.self) { option in
+                    Text(displayName(for: option)).tag(String?.some(option))
                 }
-                .labelsHidden()
-                .frame(width: 160)
-            } else {
+            } label: {
+                SettingLabel(key: entry.key)
+            }
+            .onChange(of: choice) { _, newValue in
+                if let newValue {
+                    text = newValue
+                    model.setDXMT(entry.key, enabled: true, value: newValue)
+                } else {
+                    model.setDXMT(entry.key, enabled: false, value: text)
+                }
+            }
+        } else {
+            LabeledContent {
                 HStack {
-                    Toggle(isOn: $included) { EmptyView() }
+                    Toggle("Use", isOn: $included)
                         .toggleStyle(.checkbox)
                         .labelsHidden()
                         .onChange(of: included) { _, enabled in
                             model.setDXMT(entry.key, enabled: enabled, value: text)
                         }
-                    fieldControl
+                    CommitTextField(text: $text, isEnabled: included) {
+                        model.setDXMT(entry.key, enabled: included, value: text)
+                    }
                 }
-            }
-        }
-        .onAppear(perform: sync)
-    }
-
-    @ViewBuilder
-    private var fieldControl: some View {
-        if entry.kind == .enumChoice, let choices = entry.choices {
-            Picker("", selection: Binding(
-                get: { text },
-                set: { newValue in
-                    text = newValue
-                    model.setDXMT(entry.key, enabled: included, value: newValue)
-                }
-            )) {
-                ForEach(choices, id: \.self) { choice in
-                    Text(choice).tag(choice)
-                }
-            }
-            .labelsHidden()
-            .disabled(!included)
-            .frame(width: 160)
-        } else {
-            CommitTextField(text: $text, isEnabled: included) {
-                model.setDXMT(entry.key, enabled: included, value: text)
+            } label: {
+                SettingLabel(key: entry.key)
             }
         }
     }
 
-    private func sync() {
-        let current = model.dxmtEntry(for: entry)
-        included = current.enabled
-        text = current.value
-    }
-
-    private var triStateBinding: Binding<Bool?> {
-        Binding(
-            get: { included ? (text.lowercased() == "true") : nil },
-            set: { newValue in
-                switch newValue {
-                case nil:
-                    included = false
-                    text = "false"
-                case .some(let boolValue):
-                    included = true
-                    text = boolValue ? "true" : "false"
-                }
-                model.setDXMT(entry.key, enabled: included, value: text)
-            }
-        )
+    private func displayName(for option: String) -> String {
+        switch option {
+        case "true": "On"
+        case "false": "Off"
+        case "auto": "Auto"
+        default: option
+        }
     }
 }
 
 /// Renders an app.env or DXMT_CONFIG row, hidden while its parent switch is off.
 struct SettingRow: View {
-    @ObservedObject var model: ConfiguratorModel
+    let model: ConfiguratorModel
     let setting: SettingRef
 
     var body: some View {
@@ -203,74 +155,97 @@ struct SettingRow: View {
 }
 
 struct ConfiguratorView: View {
-    @StateObject private var model = ConfiguratorModel()
-    @AppStorage("advancedExpanded") private var advancedExpanded = false
+    @State private var model = ConfiguratorModel()
+    @AppStorage("advancedExpanded") private var showAdvanced = false
+    @State private var confirmReset = false
+    /// Height of everything in the form, so the window can match it.
+    @State private var contentHeight: CGFloat = Layout.initialHeight
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Layout.rowSpacing * 2) {
-                if let error = model.loadError {
-                    WizardCard {
-                        Label(error, systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(StatusTone.error.color)
-                    }
+        Form {
+            if let error = model.loadError {
+                Section {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(StatusTone.error.color)
+                }
+            }
+
+            Group {
+                ForEach(mainGroups, id: \.title) { group in
+                    section(for: group)
                 }
 
-                settingsCards
-                    .disabled(!model.canEdit)
+                advancedToggle
+
+                if showAdvanced {
+                    ForEach(advancedGroups, id: \.title) { group in
+                        section(for: group)
+                    }
+                }
             }
-            .padding(.horizontal, Layout.contentHorizontalPadding)
-            .padding(.vertical, Layout.contentVerticalPadding)
+            .id(model.revision)
+            .disabled(!model.canEdit)
+
+            Section {
+                Button("Reset to Defaults…", role: .destructive) {
+                    confirmReset = true
+                }
+                .disabled(!model.canEdit)
+            }
         }
-        .frame(minWidth: Layout.windowMinimumWidth, minHeight: Layout.windowMinimumHeight)
-        .background(WindowMinimumSize(width: Layout.windowMinimumWidth, height: Layout.windowMinimumHeight))
+        .formStyle(.grouped)
+        .confirmationDialog("Reset all settings to their defaults?", isPresented: $confirmReset) {
+            Button("Reset", role: .destructive, action: model.resetToDefaults)
+        } message: {
+            Text("Every setting, including launch arguments, goes back to what a new install starts with.")
+        }
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            geometry.contentSize.height + geometry.contentInsets.top + geometry.contentInsets.bottom
+        } action: { _, height in
+            contentHeight = height
+        }
+        // The window follows this size (.windowResizability(.contentSize));
+        // past the screen's height the form scrolls instead.
+        .frame(width: Layout.windowWidth, height: min(contentHeight, Layout.maximumHeight))
     }
 
-    @ViewBuilder
-    private var settingsCards: some View {
-        ForEach(mainGroups, id: \.title) { group in
-            WizardCard {
-                VStack(alignment: .leading, spacing: Layout.cardContentSpacing) {
-                    HStack(spacing: 6) {
-                        SectionTitle(title: group.title)
-                        if let help = group.help {
-                            HelpTip(text: help)
-                        }
-                    }
-                    rows(for: group)
-                }
-            }
-        }
-
-        WizardCard {
-            DisclosureGroup(isExpanded: $advancedExpanded) {
-                VStack(alignment: .leading, spacing: Layout.cardContentSpacing * 2) {
-                    ForEach(advancedGroups, id: \.title) { group in
-                        VStack(alignment: .leading, spacing: Layout.cardContentSpacing) {
-                            Text(group.title)
-                                .font(.headline)
-                            rows(for: group)
-                        }
-                    }
-                }
-                .padding(.top, Layout.cardContentSpacing)
+    private var advancedToggle: some View {
+        Section {
+            Button {
+                showAdvanced.toggle()
             } label: {
-                HStack(spacing: 8) {
-                    SectionTitle(title: "Advanced")
+                HStack {
+                    Text(showAdvanced ? "Hide Advanced Settings" : "Show Advanced Settings")
+                    Spacer()
                     let changed = model.advancedChangedCount
                     if changed > 0 {
                         Text("\(changed) changed")
-                            .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                    Image(systemName: "chevron.right")
+                        .rotationEffect(.degrees(showAdvanced ? 90 : 0))
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
                 }
+                .contentShape(.rect)
             }
+            .buttonStyle(.plain)
+        } footer: {
+            Text("For troubleshooting. Most players never need these.")
         }
     }
 
-    private func rows(for group: SettingGroup) -> some View {
-        ForEach(group.settings, id: \.self) { setting in
-            SettingRow(model: model, setting: setting)
+    private func section(for group: SettingGroup) -> some View {
+        Section {
+            ForEach(group.settings, id: \.self) { setting in
+                SettingRow(model: model, setting: setting)
+            }
+        } header: {
+            Text(group.title)
+        } footer: {
+            if let help = group.help {
+                Text(help)
+            }
         }
     }
 }
