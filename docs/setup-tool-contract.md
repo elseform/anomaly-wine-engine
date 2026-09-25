@@ -94,9 +94,8 @@ content to `Configurator.app/Contents/Resources/paths.json` for older
 Configurator builds. The Configurator also works without either, from
 `~/Library/Application Support/<App name>/app.env`. `stateFile` is only read to
 migrate installs from before `app.env` became the Configurator's only store.
-`dxmtOnly` can hide the D3DMetal backend but never shows it: the Configurator
-offers D3DMetal only when the engine next to it contains
-`lib64/apple_gptk/wine/x86_64-windows/d3d11.dll`.
+`dxmtOnly` is still accepted but no longer read: the Configurator offers only
+DXMT.
 
 ## Versioning
 

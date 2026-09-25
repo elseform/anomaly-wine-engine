@@ -1,7 +1,6 @@
 import Foundation
 
-// Where this install's app.env lives, and which graphics backends its engine
-// actually ships.
+// Where this install's app.env lives.
 //
 // The Configurator is nested in the wrapper as
 // <App>.app/Contents/Resources/Configurator.app, next to the engine at
@@ -17,25 +16,21 @@ struct PathsConfig: Decodable {
     let configFile: String
     /// Only read to recover values from a pre-app.env-only install.
     let stateFile: String?
-    let dxmtOnly: Bool
 
     enum CodingKeys: String, CodingKey {
         case configFile = "configFile"
         case stateFile = "stateFile"
-        case dxmtOnly = "dxmtOnly"
     }
 
-    init(configFile: String, stateFile: String?, dxmtOnly: Bool) {
+    init(configFile: String, stateFile: String?) {
         self.configFile = configFile
         self.stateFile = stateFile
-        self.dxmtOnly = dxmtOnly
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         configFile = try container.decode(String.self, forKey: .configFile)
         stateFile = try container.decodeIfPresent(String.self, forKey: .stateFile)
-        dxmtOnly = try container.decodeIfPresent(Bool.self, forKey: .dxmtOnly) ?? false
     }
 
     static func load(install: InstallLayout) -> PathsConfig? {
@@ -66,17 +61,16 @@ struct PathsConfig: Decodable {
         guard FileManager.default.fileExists(atPath: configFile) else { return nil }
         return PathsConfig(
             configFile: configFile,
-            stateFile: directory.appendingPathComponent("configurator-state.json").path,
-            dxmtOnly: false
+            stateFile: directory.appendingPathComponent("configurator-state.json").path
         )
     }
 }
 
-/// The wrapper and engine this Configurator belongs to, derived from where the
-/// bundle sits on disk.
+/// The wrapper this Configurator belongs to, derived from where the bundle
+/// sits on disk. nil for the copy the engine ships at
+/// <engine>/share/gamma/Configurator.app, or anywhere else.
 struct InstallLayout {
     let wrapperURL: URL?
-    let engineURL: URL?
 
     static func current(bundleURL: URL = Bundle.main.bundleURL) -> InstallLayout {
         let resources = bundleURL.deletingLastPathComponent()
@@ -85,23 +79,8 @@ struct InstallLayout {
         if resources.lastPathComponent == "Resources",
            contents.lastPathComponent == "Contents",
            wrapper.pathExtension == "app" {
-            return InstallLayout(wrapperURL: wrapper, engineURL: resources.appendingPathComponent("engine"))
+            return InstallLayout(wrapperURL: wrapper)
         }
-        // The copy the engine ships at <engine>/share/gamma/Configurator.app.
-        let gamma = bundleURL.deletingLastPathComponent()
-        let share = gamma.deletingLastPathComponent()
-        if gamma.lastPathComponent == "gamma", share.lastPathComponent == "share" {
-            return InstallLayout(wrapperURL: nil, engineURL: share.deletingLastPathComponent())
-        }
-        return InstallLayout(wrapperURL: nil, engineURL: nil)
-    }
-
-    /// D3DMetal is offered only when the engine ships it. This is the same
-    /// directory pack-engine-artifact.sh tests to decide a DXMT-only build and
-    /// that cxcompatdb validates before selecting the d3dmetal backend.
-    var d3dmetalAvailable: Bool {
-        guard let engineURL else { return false }
-        let d3d11 = engineURL.appendingPathComponent("lib64/apple_gptk/wine/x86_64-windows/d3d11.dll")
-        return FileManager.default.fileExists(atPath: d3d11.path)
+        return InstallLayout(wrapperURL: nil)
     }
 }

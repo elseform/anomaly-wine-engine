@@ -4,24 +4,20 @@ import Foundation
 final class ConfiguratorModel: ObservableObject {
     @Published var state: ConfiguratorState
     let configFile: String
-    /// True when the engine ships only DXMT, or the installer asked for it.
-    let dxmtOnly: Bool
     let loadError: String?
 
     init(install: InstallLayout = .current()) {
-        let d3dmetalAvailable = install.d3dmetalAvailable
         if let paths = PathsConfig.load(install: install) {
             configFile = paths.configFile
-            dxmtOnly = paths.dxmtOnly || !d3dmetalAvailable
             loadError = nil
             state = loadState(configFile: paths.configFile, legacyStateFile: paths.stateFile)
         } else {
             configFile = ""
-            dxmtOnly = !d3dmetalAvailable
             loadError = "Could not find this install's app.env. The Configurator must be opened from inside an installed GAMMA wrapper; settings cannot be saved."
             state = defaultState()
         }
-        if dxmtOnly, state.vars["GAMMA_GRAPHICS_BACKEND"]?.value != "dxmt" {
+        // D3DMetal is no longer offered; move installs that selected it to DXMT.
+        if state.vars["GAMMA_GRAPHICS_BACKEND"]?.value != "dxmt" {
             state.vars["GAMMA_GRAPHICS_BACKEND"] = VarEntry(enabled: true, value: "dxmt")
             persist()
         }
@@ -31,8 +27,36 @@ final class ConfiguratorModel: ObservableObject {
         loadError == nil
     }
 
-    var backend: String {
-        state.vars["GAMMA_GRAPHICS_BACKEND"]?.value ?? "dxmt"
+    /// Whether an app.env on/off switch (bool "1" or retina "Y") is on.
+    func isOn(_ key: String) -> Bool {
+        guard let entry = schemaByKey[key] else { return false }
+        let value = varEntry(for: entry).value.trimmingCharacters(in: .whitespaces)
+        return value == "1" || value == "Y"
+    }
+
+    func isVisible(_ setting: SettingRef) -> Bool {
+        guard let parent = shownOnlyWhenOn[setting.key] else { return true }
+        return isOn(parent)
+    }
+
+    /// Advanced settings that differ from what a new install starts with.
+    var advancedChangedCount: Int {
+        advancedGroups.flatMap(\.settings).filter(isChanged).count
+    }
+
+    private func isChanged(_ setting: SettingRef) -> Bool {
+        switch setting {
+        case .env(let key):
+            guard let entry = schemaByKey[key] else { return false }
+            let current = varEntry(for: entry)
+            if current.enabled != entry.alwaysOn { return true }
+            return current.enabled && current.value != entry.defaultValue
+        case .dxmt(let key):
+            guard let entry = dxmtConfigByKey[key] else { return false }
+            let current = dxmtEntry(for: entry)
+            if current.enabled != entry.enabledByDefault { return true }
+            return current.enabled && current.value != entry.defaultValue
+        }
     }
 
     func varEntry(for entry: SchemaEntry) -> VarEntry {

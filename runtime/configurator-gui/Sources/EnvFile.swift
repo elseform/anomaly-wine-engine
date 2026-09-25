@@ -4,7 +4,8 @@ import Foundation
 // setting's value and on/off state is recoverable from it: an enabled setting
 // is "export KEY=VALUE", a disabled one keeps its value as "#export KEY=VALUE",
 // DXMT_CONFIG sub-keys are packed into one line, EXE_PATH/EXE_RUN_DIR pass
-// through, and unrecognised lines are kept verbatim. Keep that format stable;
+// through, retired D3DMetal lines are dropped, and other unrecognised lines are
+// kept verbatim. Keep that format stable;
 // existing installs' app.env files and the scripts that source them rely on it.
 //
 // Installs made before this change also have a configurator-state.json next to
@@ -97,7 +98,9 @@ func parseEnvLines(path: String) -> ParsedEnv {
             result.foreign.append(stripped)
             continue
         }
-        if passthroughKeys.contains(parsed.key) {
+        if retiredKeyPrefixes.contains(where: parsed.key.hasPrefix) {
+            continue
+        } else if passthroughKeys.contains(parsed.key) {
             result.passthrough[parsed.key] = parsed.value
         } else if schemaByKey[parsed.key] != nil || parsed.key == "DXMT_CONFIG" {
             result.vars[parsed.key] = (parsed.enabled, parsed.value)
@@ -165,7 +168,6 @@ func loadState(configFile: String, legacyStateFile: String? = nil) -> Configurat
 }
 
 func generateEnv(_ state: ConfiguratorState) -> String {
-    let backend = state.vars["GAMMA_GRAPHICS_BACKEND"]?.value ?? "dxmt"
     var lines: [String] = [pointerComment, ""]
 
     for key in passthroughKeys {
@@ -176,7 +178,6 @@ func generateEnv(_ state: ConfiguratorState) -> String {
     lines.append("")
 
     for entry in schema {
-        if let family = entry.family, family != backend { continue }
         let varEntry = state.vars[entry.key] ?? VarEntry(enabled: entry.alwaysOn, value: entry.defaultValue)
         let outValue = entry.quoted ? "\"\(varEntry.value)\"" : varEntry.value
         if entry.alwaysOn || varEntry.enabled {
@@ -188,15 +189,13 @@ func generateEnv(_ state: ConfiguratorState) -> String {
         }
     }
 
-    if backend == "dxmt" {
-        // Schema order, not dictionary order, so the line is stable.
-        let serialized = dxmtConfigKeys.compactMap { entry -> String? in
-            guard let value = state.dxmtConfig[entry.key], value.enabled else { return nil }
-            return "\(entry.key)=\(value.value);"
-        }.joined()
-        if !serialized.isEmpty {
-            lines.append("export DXMT_CONFIG=\"\(serialized)\"")
-        }
+    // Schema order, not dictionary order, so the line is stable.
+    let serialized = dxmtConfigKeys.compactMap { entry -> String? in
+        guard let value = state.dxmtConfig[entry.key], value.enabled else { return nil }
+        return "\(entry.key)=\(value.value);"
+    }.joined()
+    if !serialized.isEmpty {
+        lines.append("export DXMT_CONFIG=\"\(serialized)\"")
     }
 
     lines.append(contentsOf: state.foreignLines)

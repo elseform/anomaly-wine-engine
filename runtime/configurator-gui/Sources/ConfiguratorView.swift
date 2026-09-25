@@ -18,7 +18,7 @@ struct CommitTextField: View {
     }
 }
 
-/// One schema row: backend picker / retina toggle / always-on bool toggle /
+/// One schema row: retina toggle / always-on bool toggle /
 /// always-on text field / optional (checkbox-gated) text field. Mirrors
 /// configurator.py's ConfiguratorWindow._build_row branch-for-branch.
 struct SchemaRow: View {
@@ -39,24 +39,11 @@ struct SchemaRow: View {
             controls
         }
         .onAppear(perform: sync)
-        .onChange(of: model.backend) { sync() }
     }
 
     @ViewBuilder
     private var controls: some View {
         switch entry.kind {
-        case .backend where model.dxmtOnly:
-            Text("dxmt")
-                .foregroundStyle(.secondary)
-
-        case .backend:
-            Picker("", selection: bindingFor(entry)) {
-                Text("dxmt").tag("dxmt")
-                Text("d3dmetal").tag("d3dmetal")
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-
         case .retina:
             Toggle(isOn: retinaBinding) { EmptyView() }
                 .toggleStyle(.checkbox)
@@ -88,13 +75,6 @@ struct SchemaRow: View {
         let current = model.varEntry(for: entry)
         text = current.value
         rowEnabled = current.enabled
-    }
-
-    private func bindingFor(_ entry: SchemaEntry) -> Binding<String> {
-        Binding(
-            get: { model.varEntry(for: entry).value },
-            set: { model.setVar(entry.key, enabled: true, value: $0) }
-        )
     }
 
     private var retinaBinding: Binding<Bool> {
@@ -201,8 +181,30 @@ struct DXMTConfigRow: View {
     }
 }
 
+/// Renders an app.env or DXMT_CONFIG row, hidden while its parent switch is off.
+struct SettingRow: View {
+    @ObservedObject var model: ConfiguratorModel
+    let setting: SettingRef
+
+    var body: some View {
+        if model.isVisible(setting) {
+            switch setting {
+            case .env(let key):
+                if let entry = schemaByKey[key] {
+                    SchemaRow(model: model, entry: entry)
+                }
+            case .dxmt(let key):
+                if let entry = dxmtConfigByKey[key] {
+                    DXMTConfigRow(model: model, entry: entry)
+                }
+            }
+        }
+    }
+}
+
 struct ConfiguratorView: View {
     @StateObject private var model = ConfiguratorModel()
+    @AppStorage("advancedExpanded") private var advancedExpanded = false
 
     var body: some View {
         ScrollView {
@@ -226,33 +228,49 @@ struct ConfiguratorView: View {
 
     @ViewBuilder
     private var settingsCards: some View {
-        ForEach(schemaSections, id: \.self) { section in
-            let entries = schema.filter { $0.section == section }
-            let family = entries.first?.family
-            if family == nil || family == model.backend {
-                WizardCard {
-                    VStack(alignment: .leading, spacing: Layout.cardContentSpacing) {
-                        SectionTitle(title: section)
-                        ForEach(entries, id: \.key) { entry in
-                            SchemaRow(model: model, entry: entry)
+        ForEach(mainGroups, id: \.title) { group in
+            WizardCard {
+                VStack(alignment: .leading, spacing: Layout.cardContentSpacing) {
+                    HStack(spacing: 6) {
+                        SectionTitle(title: group.title)
+                        if let help = group.help {
+                            HelpTip(text: help)
                         }
                     }
+                    rows(for: group)
                 }
             }
         }
 
-        if model.backend == "dxmt" {
-            WizardCard {
-                VStack(alignment: .leading, spacing: Layout.cardContentSpacing) {
-                    HStack(spacing: 6) {
-                        SectionTitle(title: "DXMT_CONFIG")
-                        HelpTip(text: "d3d11.* / dxgi.* / dxmt.* — packed into one DXMT_CONFIG line. \"Default\" leaves DXMT to use its own built-in default.")
+        WizardCard {
+            DisclosureGroup(isExpanded: $advancedExpanded) {
+                VStack(alignment: .leading, spacing: Layout.cardContentSpacing * 2) {
+                    ForEach(advancedGroups, id: \.title) { group in
+                        VStack(alignment: .leading, spacing: Layout.cardContentSpacing) {
+                            Text(group.title)
+                                .font(.headline)
+                            rows(for: group)
+                        }
                     }
-                    ForEach(dxmtConfigKeys, id: \.key) { entry in
-                        DXMTConfigRow(model: model, entry: entry)
+                }
+                .padding(.top, Layout.cardContentSpacing)
+            } label: {
+                HStack(spacing: 8) {
+                    SectionTitle(title: "Advanced")
+                    let changed = model.advancedChangedCount
+                    if changed > 0 {
+                        Text("\(changed) changed")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
+        }
+    }
+
+    private func rows(for group: SettingGroup) -> some View {
+        ForEach(group.settings, id: \.self) { setting in
+            SettingRow(model: model, setting: setting)
         }
     }
 }

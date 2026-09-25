@@ -84,17 +84,25 @@ setup tool copies it into each wrapper, where it edits the wrapper's `app.env`.
   `paths.json` inside its own bundle, or
   `~/Library/Application Support/<App name>/app.env`. If none exists it shows
   an error and disables editing.
-- **Which backends it offers.** It offers D3DMetal only when the engine next to
-  it contains `lib64/apple_gptk/wine/x86_64-windows/d3d11.dll`; otherwise the
-  backend is fixed to DXMT and D3DMetal settings are hidden.
+- **Backend.** It offers DXMT only. `GAMMA_GRAPHICS_BACKEND` is always written
+  as `dxmt`, an install that had selected D3DMetal is switched to DXMT when the
+  Configurator opens, and leftover `D3DM_*` lines are dropped from `app.env`.
+  The engine and launcher still accept `d3dmetal` if `app.env` is edited by
+  hand.
+- **Layout.** Settings a player changes (V-Sync, DLSS support, MetalFX, the
+  Metal HUD, the NaN and FMA rendering fixes) are always visible. Everything
+  else sits under a collapsed Advanced section (launch arguments, display,
+  compatibility, GPU identity, shader cache, debugging), whose header counts
+  the settings that differ from a new install's defaults.
 - **Storage.** `app.env` is the only store. Enabled settings are
   `export KEY=VALUE`, disabled ones keep their value as `#export KEY=VALUE`,
   DXMT's sub-options are packed into one `DXMT_CONFIG` line, and unrecognised
   lines are kept. Hand edits are therefore never lost. Installs from before this
   design also have a `configurator-state.json`, read once to recover the values
   of disabled settings.
-- **Keys.** `Sources/Schema.swift` defines every key, its section, and its
-  default. Defaults must match the seed the setup tool writes.
+- **Keys.** `Sources/Schema.swift` defines every key and its default, and
+  `mainGroups`/`advancedGroups` there decide where each one appears. Defaults
+  must match the seed the setup tool writes.
 
 ## Microsoft runtime files
 
