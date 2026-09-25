@@ -12,9 +12,11 @@ source "$SCRIPT_DIR/env-x86_64.sh"
 FORCE=0
 DRY_RUN=0
 DXMT_ONLY=0
-FORMAT="${GAMMA_ENGINE_FORMAT:-zst}"
+# xz is the default: macOS tar and Python's lzma unpack it with no extra
+# tools, so gamma-setup-tool (which only accepts .tar.xz) needs no zstd.
+FORMAT="${GAMMA_ENGINE_FORMAT:-xz}"
 # Compression effort. The old xz -9e / zstd -22 --ultra defaults cost minutes
-# for negligible distribution benefit. Both explicit xz and default zstd use
+# for negligible distribution benefit. Both default xz and explicit zstd use
 # a moderate level 6. Override with GAMMA_ENGINE_COMPRESS_LEVEL.
 XZ_LEVEL="${GAMMA_ENGINE_COMPRESS_LEVEL:-6}"
 ZSTD_LEVEL="${GAMMA_ENGINE_COMPRESS_LEVEL:-6}"
@@ -63,17 +65,18 @@ Usage: $(basename "$0") [--force] [--dry-run] [--dxmt-only] [--zstd|--xz]
        [--format zstd|xz] [--media-profile full-video|minimal]
 
 Build a compressed engine artifact from install/wine-cx26-x86_64 (or WINE_INSTALL).
-  zstd: dist/artifacts/CX26W11-Gamma087-<N>.tar.zst (default, zstd -$ZSTD_LEVEL)
-  xz:   dist/artifacts/CX26W11-Gamma087-<N>.tar.xz (--xz, xz -$XZ_LEVEL)
+  xz:   dist/artifacts/CX26W11-Gamma087-<N>.tar.xz (default, xz -$XZ_LEVEL)
+  zstd: dist/artifacts/CX26W11-Gamma087-<N>.tar.zst (--zstd, zstd -$ZSTD_LEVEL;
+        not accepted by gamma-setup-tool)
 GPTK/D3DMetal is optional and user-supplied (see docs/renderers.md): if no
 GPTK payload was staged, packing is DXMT-only automatically, producing
-dist/artifacts/CX26W11-GAMMA-DXMT-<N>.tar.zst (no numeric engine version in
+dist/artifacts/CX26W11-GAMMA-DXMT-<N>.tar.xz (no numeric engine version in
 the filename). --dxmt-only forces this and strips any staged GPTK payload
 from the tree even if one is present.
 --dry-run performs only a fast source/layout preflight; it does not stage,
 strip, rewrite dylib paths, sign, scan minOS, compress, or verify an archive.
 Set GAMMA_ENGINE_VERSION_LABEL to override the detected version label.
-Set GAMMA_ENGINE_FORMAT=xz or pass --xz only for an explicit xz build.
+Set GAMMA_ENGINE_FORMAT=zstd or pass --zstd only for an explicit zstd build.
 Set GAMMA_ENGINE_COMPRESS_LEVEL to trade size against packing time.
 The default media profile is minimal (no GStreamer full-video plugin set);
 pass --media-profile full-video only if a video-capable build is needed.

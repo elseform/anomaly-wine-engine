@@ -10,7 +10,7 @@ and writes the launcher.
 
 ## Archive
 
-A `.tar.zst` (or `.tar.xz`) with a single top-level directory,
+A `.tar.xz` with a single top-level directory (gamma-setup-tool no longer accepts `.tar.zst`),
 `wswine.bundle/`, which is stripped on extraction. Paths below are relative to
 it.
 

@@ -11,9 +11,9 @@ One artifact: a relocatable Wine 11.16 / CrossOver 26.3.0 engine, built for
 `x86_64` and run under Rosetta 2 on Apple Silicon Macs with macOS 15 or newer.
 
 ```text
-dist/artifacts/CX26W11-GAMMA-DXMT-<N>.tar.zst
-                                  .tar.zst.sha256
-                                  .tar.zst.manifest.json
+dist/artifacts/CX26W11-GAMMA-DXMT-<N>.tar.xz
+                                  .tar.xz.sha256
+                                  .tar.xz.manifest.json
 ```
 
 The engine is not an app on its own. `gamma-setup-tool` extracts it into a

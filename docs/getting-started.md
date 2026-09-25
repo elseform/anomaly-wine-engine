@@ -9,7 +9,7 @@ out what went wrong. To build an archive yourself, see
 - An Apple Silicon Mac with macOS 15 or newer, and Rosetta 2
   (`softwareupdate --install-rosetta`).
 - An existing S.T.A.L.K.E.R. G.A.M.M.A. installation.
-- An engine archive (`CX26W11-GAMMA-DXMT-<N>.tar.zst`).
+- An engine archive (`CX26W11-GAMMA-DXMT-<N>.tar.xz`).
 
 ## 2. Create the app
 
@@ -22,7 +22,7 @@ from a checkout of the setup tool; every prompt has a matching flag (`--help`):
 
 ```bash
 python3 sources/GAMMASetupTool/Resources/wine-engine/interactive_setup.py \
-  --archive /path/to/CX26W11-GAMMA-DXMT-<N>.tar.zst
+  --archive /path/to/CX26W11-GAMMA-DXMT-<N>.tar.xz
 ```
 
 Setup extracts the engine into the app, creates a Wine prefix, mounts the game

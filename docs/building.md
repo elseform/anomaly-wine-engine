@@ -31,7 +31,7 @@ than its floor.
   llvm-mingw toolchain archive (`llvm-mingw-20260616-ucrt-macos-universal`) in
   `reference/` (not tracked). `prepare-build-deps.sh` extracts them into
   `build/`; point `OGOM_ARCHIVES_DIR` elsewhere to override.
-- `zstd` on `PATH` (or `GAMMA_ZSTD`) for packing.
+- `xz` on `PATH` for packing (Homebrew `xz`); `zstd` only for the optional `--zstd` format.
 - `gh` and `jq` for `publish-release.sh` and `fetch-dxmt.sh`.
 - A built DXMT payload in `renderers/dxmt/` (tracked; see
   [The DXMT payload](#the-dxmt-payload)).
@@ -74,14 +74,14 @@ Run the steps in this order.
    fetcher and the Configurator under `share/gamma/`, strip
    (`strip-wine-install.sh`), re-link dylibs (`bundle-wine-dylibs.sh`), sign
    every Mach-O (`sign-wine.sh`), check `cxcompatdb`, run the minOS scan, write
-   `engine-manifest.json`, compress with `zstd -6`, re-extract and verify every
+   `engine-manifest.json`, compress with `xz -6`, re-extract and verify every
    signature, then write the `.sha256` and `.manifest.json` sidecars.
 5. **Publish** — `scripts/publish-release.sh --dry-run`, then without
    `--dry-run`. It uploads an existing archive and its sidecars as a GitHub
    release tagged `engine-<engineId>-<N>`; it builds nothing.
 
 Useful knobs: `GAMMA_ENGINE_COMPRESS_LEVEL` (compression level),
-`GAMMA_ENGINE_FORMAT=xz` or `--xz` (xz instead of zstd),
+`GAMMA_ENGINE_FORMAT=zstd` or `--zstd` (zstd instead of xz; gamma-setup-tool does not accept it),
 `GAMMA_SKIP_ENGINE_STRIP=1` and `GAMMA_KEEP_DEBUG_SYMBOLS=1` (debugging a
 packed tree), `SIGN_IDENTITY` (a Developer ID instead of ad-hoc signing),
 `--skip-renderers` on `build-wine.sh`.
@@ -115,8 +115,8 @@ normal pipeline.
   hand-kept `engineId` slug (`cx26.3-w11-gamma087`), the base versions
   (`crossover`, `wine`), `minimumMacOS`, and the ordered patch list.
 - **Archive name** — DXMT-only builds (the normal case) are named
-  `CX<crossover-major>W<wine-major>-GAMMA-DXMT-<N>.tar.zst`; a build with a
-  staged D3DMetal payload is named `CX26W11-Gamma087-<N>.tar.zst`. Naming lives
+  `CX<crossover-major>W<wine-major>-GAMMA-DXMT-<N>.tar.xz`; a build with a
+  staged D3DMetal payload is named `CX26W11-Gamma087-<N>.tar.xz`. Naming lives
   in `scripts/engine-common.sh`.
 - **Build number** — `<N>` is one more than the highest existing archive for
   that name in `dist/artifacts/`. It is recorded as `buildNumber` in both
