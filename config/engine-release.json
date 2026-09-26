@@ -28,7 +28,9 @@
     "cyder-wineserver-pipe-end-disconnect-null-fd.patch",
     "cyder-wineserver-add-completion-guard.patch",
     "cyder-ntdll-qdo-optnone-NtQueryDirectoryObject.patch",
-    "gamma-ntdll-flush-write-buffers-sync.patch"
+    "gamma-ntdll-flush-write-buffers-sync.patch",
+    "wine-mr11880-winemac-transparent-hidden-cursor.patch",
+    "wine-mr11799-winemac-gcmouse-raw-input.patch"
   ],
   "components": [
     "runtime/cxcompatdb/cxcompatdb.c",
