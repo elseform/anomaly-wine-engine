@@ -2,8 +2,8 @@
 
 This document details the active patch set applied to CrossOver 26.3.0 (Wine 11.16) in `gamma-wine-engine`.
 
-15 patches are applied automatically in sequence by `scripts/build-wine.sh`
-(14, without `w1-win32u-vulkan-soname.patch`, when building with Vulkan). It
+17 patches are applied automatically in sequence by `scripts/build-wine.sh`
+(16, without `w1-win32u-vulkan-soname.patch`, when building with Vulkan). It
 fails loudly if a listed patch file is missing. The same list is recorded
 in `config/engine-release.json` and lands in the release manifest.
 
@@ -27,6 +27,8 @@ in `config/engine-release.json` and lands in the release manifest.
 | 12 | `cyder-wineserver-add-completion-guard.patch` | `wineserver` | Prevents crash in I/O completion port notifications. |
 | 13 | `cyder-ntdll-qdo-optnone-NtQueryDirectoryObject.patch` | `ntdll` | Disables aggressive Clang optimization on `NtQueryDirectoryObject` that caused miscompilation. |
 | 14 | `gamma-ntdll-flush-write-buffers-sync.patch` | `ntdll` | Replaces expensive Mach thread register iteration in `NtFlushProcessWriteBuffers` with hardware memory barrier (`__sync_synchronize()`), preventing Rosetta 2 thread deadlocks. |
+| 15 | `wine-mr11880-winemac-transparent-hidden-cursor.patch` | `winemac.drv` | Upstream MR !11880 (open, verbatim): hides the cursor with a transparent `NSCursor` instead of `[NSCursor hide]`, which on macOS 26 syncs presentation to the display refresh rate while the mouse moves. |
+| 16 | `wine-mr11799-winemac-gcmouse-raw-input.patch` | `winemac.drv` | Upstream MR !11799 (open; Makefile.in hunks rebased onto CX 26.3): on macOS 14+ Raw Input mouse movement, and so Wine's DirectInput mouse, comes unaccelerated from `GCMouse` at the mouse's polling rate. Off switch: `HKCU\Software\Wine\Mac Driver`, `UseGCMouse=N`. |
 
 > Patch 14 was regenerated against pristine CX 26.3.0 sources in August 2026: the
 > committed file had a corrupt hunk header (`@@ -7061,26 +7061,8 @@` for a 30/10

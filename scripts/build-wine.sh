@@ -486,6 +486,13 @@ if [[ "$CX_VERSION" == "26" ]]; then
   apply_gamma_patch "$PATCHES_DIR/cyder-ntdll-qdo-optnone-NtQueryDirectoryObject.patch"
   # Rosetta 2 thread-stall fix: hardware barrier instead of Mach register walk.
   apply_gamma_patch "$PATCHES_DIR/gamma-ntdll-flush-write-buffers-sync.patch"
+  # Upstream Wine MRs still under review (winemac.so only): !11880 hides the
+  # cursor with a transparent NSCursor instead of [NSCursor hide], avoiding the
+  # mouse-move frame-rate drop; !11799 feeds Raw Input (and so DirectInput)
+  # mouse movement from GCMouse on macOS 14+. Mouse-event changes touch the
+  # same area as the maplestory freeze below: retest menus and clicks.
+  apply_gamma_patch "$PATCHES_DIR/wine-mr11880-winemac-transparent-hidden-cursor.patch"
+  apply_gamma_patch "$PATCHES_DIR/wine-mr11799-winemac-gcmouse-raw-input.patch"
   # NOT applied: maplestory-cx26-message-wait-handoff.patch. Upstream Cyder
   # applies it to every CX26 build, but on this engine it makes wait_message()
   # return without blocking whenever Cocoa delivers mouse/window events, so the

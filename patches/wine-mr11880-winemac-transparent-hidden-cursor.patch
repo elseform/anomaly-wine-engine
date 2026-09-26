@@ -1,0 +1,114 @@
+Upstream Wine MR !11880 (https://gitlab.winehq.org/wine/wine/-/merge_requests/11880)
+head ff9812435e810edd0c812b54834f13e90b7f8dcb, base 36b6a2cf679fb395f668a917b76537190e212d9c; open, fetched 2026-09-26.
+Applied verbatim to CrossOver 26.3.0 (Wine 11.16).
+
+From ff9812435e810edd0c812b54834f13e90b7f8dcb Mon Sep 17 00:00:00 2001
+From: Elvin Hayatov <AlvinHV@proton.me>
+Date: Thu, 23 Jul 2026 21:39:30 +0400
+Subject: [PATCH] winemac: replace hidden cursor with transparent cursor
+
+Native cursor hiding can make mouse movement block frame presentation until the display refresh interval, even when the game disables vertical synchronization. Cursor Location Assistance can trigger the same behavior.
+
+Use a transparent NSCursor for Windows hidden-cursor requests and restore it when AppKit resets the current cursor. Disable Cursor Location Assistance only while a hidden or custom Windows cursor is active, following the approach used by Apple's Game Porting Toolkit guidance.
+---
+ dlls/winemac.drv/cocoa_app.m | 51 +++++++++++++++++++++++++-----------
+ 1 file changed, 35 insertions(+), 16 deletions(-)
+
+diff --git a/dlls/winemac.drv/cocoa_app.m b/dlls/winemac.drv/cocoa_app.m
+index 102a5b70702..0ba5b8799ae 100644
+--- a/dlls/winemac.drv/cocoa_app.m
++++ b/dlls/winemac.drv/cocoa_app.m
+@@ -73,6 +73,21 @@ - (BOOL)activateFromApplication:(NSRunningApplication *)application
+ }
+ 
+ 
++static NSCursor* WineTransparentCursor(void)
++{
++    static NSCursor* transparentCursor;
++    static dispatch_once_t once;
++
++    dispatch_once(&once, ^{
++        NSImage* image = [[NSImage alloc] initWithSize:NSMakeSize(1, 1)];
++        transparentCursor = [[NSCursor alloc] initWithImage:image hotSpot:NSZeroPoint];
++        [image release];
++    });
++
++    return transparentCursor;
++}
++
++
+ @implementation WineApplication
+ 
+ @synthesize wineController;
+@@ -929,22 +944,20 @@ - (void) updateCursor:(BOOL)force
+     {
+         if (force || lastTargetWindow)
+         {
+-            if (clientWantsCursorHidden && !cursorHidden)
+-            {
+-                [NSCursor hide];
+-                cursorHidden = TRUE;
+-            }
++            NSCursor* desiredCursor = clientWantsCursorHidden ? WineTransparentCursor() : cursor;
++            BOOL cursorWasReset = desiredCursor && [NSCursor currentCursor] != desiredCursor;
+ 
+-            if (!cursorIsCurrent)
++            if (force || !cursorIsCurrent || cursorHidden != clientWantsCursorHidden ||
++                cursorWasReset)
+             {
+-                [cursor set];
++                [desiredCursor set];
+                 cursorIsCurrent = TRUE;
+-            }
++                cursorHidden = clientWantsCursorHidden;
+ 
+-            if (!clientWantsCursorHidden && cursorHidden)
+-            {
+-                [NSCursor unhide];
+-                cursorHidden = FALSE;
++                if (cursorHidden || [cursorFrames count])
++                    NSApp.presentationOptions |= NSApplicationPresentationDisableCursorLocationAssistance;
++                else
++                    NSApp.presentationOptions &= ~NSApplicationPresentationDisableCursorLocationAssistance;
+             }
+         }
+         else
+@@ -953,11 +966,8 @@ - (void) updateCursor:(BOOL)force
+             {
+                 [[NSCursor arrowCursor] set];
+                 cursorIsCurrent = FALSE;
+-            }
+-            if (cursorHidden)
+-            {
+-                [NSCursor unhide];
+                 cursorHidden = FALSE;
++                NSApp.presentationOptions &= ~NSApplicationPresentationDisableCursorLocationAssistance;
+             }
+         }
+     }
+@@ -1846,6 +1856,11 @@ - (void) didSendEvent:(NSEvent*)anEvent
+                 [self handleCommandTab];
+             }
+         }
++
++        if (type == NSEventTypeCursorUpdate)
++            [self updateCursor:TRUE];
++        else if (clientWantsCursorHidden && [NSApp isActive])
++            [self updateCursor:FALSE];
+     }
+ 
+     - (void) setupObservations
+@@ -2232,6 +2247,10 @@ - (void)applicationDidBecomeActive:(NSNotification *)notification
+         // movement deltas are invalidated.  Make sure the next mouse move event
+         // starts over from an absolute baseline.
+         forceNextMouseMoveAbsolute = TRUE;
++
++        // macOS may restore its cursor while another application is active.
++        // Reapply the cursor requested by the Windows application on activation.
++        [self updateCursor:TRUE];
+     }
+ 
+     - (void)applicationDidResignActive:(NSNotification *)notification
+-- 
+GitLab
+
