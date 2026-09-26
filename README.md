@@ -22,6 +22,7 @@ The engine is packed as `dist/artifacts/CX26W11-GAMMA-DXMT-<N>.tar.xz`. [GAMMA S
 - **Backend switcher (`cxcompatdb.so`)** — selects DXMT (or a user-supplied D3DMetal) per process from `GAMMA_GRAPHICS_BACKEND`, without modifying DLLs in the prefix, and terminates the process rather than falling back to WineD3D when the backend is incomplete.
 - **Msync (`WINEMSYNC=1`)** — Mach-semaphore synchronization in shared memory instead of wineserver round trips.
 - **Stability patches** — wineserver socket and async fixes, `ntdll` frame-walk guards, and a hardware memory barrier in `NtFlushProcessWriteBuffers` that avoids stalls under Rosetta 2. The CrossOver message-wait handoff patch that freezes the game on UI clicks is deliberately not applied.
+- **High-precision mouse input** — backports of upstream Wine merge requests [!11799](https://gitlab.winehq.org/wine/wine/-/merge_requests/11799) and [!11880](https://gitlab.winehq.org/wine/wine/-/merge_requests/11880). On macOS 14 and newer, Raw Input mouse movement, which Wine's DirectInput mouse is built on, comes unaccelerated from `GCMouse` at the mouse's full polling rate instead of from coalesced `NSEvent` deltas. The hidden cursor is a transparent cursor instead of `[NSCursor hide]`, so moving the mouse no longer pulls the frame rate down to the display refresh rate. Turn GCMouse off with `UseGCMouse=N` under `HKCU\Software\Wine\Mac Driver`.
 - **Relocatable** — bundled libraries are linked `@loader_path`-relative and every Mach-O is signed.
 
 ## Quick build
