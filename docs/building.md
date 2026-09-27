@@ -132,7 +132,8 @@ normal pipeline.
 - `scripts/write-redist-manifest.py` rebuilds `config/redist-manifest.json` from
   the pinned Microsoft installers; `--check` verifies it without writing.
 - `scripts/run-winetricks.sh` runs winetricks against this repository's engine
-  for local testing.
+  for local testing: `GAMMA_APP=<wrapper name>` selects the wrapper's prefix,
+  and its engine when this repository has no `install/` tree.
 
 ## Known limitations
 
