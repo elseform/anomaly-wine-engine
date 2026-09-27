@@ -60,11 +60,12 @@ while [[ $# -gt 0 ]]; do
       cat <<EOF
 Usage: $(basename "$0") [options]
 
-Build CrossOver Wine for macOS x86_64 (Rosetta).
+Build the engine's Wine for macOS x86_64 (Rosetta): upstream Wine 11.16 with
+patches/series applied (the CrossOver 26.3.0 port first).
 
 Options:
   --cx 26         CrossOver release (default: 26)
-  --prepare-only     Extract archives from tools/archives/ and exit
+  --prepare-only     Fetch, verify and extract Wine and llvm-mingw, then exit
   --with-tests       Build Wine regression-test executables (off for runtime builds)
   --bootstrap-brew   Install project-local x86_64 Homebrew
   --install-deps     Install build dependencies via .brew-x86
@@ -86,7 +87,6 @@ Vulkan examples:
   bash scripts/build-wine.sh --install-deps --without-vulkan
   bash scripts/build-wine.sh --install-deps --with-vulkan --vulkan-source homebrew
   bash scripts/build-wine.sh --with-vulkan --vulkan-source crossover
-  bash scripts/build-media-stack.sh --cx 26
 
 vulkan-source crossover copies libMoltenVK.dylib (x86_64) out of a local
 CrossOver.app into the graphics staging tree, then bundles it into the
@@ -136,9 +136,9 @@ fi
 export CX_VERSION
 source "$SCRIPT_DIR/env-x86_64.sh"
 
-PREPARE_ARGS=(--cx "$CX_VERSION")
+PREPARE_ARGS=()
 [[ "$DRY_RUN" -eq 1 ]] && PREPARE_ARGS+=(--dry-run)
-"$SCRIPT_DIR/prepare-build-deps.sh" "${PREPARE_ARGS[@]}"
+"$SCRIPT_DIR/prepare-build-deps.sh" ${PREPARE_ARGS[@]+"${PREPARE_ARGS[@]}"}
 
 
 if [[ "$PREPARE_ONLY" -eq 1 ]]; then
@@ -176,10 +176,6 @@ if [[ "$INSTALL_DEPS" -eq 1 ]]; then
   BUILD_TOOL_DEPS=(autoconf bison flex pkgconf)
   # Runtime libs are copied into lib/wine/x86_64-unix and must be ≤ product floor.
   RUNTIME_DEPS=(zlib bzip2 libpng freetype gettext libffi gnutls)
-  if [[ -d "$MEDIA_INSTALL/lib/pkgconfig" ]]; then
-    BUILD_TOOL_DEPS+=(meson ninja)
-    RUNTIME_DEPS+=(pcre2)
-  fi
   if [[ "$VULKAN_MODE" == "with" ]]; then
     case "$VULKAN_SOURCE" in
       homebrew)
@@ -310,16 +306,6 @@ require_x86_dep() {
 
 ensure_bzip2_pc
 require_x86_dep freetype2
-# Wire in the isolated GStreamer stack for winegstreamer when one has been
-# built by scripts/build-media-stack.sh. Needed for media playback.
-if [[ -d "$MEDIA_INSTALL/lib/pkgconfig" ]]; then
-  PKG_PC_PATH="$MEDIA_INSTALL/lib/pkgconfig:$PKG_PC_PATH"
-  export LIBRARY_PATH="$MEDIA_INSTALL/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"
-  for _gst_pc in gstreamer-1.0 gstreamer-base-1.0 gstreamer-audio-1.0 gstreamer-tag-1.0; do
-    require_x86_dep "$_gst_pc"
-  done
-  unset _gst_pc
-fi
 CONFIGURE_VULKAN_FLAG=()
 if [[ "$VULKAN_MODE" == "without" ]]; then
   CONFIGURE_VULKAN_FLAG=(--without-vulkan)
@@ -358,148 +344,14 @@ mkdir -p "$OGOM/install" "$WINE_SRC/build64"
 
 cd "$WINE_SRC"
 
-apply_gamma_patch() {
-  local patch_file="$1"
-  if [[ ! -f "$patch_file" ]]; then
-    echo "Missing patch file: $patch_file" >&2
-    echo "Remove it from the apply list in $(basename "$0") or restore the file." >&2
-    exit 1
-  fi
-  if [[ "$DRY_RUN" -eq 1 ]]; then
-    echo "+ patch -d $WINE_SRC -p1 < $patch_file"
-    return 0
-  fi
-  if patch --forward --batch --dry-run -s -d "$WINE_SRC" -p1 < "$patch_file"; then
-    patch --forward --batch -s -d "$WINE_SRC" -p1 < "$patch_file"
-    echo "Applied $(basename "$patch_file")"
-  # `patch --reverse --batch` may auto-detect a reversed patch and silently
-  # apply it forward.  That turns a clean source tree into an obsolete-patch
-  # tree while merely probing idempotence.  --forward disables that fallback
-  # so the reverse probe is a true "already applied" check.
-  elif patch --reverse --forward --batch --dry-run -s -d "$WINE_SRC" -p1 < "$patch_file"; then
-    echo "Already applied: $(basename "$patch_file")"
-  elif [[ "$(basename "$patch_file")" == "wine-11.1-rtlwalkframechain-null-function.patch" ]] &&
-       grep -Fq 'if (!func) break;' "$WINE_SRC/dlls/ntdll/signal_x86_64.c" 2>/dev/null; then
-    # The page-fault patch rewrites the surrounding block, so patch
-    # cannot reverse-check this upstream hunk once both patches are present.
-    # Detect the stable upstream guard directly for idempotent migrations.
-    echo "Already applied: $(basename "$patch_file") (guard detected)"
-  elif [[ "$(basename "$patch_file")" == "cyder-wineserver-poll-slot-guard.patch" ]] &&
-       grep -Fq 'stale poll slot' "$WINE_SRC/server/fd.c" 2>/dev/null; then
-    # exit-diagnostics rewrites the same diagnostic line, so reverse dry-run fails.
-    echo "Already applied: $(basename "$patch_file") (guard detected)"
-  elif [[ "$(basename "$patch_file")" == "cyder-wineserver-exit-diagnostics.patch" ]] &&
-       grep -Fq 'wineserver_diag_printf' "$WINE_SRC/server/main.c" 2>/dev/null; then
-    echo "Already applied: $(basename "$patch_file") (guard detected)"
-  elif [[ "$(basename "$patch_file")" == "cyder-wineserver-fd-reselect-async-null-ops.patch" ]] &&
-       grep -Fq 'fd_reselect_async: missing ops' "$WINE_SRC/server/fd.c" 2>/dev/null; then
-    echo "Already applied: $(basename "$patch_file") (guard detected)"
-  elif [[ "$(basename "$patch_file")" == "cyder-wineserver-sock-rebind-async-fd.patch" ]] &&
-       grep -Fq 'cyder: sock_rebind_async_fds' "$WINE_SRC/server/sock.c" 2>/dev/null; then
-    echo "Already applied: $(basename "$patch_file") (guard detected)"
-  elif [[ "$(basename "$patch_file")" == "cyder-wineserver-pipe-end-disconnect-null-fd.patch" ]] &&
-       grep -Fq 'pipe_end_disconnect: null fd' "$WINE_SRC/server/named_pipe.c" 2>/dev/null; then
-    echo "Already applied: $(basename "$patch_file") (guard detected)"
-  elif [[ "$(basename "$patch_file")" == "cyder-wineserver-async-terminate-null-fd.patch" ]] &&
-       grep -Fq '!async->fd || !is_fd_overlapped' "$WINE_SRC/server/async.c" 2>/dev/null; then
-    echo "Already applied: $(basename "$patch_file") (guard detected)"
-  elif [[ "$(basename "$patch_file")" == "cyder-wineserver-free-async-queue-null-fd.patch" ]] &&
-       grep -Fq '!async->completion && async->fd' "$WINE_SRC/server/async.c" 2>/dev/null; then
-    echo "Already applied: $(basename "$patch_file") (guard detected)"
-  elif [[ "$(basename "$patch_file")" == "cyder-wineserver-add-completion-guard.patch" ]] &&
-       grep -Fq 'add_completion: invalid completion' "$WINE_SRC/server/completion.c" 2>/dev/null; then
-    echo "Already applied: $(basename "$patch_file") (guard detected)"
-  elif [[ "$(basename "$patch_file")" == "cyder-ntdll-query-directory-object-trace.patch" ]] &&
-       grep -Fq 'cyder QDO' "$WINE_SRC/dlls/ntdll/unix/sync.c" 2>/dev/null; then
-    echo "Already applied: $(basename "$patch_file") (guard detected)"
-  elif [[ "$(basename "$patch_file")" == "cyder-ntdll-qdo-optnone-NtQueryDirectoryObject.patch" ]] &&
-       grep -Fq 'cyder QDO optnone' "$WINE_SRC/dlls/ntdll/unix/sync.c" 2>/dev/null; then
-    echo "Already applied: $(basename "$patch_file") (guard detected)"
-  elif [[ "$(basename "$patch_file")" == "a6-final-same-view-backing-sync.patch" ]] &&
-       grep -Fq 'macdrv_finalize_window_backing_sync' "$WINE_SRC/dlls/winemac.drv/cocoa_window.m" 2>/dev/null; then
-    echo "Already applied: $(basename "$patch_file") (guard detected)"
-  else
-    echo "Cannot apply required Wine patch: $patch_file" >&2
-    exit 1
-  fi
-}
+# Apply patches/series (CrossOver port, then the engine patches) and regenerate
+# configure. Re-runs skip what the tree already records; see the script.
+SERIES_ARGS=(--src "$WINE_SRC")
+[[ "$VULKAN_MODE" == "with" ]] && SERIES_ARGS+=(--with-vulkan)
+[[ "$DRY_RUN" -eq 1 ]] && SERIES_ARGS+=(--dry-run)
+"$SCRIPT_DIR/apply-wine-series.sh" "${SERIES_ARGS[@]}"
 
-remove_obsolete_patch() {
-  local patch_file="$1"
-  local superseding_patch
-  shift
-  # The obsolete patch may have been deleted from the repo entirely; there is
-  # then nothing to reverse out of the tree.
-  [[ -f "$patch_file" ]] || return 0
-  if [[ "$DRY_RUN" -eq 1 ]]; then
-    echo "+ remove obsolete patch if applied: $patch_file"
-    for superseding_patch in "$@"; do
-      echo "  superseded by: $superseding_patch"
-    done
-    return 0
-  fi
-  if patch --reverse --forward --batch --dry-run -s -d "$WINE_SRC" -p1 < "$patch_file"; then
-    patch --reverse --forward --batch -s -d "$WINE_SRC" -p1 < "$patch_file"
-    echo "Removed obsolete $(basename "$patch_file")"
-  elif patch --forward --batch --dry-run -s -d "$WINE_SRC" -p1 < "$patch_file"; then
-    return 0
-  else
-    for superseding_patch in "$@"; do
-      if patch --reverse --forward --batch --dry-run -s -d "$WINE_SRC" -p1 < "$superseding_patch"; then
-        echo "Obsolete patch already superseded: $(basename "$patch_file")"
-        return 0
-      fi
-    done
-    echo "Cannot determine obsolete Wine patch state: $patch_file" >&2
-    exit 1
-  fi
-}
-
-if [[ "$CX_VERSION" == "26" ]]; then
-  PATCHES_DIR="$OGOM/patches"
-  apply_gamma_patch "$PATCHES_DIR/a6-final-same-view-backing-sync.patch"
-  # CrossOver compiles dlls/win32u/vulkan.c even when configure finds neither
-  # libvulkan nor MoltenVK, leaving SONAME_LIBVULKAN undefined. The fallback
-  # define is required for any --without-vulkan build to compile.
-  if [[ "$VULKAN_SONAME_FALLBACK" -eq 1 || "$VULKAN_MODE" == "without" ]]; then
-    apply_gamma_patch "$PATCHES_DIR/w1-win32u-vulkan-soname.patch"
-  fi
-  remove_obsolete_patch \
-    "$PATCHES_DIR/obsolete/cyder-ntdll-frame-walk-guard.patch" \
-    "$PATCHES_DIR/cyder-ntdll-frame-walk-page-fault-guard.patch" \
-    "$PATCHES_DIR/wine-11.1-rtlwalkframechain-null-function.patch"
-  apply_gamma_patch "$PATCHES_DIR/wine-11.1-rtlwalkframechain-null-function.patch"
-  apply_gamma_patch "$PATCHES_DIR/cyder-ntdll-frame-walk-page-fault-guard.patch"
-  apply_gamma_patch "$PATCHES_DIR/cyder-wineserver-sock-reselect-pseudo-fd.patch"
-  apply_gamma_patch "$PATCHES_DIR/cyder-wineserver-poll-slot-guard.patch"
-  apply_gamma_patch "$PATCHES_DIR/cyder-wineserver-exit-diagnostics.patch"
-  apply_gamma_patch "$PATCHES_DIR/cyder-wineserver-fd-reselect-async-null-ops.patch"
-  apply_gamma_patch "$PATCHES_DIR/cyder-wineserver-sock-rebind-async-fd.patch"
-  apply_gamma_patch "$PATCHES_DIR/cyder-wineserver-async-terminate-null-fd.patch"
-  apply_gamma_patch "$PATCHES_DIR/cyder-wineserver-free-async-queue-null-fd.patch"
-  apply_gamma_patch "$PATCHES_DIR/cyder-wineserver-pipe-end-disconnect-null-fd.patch"
-  apply_gamma_patch "$PATCHES_DIR/cyder-wineserver-add-completion-guard.patch"
-  remove_obsolete_patch \
-    "$PATCHES_DIR/obsolete/cyder-ntdll-query-directory-object-trace.patch" \
-    "$PATCHES_DIR/cyder-ntdll-qdo-optnone-NtQueryDirectoryObject.patch"
-  apply_gamma_patch "$PATCHES_DIR/cyder-ntdll-qdo-optnone-NtQueryDirectoryObject.patch"
-  # Rosetta 2 thread-stall fix: hardware barrier instead of Mach register walk.
-  apply_gamma_patch "$PATCHES_DIR/gamma-ntdll-flush-write-buffers-sync.patch"
-  # Upstream Wine MRs still under review (winemac.so only): !11880 hides the
-  # cursor with a transparent NSCursor instead of [NSCursor hide], avoiding the
-  # mouse-move frame-rate drop; !11799 feeds Raw Input (and so DirectInput)
-  # mouse movement from GCMouse on macOS 14+. Mouse-event changes touch the
-  # same area as the maplestory freeze below: retest menus and clicks.
-  apply_gamma_patch "$PATCHES_DIR/wine-mr11880-winemac-transparent-hidden-cursor.patch"
-  apply_gamma_patch "$PATCHES_DIR/wine-mr11799-winemac-gcmouse-raw-input.patch"
-  # NOT applied: maplestory-cx26-message-wait-handoff.patch. Upstream Cyder
-  # applies it to every CX26 build, but on this engine it makes wait_message()
-  # return without blocking whenever Cocoa delivers mouse/window events, so the
-  # main thread spins and the game freezes on any UI or menu click. The file is
-  # kept in patches/ for reference only — do not add it back without retesting.
-fi
-
-# CrossOver tarball is not a git checkout; make_makefiles requires `git ls-files`.
+# The release tarball is not a git checkout; make_makefiles requires `git ls-files`.
 # Regenerators are only needed when hacking the wine tree as a git worktree.
 if [[ -e "$WINE_SRC/.git" || -n "${GIT_DIR:-}" ]]; then
   run ./tools/make_requests
@@ -572,7 +424,7 @@ if [[ "$CONFIGURE_ONLY" -eq 0 ]]; then
   if [[ "$DRY_RUN" -eq 1 ]]; then
     echo "+ GRAPHICS_INSTALL=${GRAPHICS_INSTALL:-} VULKAN_MODE=$VULKAN_MODE $SCRIPT_DIR/bundle-wine-dylibs.sh"
   else
-    GRAPHICS_INSTALL="$GRAPHICS_INSTALL" MEDIA_INSTALL="$MEDIA_INSTALL" \
+    GRAPHICS_INSTALL="$GRAPHICS_INSTALL" \
       VULKAN_MODE="$VULKAN_MODE" VULKAN_SOURCE="$VULKAN_SOURCE" \
       "$SCRIPT_DIR/bundle-wine-dylibs.sh" "$WINE_INSTALL"
   fi

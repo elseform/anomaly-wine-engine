@@ -5,8 +5,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=engine-common.sh
 source "$SCRIPT_DIR/engine-common.sh"
-MEDIA_PROFILE="${GAMMA_ENGINE_MEDIA_PROFILE:-minimal}"
-MEDIA_INSTALL_WAS_EXPLICIT="${MEDIA_INSTALL+x}"
 source "$SCRIPT_DIR/env-x86_64.sh"
 
 FORCE=0
@@ -63,19 +61,11 @@ while [[ $# -gt 0 ]]; do
       [[ -n "$DXMT_TAG_ARG" ]] || { echo "Missing value for --dxmt-tag" >&2; exit 1; }
       shift 2
       ;;
-    --media-profile)
-      MEDIA_PROFILE="${2:-}"
-      if [[ -z "$MEDIA_PROFILE" ]]; then
-        echo "Missing value for --media-profile" >&2
-        exit 1
-      fi
-      shift 2
-      ;;
     -h | --help)
       cat <<EOF
 Usage: $(basename "$0") [--force] [--dry-run] [--zstd|--xz] [--build-number N]
        [--dxmt-tag TAG | --dxmt DIR]
-       [--format zstd|xz] [--media-profile full-video|minimal]
+       [--format zstd|xz]
 
 Build a compressed engine artifact from install/wine-cx26-x86_64 (or WINE_INSTALL).
   xz:   dist/artifacts/CX26-W11-GAMMA-<N>.tar.xz (default, xz -$XZ_LEVEL)
@@ -93,8 +83,6 @@ strip, rewrite dylib paths, sign, scan minOS, compress, or verify an archive.
 Set GAMMA_ENGINE_VERSION_LABEL to override the detected version label.
 Set GAMMA_ENGINE_FORMAT=zstd or pass --zstd only for an explicit zstd build.
 Set GAMMA_ENGINE_COMPRESS_LEVEL to trade size against packing time.
-The default media profile is minimal (no GStreamer full-video plugin set);
-pass --media-profile full-video only if a video-capable build is needed.
 EOF
       exit 0
       ;;
@@ -109,33 +97,6 @@ case "$FORMAT" in
   zstd) FORMAT="zst" ;;
 esac
 
-case "$MEDIA_PROFILE" in
-  full-video)
-    if [[ -z "$MEDIA_INSTALL_WAS_EXPLICIT" ]]; then
-      MEDIA_INSTALL="$OGOM/install/media-cx${CX_VERSION}-full-video-x86_64"
-    fi
-    [[ -d "$MEDIA_INSTALL/lib/gstreamer-1.0" ]] || {
-      echo "Missing full-video GStreamer plugins at $MEDIA_INSTALL" >&2
-      echo "Build them with: bash scripts/build-media-stack.sh --cx $CX_VERSION --full-video" >&2
-      exit 1
-    }
-    [[ -x "$MEDIA_INSTALL/libexec/gstreamer-1.0/gst-plugin-scanner" ]] || {
-      echo "Missing full-video GStreamer plugin scanner at $MEDIA_INSTALL" >&2
-      echo "Rebuild the media stack with: bash scripts/build-media-stack.sh --cx $CX_VERSION --full-video" >&2
-      exit 1
-    }
-    ;;
-  minimal)
-    if [[ -z "$MEDIA_INSTALL_WAS_EXPLICIT" ]]; then
-      MEDIA_INSTALL="$OGOM/install/media-cx${CX_VERSION}-x86_64"
-    fi
-    ;;
-  *)
-    echo "Unknown media profile: $MEDIA_PROFILE (expected full-video or minimal)" >&2
-    exit 1
-    ;;
-esac
-export MEDIA_INSTALL
 
 case "$FORMAT" in
   zst | xz) ;;
@@ -292,7 +253,6 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   else
     echo "  dxmt: elseform/dxmt $DXMT_TAG ($([[ "$DXMT_CACHED" == yes ]] && echo cached || echo "not cached, downloaded on pack"))"
   fi
-  echo "  media: $MEDIA_PROFILE ($MEDIA_INSTALL)"
   echo "  output: $ARCHIVE"
   exit 0
 fi
@@ -311,7 +271,6 @@ trap cleanup EXIT
 ENGINE_TREE="$STAGING/wswine.bundle"
 
 echo "==> Staging engine tree ($ENGINE_VERSION_LABEL)"
-echo "==> Embedding GStreamer media profile $MEDIA_PROFILE from $MEDIA_INSTALL"
 # Stage the engine tree
 rsync -a --delete \
   --exclude 'lib/*.bak-*' \

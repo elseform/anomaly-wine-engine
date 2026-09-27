@@ -1,6 +1,10 @@
+From cyder-wine-engine (Wine 11.0 / CrossOver 26.3.0), rebased onto Wine
+11.16: differs in the extra blank line in server/fd.c. The 11.16 form is the one
+built into engine builds 14-18.
+
 --- a/server/fd.c
 +++ b/server/fd.c
-@@ -1001,9 +1001,13 @@
+@@ -1001,9 +1001,12 @@
              }
          }
      }
@@ -10,7 +14,6 @@
  }
  
  
-+
  /****************************************************************/
  /* device functions */
  
@@ -28,6 +31,7 @@
          return;
      }
  
+
 --- a/server/signal.c
 +++ b/server/signal.c
 @@ -22,12 +22,17 @@

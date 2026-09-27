@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/env-x86_64.sh"
 
-WINE_SRC="${WINE_SRC:-$ROOT/build/cx26/sources/wine}"
+WINE_SRC="${WINE_SRC:-$ROOT/build/wine-11.16/wine}"
 WINE_INSTALL="${WINE_INSTALL:-$ROOT/install/wine-cx26-x86_64}"
 SOURCE="$ROOT/runtime/cxcompatdb/cxcompatdb.c"
 OUTPUT="${GAMMA_CXCOMPATDB_OUTPUT:-$WINE_INSTALL/lib/wine/x86_64-unix/cxcompatdb.so}"
@@ -22,7 +22,7 @@ CONFIG_DIR="${GAMMA_CXCOMPATDB_CONFIG_DIR:-$WINE_SRC/build64/include}"
 }
 
 [[ -f "$WINE_SRC/include/winternl.h" ]] || {
-  echo "Missing CrossOver Wine headers: $WINE_SRC/include" >&2
+  echo "Missing Wine headers: $WINE_SRC/include" >&2
   exit 1
 }
 

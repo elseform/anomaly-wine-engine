@@ -1,20 +1,24 @@
+From cyder-wine-engine (Wine 11.0 / CrossOver 26.3.0), rebased onto Wine
+11.16: differs in the guard, because Wine 11.16 falls back to
+default_fd_reselect_async() when an fd has no reselect_async op. The 11.16 form is the one
+built into engine builds 14-18.
+
 --- a/server/fd.c
 +++ b/server/fd.c
-@@ -2321,6 +2321,17 @@
+@@ -2275,6 +2275,16 @@
  
  void fd_reselect_async( struct fd *fd, struct async_queue *queue )
  {
 +    /* A released or pseudo fd may have no ops; calling through NULL aborts
 +     * wineserver (SIGSEGV at vtable offset) and hangs every client. */
-+    if (!fd || !fd->fd_ops || !fd->fd_ops->reselect_async)
++    if (!fd || !fd->fd_ops)
 +    {
 +        static int reported;
 +
 +        if (reported++ < 10)
-+            wineserver_diag_printf( "wineserver: fd_reselect_async: missing ops for fd %p"
-+                                    " (ops=%p)\n", fd, fd ? fd->fd_ops : NULL );
++            wineserver_diag_printf( "wineserver: fd_reselect_async: missing ops for fd %p\n", fd );
 +        return;
 +    }
-     fd->fd_ops->reselect_async( fd, queue );
+     if (fd->fd_ops->reselect_async) fd->fd_ops->reselect_async( fd, queue );
+     else default_fd_reselect_async( fd, queue );
  }
- 

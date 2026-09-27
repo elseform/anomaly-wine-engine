@@ -1,0 +1,96 @@
+winegstreamer: point GStreamer at plugins bundled in the relocatable
+runtime tree (../../gstreamer-1.0 from the unix module), and decline a
+video buffer pool for caps gst_video_info_from_caps() cannot describe
+instead of offering a zero-sized one.
+
+Origin: written for this engine in an unrecorded agent session on
+2026-08-29, while porting CrossOver 26.3.0 onto Wine 11.16; recovered on
+2026-09-27 from the source tree that built engine builds 14-18. Not in
+upstream Wine (master 2026-09-25) or any public project found.
+
+--- a/dlls/winegstreamer/unixlib.c
++++ b/dlls/winegstreamer/unixlib.c
+@@ -25,8 +25,11 @@
+ #include "config.h"
+ 
+ #include <assert.h>
++#include <dlfcn.h>
++#include <limits.h>
+ #include <stdarg.h>
+ #include <stdio.h>
++#include <string.h>
+ 
+ #include <gst/gst.h>
+ #include <gst/video/video.h>
+@@ -256,6 +259,38 @@
+ #endif
+ }
+ 
++/* The plugins ship inside the runtime tree, at ../../gstreamer-1.0 relative to
++ * lib/wine/<arch>-unix/. GStreamer's own search path was baked in at build time
++ * and points at the builder's prefix, which exists nowhere else, so without
++ * this gst_init succeeds and the registry comes up empty: every decoder lookup
++ * then fails with nothing naming the cause. The tree is relocatable by design,
++ * so the directory is only knowable at run time, from this module's own path. */
++static void set_bundled_plugin_path(void)
++{
++    static const char rel[] = "/../../gstreamer-1.0";
++    char path[PATH_MAX];
++    Dl_info info;
++    char *slash;
++
++    if (!dladdr((void *)set_bundled_plugin_path, &info) || !info.dli_fname)
++        return;
++    if (strlen(info.dli_fname) >= sizeof(path))
++        return;
++
++    strcpy(path, info.dli_fname);
++    if (!(slash = strrchr(path, '/')))
++        return;
++    *slash = 0;
++
++    if (strlen(path) + sizeof(rel) > sizeof(path))
++        return;
++    strcat(path, rel);
++
++    /* no overwrite: an explicit GST_PLUGIN_SYSTEM_PATH_1_0 stays in charge */
++    setenv("GST_PLUGIN_SYSTEM_PATH_1_0", path, 0);
++    setenv("GST_PLUGIN_SYSTEM_PATH", path, 0);
++}
++
+ NTSTATUS wg_init_gstreamer(void *arg)
+ {
+     struct wg_init_gstreamer_params *params = arg;
+@@ -275,6 +310,8 @@
+         setenv("GST_DEBUG", "1", FALSE);
+     setenv("GST_DEBUG_NO_COLOR", "1", FALSE);
+ 
++    set_bundled_plugin_path();
++
+     /* GStreamer installs a temporary SEGV handler when it loads plugins
+      * to initialize its registry calling exit(-1) when any fault is caught.
+      * We need to make sure any signal reaches our signal handlers to catch
+--- a/dlls/winegstreamer/wg_transform.c
++++ b/dlls/winegstreamer/wg_transform.c
+@@ -252,7 +252,20 @@
+     if (!(pool = g_object_new(wg_video_buffer_pool_get_type(), NULL)))
+         return NULL;
+ 
+-    gst_video_info_from_caps(&pool->info, caps);
++    /* An allocation query is allowed to carry caps that are not fixed yet, and
++     * gst_video_info_from_caps refuses those. Its failure used to go unread,
++     * which left the info zeroed and offered the decoder a pool advertising a
++     * size of zero: it then waited for a buffer that could never be allocated,
++     * and the application waited on a frame that never arrived. Declining the
++     * pool leaves the allocation to GStreamer's own, which is what happens for
++     * every other caps we do not recognise. */
++    if (!gst_video_info_from_caps(&pool->info, caps))
++    {
++        GST_WARNING("Cannot describe %"GST_PTR_FORMAT", leaving allocation to the default pool.", caps);
++        g_object_unref(pool);
++        return NULL;
++    }
++
+     max_size = pool->info.size;
+     align_video_info_planes(video_info, plane_align, output_plane_stride, &pool->info, align);
+     /* GStreamer assumes NV12 pools must accommodate a stride alignment of 4, but we use 2 */

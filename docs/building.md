@@ -27,10 +27,13 @@ than its floor.
   libraries. `build-wine.sh --bootstrap-brew --install-deps` creates it; the
   libraries are built from source at the build floor, see
   [why-no-prebuilt-deps.md](why-no-prebuilt-deps.md).
-- The CrossOver 26.3.0 source archive `crossover-sources-26.3.0.tar.gz` and the
-  llvm-mingw toolchain archive (`llvm-mingw-20260616-ucrt-macos-universal`) in
-  `reference/` (not tracked). `prepare-build-deps.sh` extracts them into
-  `build/`; point `OGOM_ARCHIVES_DIR` elsewhere to override.
+- Network access to dl.winehq.org and GitHub. `prepare-build-deps.sh`
+  downloads upstream `wine-11.16.tar.xz` and the llvm-mingw toolchain
+  (`llvm-mingw-20260616-ucrt-macos-universal.tar.xz`), checks each against a
+  pinned sha256, caches them in `build/cache/sources/` and extracts them into
+  `build/`. A copy with the right checksum in `reference/` (or
+  `OGOM_ARCHIVES_DIR`) is used instead of downloading. Nothing has to be
+  supplied by hand.
 - `xz` on `PATH` for packing (Homebrew `xz`); `zstd` only for the optional `--zstd` format.
 - `gh` for `publish-release.sh`; `curl` and network access to GitHub for
   packing, which downloads DXMT (see [The DXMT payload](#the-dxmt-payload)).
@@ -39,8 +42,10 @@ than its floor.
 
 | Path | Contents | Tracked |
 |---|---|---|
-| `build/cx26/sources/wine`, `build/cx26/build64` | Extracted, patched source and the out-of-tree build | no |
+| `build/wine-11.16/wine`, `build/wine-11.16/wine/build64` | Upstream Wine 11.16 with `patches/series` applied, and the out-of-tree build | no |
 | `build/llvm-mingw-*` | PE cross toolchain | no |
+| `build/cache/sources/` | Downloaded, verified Wine and llvm-mingw archives | no |
+| `patches/series`, `patches/*.patch` | The Wine patch series, in apply order | yes |
 | `install/wine-cx26-x86_64` | The live, uncompressed engine tree | no |
 | `dist/artifacts/` | Packed archives with `.sha256` and `.manifest.json` | no |
 | `build/cache/dxmt/<tag>/` | Downloaded, verified DXMT releases | no |
@@ -55,18 +60,18 @@ signed in place.
 Run the steps in this order.
 
 1. **Build Wine** — `scripts/build-wine.sh` (first run:
-   `--bootstrap-brew --install-deps`). It extracts sources
-   (`prepare-build-deps.sh`), applies the patches in `patches/`
-   (see [patches/README.md](../patches/README.md)), configures with
+   `--bootstrap-brew --install-deps`). It fetches and extracts the sources
+   (`prepare-build-deps.sh`), applies `patches/series` with
+   `apply-wine-series.sh` — the CrossOver 26.3.0 port first, then the engine
+   patches (see [patches/README.md](../patches/README.md)) — regenerates
+   `configure` with autoconf, configures with
    `--enable-archs=i386,x86_64` and llvm-mingw, builds and installs into
    `install/wine-cx26-x86_64`, then runs `build-cxcompatdb.sh`,
    `bundle-wine-dylibs.sh` and `install-renderers.sh` (which keeps backend
    files out of the install tree), and writes the
    `version` file. Vulkan is off by default (`--with-vulkan` to enable).
    `--dry-run` prints the commands without running them.
-2. **Optional media stack** — `scripts/build-media-stack.sh` builds GLib and
-   GStreamer for `winegstreamer`; `build-wine.sh` picks it up when present.
-3. **Pack** — `scripts/pack-engine-artifact.sh` (`--dry-run` for a fast
+2. **Pack** — `scripts/pack-engine-artifact.sh` (`--dry-run` for a fast
    preflight that resolves the DXMT release without downloading it). In
    order: fetch and verify DXMT (`fetch-dxmt-release.sh`), copy the install
    tree to a staging `wswine.bundle/`, add DXMT under `lib/dxmt/` (plus the
@@ -76,7 +81,7 @@ Run the steps in this order.
    every Mach-O (`sign-wine.sh`), check `cxcompatdb`, run the minOS scan, write
    `engine-manifest.json`, compress with `xz -6`, re-extract and verify every
    signature, then write the `.sha256` and `.manifest.json` sidecars.
-4. **Publish** — `scripts/publish-release.sh --dry-run`, then without
+3. **Publish** — `scripts/publish-release.sh --dry-run`, then without
    `--dry-run`. It uploads an existing archive and its sidecars as a GitHub
    release tagged `engine-<engineId>-<N>`; it builds nothing, and refuses an
    archive whose DXMT did not come from an `elseform/dxmt` release.
@@ -130,10 +135,18 @@ Such an archive's manifest records `dxmt.source: "local"`, and
   both manifests and in the release tag. `gamma-setup-tool` orders releases by
   it, so it must keep growing. Old archives in `dist/artifacts/` can be deleted
   freely.
-- **Base bumps** — a new CrossOver source archive needs
-  `prepare-build-deps.sh` updated, `base` in `engine-release.json` updated to
-  what the tree reports (`build/cx26/sources/wine/VERSION`), and a review of the
-  patch set, which is pinned to specific source trees.
+- **Base bumps** — a new Wine release needs its archive name and sha256 in
+  `prepare-build-deps.sh`, the CrossOver port and every other patch in
+  `patches/series` re-checked against it (they apply with no fuzz), and `base`
+  in `engine-release.json` updated. A new CrossOver release means porting its
+  changes again: `crossover-26.3.0-wine-11.16-port.patch` is CrossOver
+  26.3.0's delta to Wine 11.0, carried onto 11.16.
+- **Changing the series** — `apply-wine-series.sh` records each applied patch
+  and its sha256 in `build/wine-11.16/wine/.gamma-series`. Appending a patch
+  to the series applies just that patch on the next build; editing, removing
+  or reordering one needs a fresh tree (`prepare-build-deps.sh --force`, which
+  also deletes `build64`). `config/engine-release.json` must list the same
+  patches in the same order; the script refuses otherwise.
 
 ## Maintainer tools
 

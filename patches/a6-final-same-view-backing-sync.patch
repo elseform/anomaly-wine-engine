@@ -1,3 +1,8 @@
+From cyder-wine-engine (Wine 11.0 / CrossOver 26.3.0), rebased onto Wine
+11.16: differs in the opengl.c hunks, because Wine 11.16 already calls make_context_current
+when presenting. The 11.16 form is the one
+built into engine builds 14-18.
+
 --- a/dlls/winemac.drv/cocoa_opengl.h
 +++ b/dlls/winemac.drv/cocoa_opengl.h
 @@ -26,11 +26,13 @@
@@ -14,25 +19,6 @@
 +@property BOOL backingSyncPending;
  
  @end
---- a/dlls/winemac.drv/macdrv_cocoa.h
-+++ b/dlls/winemac.drv/macdrv_cocoa.h
-@@ -561,6 +561,8 @@
- extern void macdrv_view_release_metal_view(macdrv_metal_view v);
- extern bool macdrv_get_view_backing_size(macdrv_view v, int backing_size[2]);
- extern void macdrv_set_view_backing_size(macdrv_view v, const int backing_size[2]);
-+extern bool macdrv_view_backing_sync_deferred(macdrv_view v);
-+extern void macdrv_finalize_window_backing_sync(macdrv_window w);
- extern uint32_t macdrv_window_background_color(void);
- extern bool macdrv_ime_process_key(int keyc, unsigned int flags, int repeat, void *data);
- extern bool macdrv_is_any_wine_window_visible(void);
-@@ -592,6 +594,7 @@
- extern void macdrv_make_context_current(macdrv_opengl_context c, macdrv_view v, CGRect r);
- extern void macdrv_update_opengl_context(macdrv_opengl_context c);
- extern void macdrv_flush_opengl_context(macdrv_opengl_context c);
-+extern bool macdrv_opengl_context_backing_sync_pending(macdrv_opengl_context c);
- 
- 
- /* systray / status item */
 --- a/dlls/winemac.drv/cocoa_opengl.m
 +++ b/dlls/winemac.drv/cocoa_opengl.m
 @@ -34,14 +34,14 @@
@@ -156,21 +142,20 @@
                  [context setLatentView:view];
              }
          }
-@@ -343,4 +371,11 @@
-     macdrv_update_opengl_context(c);
+@@ -344,3 +372,10 @@
      [context flushBuffer];
  }
-+}
+ }
 +
 +bool macdrv_opengl_context_backing_sync_pending(macdrv_opengl_context c)
 +{
 +    WineOpenGLContext *context = (WineOpenGLContext*)c;
 +
 +    return context && context.backingSyncPending;
- }
++}
 --- a/dlls/winemac.drv/cocoa_window.m
 +++ b/dlls/winemac.drv/cocoa_window.m
-@@ -368,6 +368,7 @@
+@@ -387,6 +387,7 @@
      BOOL _everHadGLContext;
      BOOL _cachedHasGLDescendant;
      BOOL _cachedHasGLDescendantValid;
@@ -178,7 +163,7 @@
  
      NSMutableAttributedString* markedText;
      NSRange markedTextSelection;
-@@ -387,6 +388,8 @@
+@@ -407,6 +408,8 @@
  
      - (void) wine_getBackingSize:(int*)outBackingSize;
      - (void) wine_setBackingSize:(const int*)newBackingSize;
@@ -186,8 +171,8 @@
 +    - (void) wine_setBackingSyncDeferred:(BOOL)deferred finalize:(BOOL)finalize;
  
      - (WineMetalView*) newMetalViewWithDevice:(id<MTLDevice>)device;
- 
-@@ -687,6 +690,30 @@
+     - (void) addCALayerHostViewWithContextId:(CAContextID)contextId;
+@@ -711,6 +714,30 @@
          }
      }
  
@@ -218,7 +203,7 @@
      - (WineMetalView*) newMetalViewWithDevice:(id<MTLDevice>)device
      {
          if (_metalView) return _metalView;
-@@ -954,6 +981,16 @@
+@@ -1019,6 +1046,16 @@
  @end
  
  
@@ -235,7 +220,7 @@
  @implementation WineMetalView
  
      - (id) initWithFrame:(NSRect)frame device:(id<MTLDevice>)device
-@@ -3293,6 +3330,7 @@
+@@ -3358,6 +3395,7 @@
      - (void) windowWillStartLiveResize:(NSNotification *)notification
      {
          [self endWindowDragging];
@@ -243,7 +228,7 @@
  
          if (maximized)
          {
-@@ -3907,7 +3945,8 @@
+@@ -3972,7 +4010,8 @@
              else
                  [view setFrame:newFrame];
              [view setNeedsDisplay:YES];
@@ -253,12 +238,10 @@
              [(WineWindow*)[view window] updateForGLSubviews];
          }
      });
-@@ -4084,6 +4123,27 @@
- 
-     if ([view isKindOfClass:[WineContentView class]])
+@@ -4398,6 +4437,27 @@
          [view wine_setBackingSize:backing_size];
-+}
-+
+ }
+ 
 +bool macdrv_view_backing_sync_deferred(macdrv_view v)
 +{
 +    WineContentView* view = (WineContentView*)v;
@@ -278,12 +261,45 @@
 +    OnMainThread(^{
 +        set_view_backing_sync_deferred([window contentView], FALSE, TRUE);
 +    });
- }
- 
++}
++
  /* CW HACK 22435 */
+ void *macdrv_get_view_d3dmetal_client_surface(macdrv_view v)
+ {
+--- a/dlls/winemac.drv/macdrv_cocoa.h
++++ b/dlls/winemac.drv/macdrv_cocoa.h
+@@ -572,6 +572,8 @@
+ extern void macdrv_release_remote_layer(void* hwnd, unsigned int context_id);
+ extern bool macdrv_get_view_backing_size(macdrv_view v, int backing_size[2]);
+ extern void macdrv_set_view_backing_size(macdrv_view v, const int backing_size[2]);
++extern bool macdrv_view_backing_sync_deferred(macdrv_view v);
++extern void macdrv_finalize_window_backing_sync(macdrv_window w);
+ extern uint32_t macdrv_window_background_color(void);
+ extern bool macdrv_send_keydown_to_input_source(int keyc, unsigned int flags, int repeat, void *data);
+ extern bool macdrv_is_any_wine_window_visible(void);
+@@ -603,6 +605,7 @@
+ extern void macdrv_make_context_current(macdrv_opengl_context c, macdrv_view v, CGRect r);
+ extern void macdrv_update_opengl_context(macdrv_opengl_context c);
+ extern void macdrv_flush_opengl_context(macdrv_opengl_context c);
++extern bool macdrv_opengl_context_backing_sync_pending(macdrv_opengl_context c);
+ 
+ 
+ /* systray / status item */
+--- a/dlls/winemac.drv/opengl.c
++++ b/dlls/winemac.drv/opengl.c
+@@ -1983,7 +1983,8 @@
+ 
+     if (!context) return;
+     if (flags & GL_FLUSH_INTERVAL) set_swap_interval(context, base->interval);
+-    if (flags & GL_FLUSH_UPDATED) make_context_current(context, context->read_view == client->cocoa_view);
++    if ((flags & GL_FLUSH_UPDATED) || macdrv_opengl_context_backing_sync_pending(context->context))
++        make_context_current(context, context->read_view == client->cocoa_view);
+     if (flags & GL_FLUSH_PRESENT)
+     {
+         macdrv_flush_opengl_context(context->context);
 --- a/dlls/winemac.drv/window.c
 +++ b/dlls/winemac.drv/window.c
-@@ -1521,8 +1521,7 @@
+@@ -1644,8 +1644,7 @@
      if (!thread_data->current_event || thread_data->current_event->window != data->cocoa_window)
          goto done;
  
@@ -293,7 +309,7 @@
          goto done;
  
      macdrv_get_cocoa_window_frame(data->cocoa_window, &frame);
-@@ -1996,8 +1995,13 @@
+@@ -2173,8 +2172,13 @@
   */
  void macdrv_window_resize_ended(HWND hwnd)
  {
@@ -307,24 +323,3 @@
  }
  
  
---- a/dlls/winemac.drv/opengl.c
-+++ b/dlls/winemac.drv/opengl.c
-@@ -2021,7 +2021,8 @@
- 
-     if (!context) return;
-     if (flags & GL_FLUSH_INTERVAL) set_swap_interval(context, base->interval);
--    if (flags & GL_FLUSH_UPDATED) make_context_current(context, context->read_view == client->cocoa_view);
-+    if ((flags & GL_FLUSH_UPDATED) || macdrv_opengl_context_backing_sync_pending(context->context))
-+        make_context_current(context, context->read_view == client->cocoa_view);
- }
- 
- 
-@@ -2870,6 +2871,8 @@
-     TRACE("%s context %p/%p/%p\n", debugstr_opengl_drawable(base), context, (context ? context->context : NULL),
-           (context ? context->cglcontext : NULL));
- 
-+    if (macdrv_opengl_context_backing_sync_pending(context->context))
-+        make_context_current(context, FALSE);
-     macdrv_flush_opengl_context(context->context);
-     return TRUE;
- }

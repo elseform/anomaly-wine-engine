@@ -64,7 +64,9 @@ case "$CX_VERSION" in
     ;;
   26)
     export GAMMA_ENGINE_CX_PREFIX="${GAMMA_ENGINE_CX_PREFIX:-CX26}"
-    export WINE_SRC="${WINE_SRC:-$BUILD_DIR/cx26/sources/wine}"
+    # Upstream Wine 11.16, extracted by prepare-build-deps.sh and patched by
+    # apply-wine-series.sh (the CrossOver 26.3.0 port comes first).
+    export WINE_SRC="${WINE_SRC:-$BUILD_DIR/wine-11.16/wine}"
     export WINE_INSTALL="${WINE_INSTALL:-$OGOM/install/wine-cx26-x86_64}"
     ;;
   *)
@@ -87,26 +89,6 @@ fi
 export LLVM_MINGW
 
 export GRAPHICS_INSTALL="${GRAPHICS_INSTALL:-$OGOM/install/graphics-cx${CX_VERSION}-x86_64}"
-export MEDIA_INSTALL="${MEDIA_INSTALL:-$OGOM/install/media-cx${CX_VERSION}-x86_64}"
-export MOLTENVK_VERSION="${MOLTENVK_VERSION:-1.4.0}"
-export MOLTENVK_SOURCE="${MOLTENVK_SOURCE:-upstream}"
-case "$MOLTENVK_SOURCE" in
-  upstream)
-    export MOLTENVK_SRC="${MOLTENVK_SRC:-$BUILD_DIR/moltenvk-$MOLTENVK_VERSION}"
-    ;;
-  crossover-foss)
-    export MOLTENVK_SRC="${MOLTENVK_SRC:-$BUILD_DIR/cx${CX_VERSION}/sources/moltenvk}"
-    ;;
-  custom)
-    : "${MOLTENVK_SRC:?MOLTENVK_SOURCE=custom requires MOLTENVK_SRC}"
-    export MOLTENVK_SRC
-    ;;
-  *)
-    echo "Unknown MOLTENVK_SOURCE: $MOLTENVK_SOURCE (expected upstream, crossover-foss, or custom)" >&2
-    exit 1
-    ;;
-esac
-export VKD3D_SRC="${VKD3D_SRC:-$BUILD_DIR/cx${CX_VERSION}/sources/vkd3d}"
 
 # Local CrossOver.app install, optionally used as a source of MoltenVK for a
 # Vulkan-enabled Wine build. Renderer staging itself does not consume it.

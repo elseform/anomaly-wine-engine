@@ -97,11 +97,10 @@ from the `mozilla/fxc2` build that winetricks also uses.
 
 ## Patches
 
-`patches/` holds the source patches `build-wine.sh` applies to CrossOver
-26.3.0; the list is recorded in `config/engine-release.json` and in every
-manifest. Details and the patches deliberately left out are in
-[patches/README.md](../patches/README.md). Filenames with a `cyder-` prefix are
-kept for provenance.
+The engine's Wine is upstream Wine 11.16 with `patches/series` applied: the
+CrossOver 26.3.0 port first, then the engine patches. The list is recorded in
+`config/engine-release.json` and in every manifest. Details, origins, and the
+patch deliberately left out are in [patches/README.md](../patches/README.md).
 
 ## Conventions
 
