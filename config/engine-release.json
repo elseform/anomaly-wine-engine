@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "engineId": "cx26.3-w11-gamma087",
-  "versionLabel": "CX26.3.0-W11-Gamma087",
+  "engineId": "cx26-w11-gamma",
+  "versionLabel": "CX26-W11-GAMMA",
   "base": {
     "crossover": "26.3.0",
     "wine": "11.16"

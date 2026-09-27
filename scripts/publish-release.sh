@@ -85,6 +85,7 @@ ARTIFACT_BASENAME="$(basename "$ARTIFACT_PATH")"
 # lockstep without a separate version bump step.
 BUILD_NUMBER="$(printf '%s\n' "$ARTIFACT_BASENAME" | sed -E 's/\.tar\.(zst|xz)$//; s/.*-([0-9]+)$/\1/')"
 TAG="engine-${ENGINE_ID}-${BUILD_NUMBER}"
+TITLE="${VERSION_LABEL}-${BUILD_NUMBER}"
 
 NOTES="Engine: ${VERSION_LABEL}
 Artifact: ${ARTIFACT_BASENAME}
@@ -94,7 +95,7 @@ Requires an Apple Silicon Mac running macOS 15 or newer.
 Built per docs/building.md; see config/engine-release.json for the full patch list."
 
 echo "Tag:      $TAG"
-echo "Title:    $VERSION_LABEL"
+echo "Title:    $TITLE"
 echo "Repo:     $GH_REPO"
 echo "Artifact: $ARTIFACT_PATH"
 echo "Manifest: $MANIFEST_PATH"
@@ -104,7 +105,7 @@ echo
 CMD=(gh release create "$TAG"
   "$ARTIFACT_PATH" "$MANIFEST_PATH" "$SHA256_PATH"
   --repo "$GH_REPO"
-  --title "$VERSION_LABEL"
+  --title "$TITLE"
   --notes "$NOTES"
 )
 

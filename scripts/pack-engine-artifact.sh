@@ -65,14 +65,13 @@ Usage: $(basename "$0") [--force] [--dry-run] [--dxmt-only] [--zstd|--xz]
        [--format zstd|xz] [--media-profile full-video|minimal]
 
 Build a compressed engine artifact from install/wine-cx26-x86_64 (or WINE_INSTALL).
-  xz:   dist/artifacts/CX26W11-Gamma087-<N>.tar.xz (default, xz -$XZ_LEVEL)
-  zstd: dist/artifacts/CX26W11-Gamma087-<N>.tar.zst (--zstd, zstd -$ZSTD_LEVEL;
+  xz:   dist/artifacts/CX26W11-GAMMA-<N>.tar.xz (default, xz -$XZ_LEVEL)
+  zstd: dist/artifacts/CX26W11-GAMMA-<N>.tar.zst (--zstd, zstd -$ZSTD_LEVEL;
         not accepted by gamma-setup-tool)
 GPTK/D3DMetal is optional and user-supplied (see docs/renderers.md): if no
 GPTK payload was staged, packing is DXMT-only automatically, producing
-dist/artifacts/CX26W11-GAMMA-DXMT-<N>.tar.xz (no numeric engine version in
-the filename). --dxmt-only forces this and strips any staged GPTK payload
-from the tree even if one is present.
+dist/artifacts/CX26W11-GAMMA-DXMT-<N>.tar.xz. --dxmt-only forces this and
+strips any staged GPTK payload from the tree even if one is present.
 --dry-run performs only a fast source/layout preflight; it does not stage,
 strip, rewrite dylib paths, sign, scan minOS, compress, or verify an archive.
 Set GAMMA_ENGINE_VERSION_LABEL to override the detected version label.

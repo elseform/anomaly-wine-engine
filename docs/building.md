@@ -107,15 +107,16 @@ normal pipeline.
 
 ## Versioning
 
-- **Version label** — `config/engine-version.txt`, e.g.
-  `CX26.3.0-W11-Gamma087`: CrossOver version, Wine major, and a GAMMA counter
-  bumped by hand when a build is meant to be kept or the patch set changes.
+- **Version label** — `config/engine-version.txt`, e.g. `CX26-W11-GAMMA`:
+  CrossOver major and Wine major. It changes only with a new CrossOver or
+  Wine major; builds are told apart by the build number below.
   `config/engine-release.json` mirrors it as `versionLabel`, and holds a
-  hand-kept `engineId` slug (`cx26.3-w11-gamma087`), the base versions
-  (`crossover`, `wine`), `minimumMacOS`, and the ordered patch list.
+  hand-kept `engineId` slug (`cx26-w11-gamma`, also the release tag prefix
+  `engine-cx26-w11-gamma-<N>`), the exact base versions (`crossover`,
+  `wine`), `minimumMacOS`, and the ordered patch list.
 - **Archive name** — DXMT-only builds (the normal case) are named
   `CX<crossover-major>W<wine-major>-GAMMA-DXMT-<N>.tar.xz`; a build with a
-  staged D3DMetal payload is named `CX26W11-Gamma087-<N>.tar.xz`. Naming lives
+  staged D3DMetal payload is named `CX26W11-<gptk>-GAMMA-<N>.tar.xz`. Naming lives
   in `scripts/engine-common.sh`.
 - **Build number** — `<N>` is one more than the highest existing archive for
   that name in `dist/artifacts/`. It is recorded as `buildNumber` in both
