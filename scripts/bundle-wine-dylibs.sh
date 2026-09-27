@@ -110,12 +110,10 @@ if vulkan_mode == "with":
             brew / "lib" / "libMoltenVK.dylib",
             unix_lib / "libMoltenVK.dylib",
         ),
-        # Repacking an existing engine must preserve its tested renderer.
+        # Repacking an existing engine keeps the MoltenVK its install tree
+        # already has, and adds none when it has none.
         "existing": (
             unix_lib / "libMoltenVK.dylib",
-            (graphics_lib / "libMoltenVK.dylib") if graphics_lib else None,
-            brew / "opt" / "molten-vk" / "lib" / "libMoltenVK.dylib",
-            brew / "lib" / "libMoltenVK.dylib",
         ),
     }
     for candidate in candidates_by_source[vulkan_source]:

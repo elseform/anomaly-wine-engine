@@ -322,8 +322,8 @@ rm -rf "$ENGINE_TREE/share/gamma/Configurator.app"
 find "$ENGINE_TREE" \( -name '.DS_Store' -o -name '._*' \) -delete 2>/dev/null || true
 
 bash "$SCRIPT_DIR/strip-wine-install.sh" "$ENGINE_TREE"
-# Preserve MoltenVK already in the install tree (VULKAN_SOURCE=existing only
-# seeds it when VULKAN_MODE=with; default without would orphan-delete it).
+# Keep MoltenVK only if the install tree already has it (VULKAN_SOURCE=existing
+# looks nowhere else; a --without-vulkan build has none, so none is packed).
 VULKAN_MODE="${VULKAN_MODE:-with}" VULKAN_SOURCE=existing \
   bash "$SCRIPT_DIR/bundle-wine-dylibs.sh" "$ENGINE_TREE"
 
