@@ -71,7 +71,7 @@ Build a compressed engine artifact from install/wine-cx26-x86_64 (or WINE_INSTAL
   xz:   dist/artifacts/CX26-W11-GAMMA-<N>.tar.xz (default, xz -$XZ_LEVEL)
   zstd: dist/artifacts/CX26-W11-GAMMA-<N>.tar.zst (--zstd, zstd -$ZSTD_LEVEL;
         not accepted by gamma-setup-tool)
-DXMT is the only graphics backend. It comes from the latest gamma-YYYY.MM.DD
+DXMT is the only graphics backend. It comes from the latest gamma-YYYY.MM.DD[.N]
 release of elseform/dxmt (scripts/fetch-dxmt-release.sh, verified and cached
 in build/cache/dxmt/), or from --dxmt-tag TAG. --dxmt DIR packs a local,
 unreleased payload (x86_64-windows/ and x86_64-unix/) for testing; its

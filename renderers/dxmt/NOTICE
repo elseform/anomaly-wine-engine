@@ -27,6 +27,6 @@ SOFTWARE.
 The DXMT files in this engine are not stored in this repository. Packing
 (scripts/pack-engine-artifact.sh) downloads them from a release of the
 maintained fork elseform/dxmt (https://github.com/elseform/dxmt): release
-builds, stripped, macOS 15 deployment target. The release tag and commit are
+builds, stripped, macOS 26 deployment target. The release tag and commit are
 recorded in each archive's engine-manifest.json ("dxmt"). This notice is
 shipped in the archive as lib/dxmt/NOTICE.
