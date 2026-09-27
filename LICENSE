@@ -31,8 +31,6 @@ It does not cover, and does not grant any rights to, third-party components
 this repo builds against or optionally stages:
 - Wine and CrossOver (CodeWeavers) sources used as a build input — not
   vendored in this repo; obtained separately, under their own licenses.
-- Apple's Game Porting Toolkit (GPTK) / D3DMetal — optional, user-supplied,
-  never bundled here; obtain and use it under Apple's own GPTK license.
 - DXMT (`renderers/dxmt/`) — see its own NOTICE for upstream attribution.
 - Microsoft redistributables (DirectX, Visual C++) — not vendored or bundled
   here. The engine only declares which files it needs in

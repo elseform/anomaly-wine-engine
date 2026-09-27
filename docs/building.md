@@ -114,9 +114,9 @@ normal pipeline.
   hand-kept `engineId` slug (`cx26-w11-gamma`, also the release tag prefix
   `engine-cx26-w11-gamma-<N>`), the exact base versions (`crossover`,
   `wine`), `minimumMacOS`, and the ordered patch list.
-- **Archive name** — DXMT-only builds (the normal case) are named
-  `CX<crossover-major>W<wine-major>-GAMMA-DXMT-<N>.tar.xz`; a build with a
-  staged D3DMetal payload is named `CX26W11-<gptk>-GAMMA-<N>.tar.xz`. Naming lives
+- **Archive name** — the version label plus the build number,
+  `CX26-W11-GAMMA-<N>.tar.xz`. Builds up to `-18` were named
+  `CX26W11-GAMMA-DXMT-<N>.tar.xz`; they still count toward `<N>`. Naming lives
   in `scripts/engine-common.sh`.
 - **Build number** — `<N>` is one more than the highest existing archive for
   that name in `dist/artifacts/`. It is recorded as `buildNumber` in both

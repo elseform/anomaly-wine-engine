@@ -80,7 +80,7 @@ VERSION_LABEL="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))
 
 ARTIFACT_BASENAME="$(basename "$ARTIFACT_PATH")"
 # Trailing "-<N>" build counter already present in the artifact filename
-# (e.g. CX26W11-GAMMA-DXMT-5.tar.zst -> 5), reused as the release/tag
+# (e.g. CX26-W11-GAMMA-19.tar.xz -> 19), reused as the release/tag
 # counter so re-running pack-engine-artifact.sh and this script stay in
 # lockstep without a separate version bump step.
 BUILD_NUMBER="$(printf '%s\n' "$ARTIFACT_BASENAME" | sed -E 's/\.tar\.(zst|xz)$//; s/.*-([0-9]+)$/\1/')"

@@ -21,7 +21,6 @@ it.
 | `bin/wine`, `bin/wineserver` | Everything; `wine --version` must run |
 | `lib/wine/x86_64-unix/cxcompatdb.so` | Presence check; selects the graphics backend at runtime |
 | `lib/dxmt/` | The DXMT backend (for `--backend dxmt`) |
-| `lib64/apple_gptk/wine/` | The D3DMetal backend (only for `--backend d3dmetal`) |
 | `share/gamma/redist-manifest.json` | The Microsoft runtime files to install (`--runtime-mode redist`) |
 | `share/gamma/redist-fetch/gamma_redist.py` | Imported by the setup script; must provide `load_manifest(path)`, `install(manifest, system32, cache_dir, search_dirs, log)` returning the installed DLL names, and `RedistError` |
 
@@ -30,7 +29,6 @@ it.
 | Path | Used for |
 |---|---|
 | `version` | First line becomes the wrapper's `CFBundleShortVersionString` |
-| `lib64/apple_gptk/` | Its absence marks a DXMT-only engine |
 | `engine-manifest.json` | Engine identity; not read by the setup tool yet |
 
 ### Used by the generated wrapper at runtime
@@ -39,7 +37,6 @@ it.
 |---|---|
 | `lib/wine/x86_64-windows/winecfg.exe` | The `winecfg` helper |
 | `lib/dxmt/x86_64-windows/nvngx.dll`, `nvapi64.dll` | Copied into the prefix's `system32` when `DXMT_ENABLE_NVEXT=1` |
-| `lib64/apple_gptk/external/libd3dshared.dylib`, `D3DMetal.framework` | The launcher, for `d3dmetal` only |
 
 ## Wrapper layout
 

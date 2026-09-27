@@ -77,7 +77,7 @@ Options:
                      crossover: copy MoltenVK out of a local CrossOver.app
                      (auto-detected; override with CROSSOVER_APP)
   --configure-only   Run configure without make/install
-  --skip-renderers   Do not stage DXMT / D3DMetal into the install tree
+  --skip-renderers   Do not stage DXMT into the install tree
   --jobs N           Parallel make jobs (default: CPU count)
   --dry-run          Print commands without executing
   -h, --help         Show this help
@@ -311,8 +311,7 @@ require_x86_dep() {
 ensure_bzip2_pc
 require_x86_dep freetype2
 # Wire in the isolated GStreamer stack for winegstreamer when one has been
-# built by scripts/build-media-stack.sh. Backend-neutral: D3DMetal builds use
-# no MoltenVK but still need this for media playback.
+# built by scripts/build-media-stack.sh. Needed for media playback.
 if [[ -d "$MEDIA_INSTALL/lib/pkgconfig" ]]; then
   PKG_PC_PATH="$MEDIA_INSTALL/lib/pkgconfig:$PKG_PC_PATH"
   export LIBRARY_PATH="$MEDIA_INSTALL/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"
