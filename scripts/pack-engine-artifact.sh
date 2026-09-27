@@ -12,6 +12,8 @@ source "$SCRIPT_DIR/env-x86_64.sh"
 FORCE=0
 DRY_RUN=0
 BUILD_NUMBER=""
+DXMT_LOCAL=""
+DXMT_TAG_ARG=""
 # xz is the default: macOS tar and Python's lzma unpack it with no extra
 # tools, so gamma-setup-tool (which only accepts .tar.xz) needs no zstd.
 FORMAT="${GAMMA_ENGINE_FORMAT:-xz}"
@@ -51,6 +53,16 @@ while [[ $# -gt 0 ]]; do
       BUILD_NUMBER="${2:-}"
       shift 2
       ;;
+    --dxmt)
+      DXMT_LOCAL="${2:-}"
+      [[ -n "$DXMT_LOCAL" ]] || { echo "Missing value for --dxmt" >&2; exit 1; }
+      shift 2
+      ;;
+    --dxmt-tag)
+      DXMT_TAG_ARG="${2:-}"
+      [[ -n "$DXMT_TAG_ARG" ]] || { echo "Missing value for --dxmt-tag" >&2; exit 1; }
+      shift 2
+      ;;
     --media-profile)
       MEDIA_PROFILE="${2:-}"
       if [[ -z "$MEDIA_PROFILE" ]]; then
@@ -61,14 +73,19 @@ while [[ $# -gt 0 ]]; do
       ;;
     -h | --help)
       cat <<EOF
-Usage: $(basename "$0") [--force] [--dry-run] [--zstd|--xz]
+Usage: $(basename "$0") [--force] [--dry-run] [--zstd|--xz] [--build-number N]
+       [--dxmt-tag TAG | --dxmt DIR]
        [--format zstd|xz] [--media-profile full-video|minimal]
 
 Build a compressed engine artifact from install/wine-cx26-x86_64 (or WINE_INSTALL).
   xz:   dist/artifacts/CX26-W11-GAMMA-<N>.tar.xz (default, xz -$XZ_LEVEL)
   zstd: dist/artifacts/CX26-W11-GAMMA-<N>.tar.zst (--zstd, zstd -$ZSTD_LEVEL;
         not accepted by gamma-setup-tool)
-DXMT is the only graphics backend.
+DXMT is the only graphics backend. It comes from the latest gamma-YYYY.MM.DD
+release of elseform/dxmt (scripts/fetch-dxmt-release.sh, verified and cached
+in build/cache/dxmt/), or from --dxmt-tag TAG. --dxmt DIR packs a local,
+unreleased payload (x86_64-windows/ and x86_64-unix/) for testing; its
+manifest says so and publish-release.sh refuses it.
 <N> is config/build-number plus one, or --build-number N. A successful pack
 writes <N> back to config/build-number (commit it).
 --dry-run performs only a fast source/layout preflight; it does not stage,
@@ -186,34 +203,55 @@ STAMP_FILE="$ARTIFACTS_DIR/.pack-stamp"
 
 # Cheap source preflight. Keep this before mktemp/rsync so --dry-run never
 # performs packaging work.
-[[ -d "$WINE_INSTALL/lib/dxmt/x86_64-windows" ]] || {
-  echo "Missing packaged DXMT payload at lib/dxmt" >&2
-  exit 1
-}
 for obsolete in lib/d3dmetal lib/dxvk lib/external lib/gptk40b1 lib/gptk40b2 lib/apple_gptk lib64/apple_gptk; do
   [[ ! -e "$WINE_INSTALL/$obsolete" ]] || {
     echo "Refusing obsolete renderer layout in source engine: $obsolete" >&2
     exit 1
   }
 done
-# The install tree only picks up renderers/dxmt when install-renderers.sh runs,
-# so a payload committed since then would silently not ship.
-DXMT_PAYLOAD="${DXMT_SRC:-$OGOM/renderers/dxmt}"
-dxmt_stale=()
-while IFS= read -r -d '' payload_file; do
-  rel="${payload_file#"$DXMT_PAYLOAD"/}"
-  cmp -s "$payload_file" "$WINE_INSTALL/lib/dxmt/$rel" || dxmt_stale+=("lib/dxmt/$rel")
-done < <(find "$DXMT_PAYLOAD/x86_64-windows" "$DXMT_PAYLOAD/x86_64-unix" -type f -print0)
-if [[ -f "$DXMT_PAYLOAD/x86_64-windows/winemetal.dll" ]] &&
-   ! cmp -s "$DXMT_PAYLOAD/x86_64-windows/winemetal.dll" "$WINE_INSTALL/lib/wine/x86_64-windows/winemetal.dll"; then
-  dxmt_stale+=("lib/wine/x86_64-windows/winemetal.dll")
-fi
-[[ ! -e "$WINE_INSTALL/lib/wine/i386-windows/winemetal.dll" ]] || dxmt_stale+=("lib/wine/i386-windows/winemetal.dll (obsolete)")
-if [[ ${#dxmt_stale[@]} -gt 0 ]]; then
-  echo "Refusing to pack: the install tree does not match $DXMT_PAYLOAD:" >&2
-  printf '  %s\n' "${dxmt_stale[@]}" >&2
-  echo "Run scripts/install-renderers.sh $WINE_INSTALL first." >&2
+# DXMT never comes from the install tree: packing takes it from a verified
+# elseform/dxmt release (or an explicit local payload) and puts it into the
+# disposable staging tree below. A dry run only resolves the release.
+DXMT_NOTICE="$OGOM/renderers/dxmt/NOTICE"
+[[ -f "$DXMT_NOTICE" ]] || {
+  echo "Missing DXMT license notice at $DXMT_NOTICE" >&2
   exit 1
+}
+DXMT_FILES=(
+  x86_64-unix/winemetal.so
+  x86_64-windows/d3d10core.dll x86_64-windows/d3d11.dll x86_64-windows/d3d12.dll
+  x86_64-windows/dxgi.dll x86_64-windows/nvapi64.dll x86_64-windows/nvngx.dll
+  x86_64-windows/winemetal.dll
+)
+DXMT_TAG="" DXMT_COMMIT="" DXMT_ARCHIVE_SHA256="" DXMT_PAYLOAD="" DXMT_CACHED=""
+if [[ -n "$DXMT_LOCAL" ]]; then
+  [[ -z "$DXMT_TAG_ARG" ]] || { echo "Use either --dxmt or --dxmt-tag, not both" >&2; exit 1; }
+  DXMT_SOURCE=local
+  [[ -d "$DXMT_LOCAL" ]] || { echo "Local DXMT payload not found: $DXMT_LOCAL" >&2; exit 1; }
+  DXMT_PAYLOAD="$(cd "$DXMT_LOCAL" && pwd)"
+  for rel in "${DXMT_FILES[@]}"; do
+    [[ -f "$DXMT_PAYLOAD/$rel" ]] || {
+      echo "Local DXMT payload is missing $rel: $DXMT_PAYLOAD" >&2
+      exit 1
+    }
+  done
+else
+  DXMT_SOURCE=release
+  fetch_args=()
+  [[ -z "$DXMT_TAG_ARG" ]] || fetch_args+=(--tag "$DXMT_TAG_ARG")
+  [[ "$DRY_RUN" -ne 1 ]] || fetch_args+=(--resolve-only)
+  fetch_output="$(bash "$SCRIPT_DIR/fetch-dxmt-release.sh" ${fetch_args[@]+"${fetch_args[@]}"})" || exit 1
+  while IFS='=' read -r key value; do
+    case "$key" in
+      tag) DXMT_TAG="$value" ;;
+      commit) DXMT_COMMIT="$value" ;;
+      archive_sha256) DXMT_ARCHIVE_SHA256="$value" ;;
+      payload) DXMT_PAYLOAD="$value" ;;
+      cached) DXMT_CACHED="$value" ;;
+    esac
+  done <<<"$fetch_output"
+  [[ -n "$DXMT_TAG" ]] || { echo "Could not resolve a DXMT release" >&2; exit 1; }
+  [[ "$DRY_RUN" -eq 1 || -d "$DXMT_PAYLOAD" ]] || { echo "DXMT fetch returned no payload" >&2; exit 1; }
 fi
 # The Microsoft redistributables are Microsoft's to distribute, not ours, so
 # the archive carries a declaration of what it needs plus the code that fetches
@@ -249,6 +287,11 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   echo "DRY RUN: preflight passed"
   echo "  source: $WINE_INSTALL"
   echo "  version: $ENGINE_VERSION_LABEL"
+  if [[ "$DXMT_SOURCE" == local ]]; then
+    echo "  dxmt: local payload $DXMT_PAYLOAD (not publishable)"
+  else
+    echo "  dxmt: elseform/dxmt $DXMT_TAG ($([[ "$DXMT_CACHED" == yes ]] && echo cached || echo "not cached, downloaded on pack"))"
+  fi
   echo "  media: $MEDIA_PROFILE ($MEDIA_INSTALL)"
   echo "  output: $ARCHIVE"
   exit 0
@@ -276,6 +319,21 @@ rsync -a --delete \
 find "$ENGINE_TREE" -name '.DS_Store' -delete 2>/dev/null || true
 rm -rf "$ENGINE_TREE/redist"
 gamma_write_engine_version_file "$ENGINE_TREE" "$ENGINE_VERSION_LABEL"
+
+# DXMT goes into lib/dxmt, which cxcompatdb puts first on the DLL search path.
+# winemetal.dll is also copied into Wine's own lib/wine/x86_64-windows: that is
+# the only place wineboot looks when it creates system32/winemetal.dll, and the
+# loader refuses a DLL that has no system32 entry. The copy in lib/dxmt is the
+# one that loads.
+echo "==> Staging DXMT ($([[ "$DXMT_SOURCE" == local ]] && echo "local $DXMT_PAYLOAD" || echo "elseform/dxmt $DXMT_TAG"))"
+rm -rf "$ENGINE_TREE/lib/dxmt"
+rm -f "$ENGINE_TREE/lib/wine/i386-windows/winemetal.dll"
+mkdir -p "$ENGINE_TREE/lib/dxmt/x86_64-windows" "$ENGINE_TREE/lib/dxmt/x86_64-unix"
+for rel in "${DXMT_FILES[@]}"; do
+  cp "$DXMT_PAYLOAD/$rel" "$ENGINE_TREE/lib/dxmt/$rel"
+done
+cp "$DXMT_PAYLOAD/x86_64-windows/winemetal.dll" "$ENGINE_TREE/lib/wine/x86_64-windows/winemetal.dll"
+cp "$DXMT_NOTICE" "$ENGINE_TREE/lib/dxmt/NOTICE"
 
 [[ -d "$ENGINE_TREE/lib/dxmt/x86_64-windows" ]] || {
   echo "Missing packaged DXMT payload at lib/dxmt" >&2
@@ -342,7 +400,9 @@ bash "$SCRIPT_DIR/write-engine-manifest.sh" \
   --output "$ENGINE_TREE/engine-manifest.json" \
   --version "$ENGINE_VERSION_LABEL" \
   --build-number "$BUILD_NUMBER" \
-  --ntdll-sha256 "$NTDLL_SHA256"
+  --ntdll-sha256 "$NTDLL_SHA256" \
+  --dxmt-source "$DXMT_SOURCE" --dxmt-tag "$DXMT_TAG" \
+  --dxmt-commit "$DXMT_COMMIT" --dxmt-sha256 "$DXMT_ARCHIVE_SHA256"
 
 mkdir -p "$ARTIFACTS_DIR"
 case "$FORMAT" in
@@ -404,7 +464,9 @@ bash "$SCRIPT_DIR/write-engine-manifest.sh" \
   --build-number "$BUILD_NUMBER" \
   --ntdll-sha256 "$NTDLL_SHA256" \
   --artifact "$(basename "$ARCHIVE")" \
-  --artifact-sha256 "$ARTIFACT_SHA256"
+  --artifact-sha256 "$ARTIFACT_SHA256" \
+  --dxmt-source "$DXMT_SOURCE" --dxmt-tag "$DXMT_TAG" \
+  --dxmt-commit "$DXMT_COMMIT" --dxmt-sha256 "$DXMT_ARCHIVE_SHA256"
 
 printf '%s\n' "$BUILD_NUMBER" >"$BUILD_NUMBER_FILE"
 

@@ -15,7 +15,7 @@ release artifacts (`dist/artifacts/*.tar.xz`). Build and lifecycle:
 
 The engine archive is consumed by `gamma-setup-tool`, whose
 `interactive_setup.py` (lives there, not in this repo) builds a wrapper `.app`
-around it. `renderers/dxmt/` is a built DXMT payload from the `elseform/dxmt`
-fork, built per `gamma-project`'s `docs/engine/dxmt-build.md`; it is distinct
-from the `dxmt` source checkout resolved via `project-paths-get.py --field
-dxmt_root`. `fetch-dxmt.sh` would replace it with an upstream CI build.
+around it. DXMT is not stored here: packing downloads a verified
+`elseform/dxmt` release (`scripts/fetch-dxmt-release.sh`); releases are built
+per `gamma-project`'s `docs/engine/dxmt-build.md` from the `dxmt` source
+checkout resolved via `project-paths-get.py --field dxmt_root`.

@@ -36,4 +36,4 @@ See [docs/building.md](docs/building.md) for prerequisites and the full pipeline
 
 ## License
 
-MIT, see [LICENSE](LICENSE). DXMT's license is in [renderers/dxmt/NOTICE](renderers/dxmt/NOTICE).
+MIT, see [LICENSE](LICENSE). DXMT's license is in [renderers/dxmt/NOTICE](renderers/dxmt/NOTICE); packing downloads DXMT itself from an [elseform/dxmt](https://github.com/elseform/dxmt) release.

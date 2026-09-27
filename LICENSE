@@ -31,7 +31,8 @@ It does not cover, and does not grant any rights to, third-party components
 this repo builds against or optionally stages:
 - Wine and CrossOver (CodeWeavers) sources used as a build input — not
   vendored in this repo; obtained separately, under their own licenses.
-- DXMT (`renderers/dxmt/`) — see its own NOTICE for upstream attribution.
+- DXMT — downloaded from an elseform/dxmt release at pack time, not stored
+  here; see `renderers/dxmt/NOTICE` for upstream attribution.
 - Microsoft redistributables (DirectX, Visual C++) — not vendored or bundled
   here. The engine only declares which files it needs in
   `config/redist-manifest.json`; `runtime/redist-fetch/gamma_redist.py`

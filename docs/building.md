@@ -32,9 +32,8 @@ than its floor.
   `reference/` (not tracked). `prepare-build-deps.sh` extracts them into
   `build/`; point `OGOM_ARCHIVES_DIR` elsewhere to override.
 - `xz` on `PATH` for packing (Homebrew `xz`); `zstd` only for the optional `--zstd` format.
-- `gh` and `jq` for `publish-release.sh` and `fetch-dxmt.sh`.
-- A built DXMT payload in `renderers/dxmt/` (tracked; see
-  [The DXMT payload](#the-dxmt-payload)).
+- `gh` for `publish-release.sh`; `curl` and network access to GitHub for
+  packing, which downloads DXMT (see [The DXMT payload](#the-dxmt-payload)).
 
 ## Trees
 
@@ -44,7 +43,8 @@ than its floor.
 | `build/llvm-mingw-*` | PE cross toolchain | no |
 | `install/wine-cx26-x86_64` | The live, uncompressed engine tree | no |
 | `dist/artifacts/` | Packed archives with `.sha256` and `.manifest.json` | no |
-| `renderers/dxmt/` | The DXMT payload staged into every build | yes |
+| `build/cache/dxmt/<tag>/` | Downloaded, verified DXMT releases | no |
+| `renderers/dxmt/NOTICE` | DXMT's license notice, shipped as `lib/dxmt/NOTICE` | yes |
 | `config/` | Version label, last build number, release metadata, redist manifest, entitlements | yes |
 
 Packing always works on a temporary copy, so `install/` is never stripped or
@@ -60,24 +60,26 @@ Run the steps in this order.
    (see [patches/README.md](../patches/README.md)), configures with
    `--enable-archs=i386,x86_64` and llvm-mingw, builds and installs into
    `install/wine-cx26-x86_64`, then runs `build-cxcompatdb.sh`,
-   `bundle-wine-dylibs.sh` and `install-renderers.sh`, and writes the
+   `bundle-wine-dylibs.sh` and `install-renderers.sh` (which keeps backend
+   files out of the install tree), and writes the
    `version` file. Vulkan is off by default (`--with-vulkan` to enable).
    `--dry-run` prints the commands without running them.
 2. **Optional media stack** — `scripts/build-media-stack.sh` builds GLib and
    GStreamer for `winegstreamer`; `build-wine.sh` picks it up when present.
-3. **Re-stage renderers after a payload change** —
-   `scripts/install-renderers.sh install/wine-cx26-x86_64`. Packing refuses to
-   run when the install tree's DXMT files differ from `renderers/dxmt/`.
-4. **Pack** — `scripts/pack-engine-artifact.sh` (`--dry-run` for a fast
-   preflight). In order: copy the install tree to a staging `wswine.bundle/`,
-   add the redist manifest and fetcher under `share/gamma/`, strip
+3. **Pack** — `scripts/pack-engine-artifact.sh` (`--dry-run` for a fast
+   preflight that resolves the DXMT release without downloading it). In
+   order: fetch and verify DXMT (`fetch-dxmt-release.sh`), copy the install
+   tree to a staging `wswine.bundle/`, add DXMT under `lib/dxmt/` (plus the
+   `winemetal.dll` copy in `lib/wine/x86_64-windows/` and `NOTICE`), add the
+   redist manifest and fetcher under `share/gamma/`, strip
    (`strip-wine-install.sh`), re-link dylibs (`bundle-wine-dylibs.sh`), sign
    every Mach-O (`sign-wine.sh`), check `cxcompatdb`, run the minOS scan, write
    `engine-manifest.json`, compress with `xz -6`, re-extract and verify every
    signature, then write the `.sha256` and `.manifest.json` sidecars.
-5. **Publish** — `scripts/publish-release.sh --dry-run`, then without
+4. **Publish** — `scripts/publish-release.sh --dry-run`, then without
    `--dry-run`. It uploads an existing archive and its sidecars as a GitHub
-   release tagged `engine-<engineId>-<N>`; it builds nothing.
+   release tagged `engine-<engineId>-<N>`; it builds nothing, and refuses an
+   archive whose DXMT did not come from an `elseform/dxmt` release.
 
 Useful knobs: `GAMMA_ENGINE_COMPRESS_LEVEL` (compression level),
 `GAMMA_ENGINE_FORMAT=zstd` or `--zstd` (zstd instead of xz; gamma-setup-tool does not accept it),
@@ -87,23 +89,28 @@ packed tree), `SIGN_IDENTITY` (a Developer ID instead of ad-hoc signing),
 
 ## The DXMT payload
 
-`renderers/dxmt/` holds a built DXMT: seven x86_64 PE DLLs
-(`d3d10core`, `d3d11`, `d3d12`, `dxgi`, `nvapi64`, `nvngx`, `winemetal`) and the
-host bridge `x86_64-unix/winemetal.so`, plus `NOTICE`. It is built from a fork of
-[DXMT](https://github.com/3Shain/dxmt) outside this repository; `NOTICE` names
-the source revision. A payload is fit to ship only if it is:
+DXMT is not stored in this repository. Packing downloads it from a release of
+[`elseform/dxmt`](https://github.com/elseform/dxmt), the maintained fork of
+[DXMT](https://github.com/3Shain/dxmt): by default the newest release tagged
+`gamma-YYYY.MM.DD`, or the one named by `--dxmt-tag TAG`.
+`scripts/fetch-dxmt-release.sh` downloads the release's
+`dxmt-macos-x86_64-<tag>.tar.gz`, `.sha256` and `.manifest.json` into
+`build/cache/dxmt/<tag>/` and verifies them on every pack: the tarball against
+its `.sha256`, each file against the manifest, and the file set against the
+eight expected files (seven x86_64 PE DLLs — `d3d10core`, `d3d11`, `d3d12`,
+`dxgi`, `nvapi64`, `nvngx`, `winemetal` — and the host bridge
+`x86_64-unix/winemetal.so`). Any mismatch stops the pack; delete the cache
+directory to download again. The tag, commit and tarball checksum go into
+`engine-manifest.json` as `dxmt`.
 
-- a release build installed with `meson install --strip` (a copy out of the
-  Meson build directory keeps toolchain debug data and a full symbol table,
-  roughly tripling its size);
-- built with `MACOSX_DEPLOYMENT_TARGET=15.0`, so `winemetal.so` declares
-  `minos 15.0` and the embedded Metal shaders target `macosx15.0`
-  (without it both inherit the build Mac's macOS);
-- x86_64 only, with no `*.dll.a` import libraries.
+The fork's releases are built to the requirements this engine needs: a
+release build installed with `meson install --strip`, `MACOSX_DEPLOYMENT_TARGET=15.0`
+(checked again by the minOS scan), x86_64 only.
 
-`scripts/fetch-dxmt.sh` replaces `renderers/dxmt/` with the newest upstream CI
-build. That discards the fork's fixes and the `NOTICE`; it is not part of the
-normal pipeline.
+`--dxmt DIR` packs a local, unreleased payload with the same `x86_64-windows/`
+and `x86_64-unix/` layout, for testing a DXMT change before it is released.
+Such an archive's manifest records `dxmt.source: "local"`, and
+`publish-release.sh` refuses it.
 
 ## Versioning
 

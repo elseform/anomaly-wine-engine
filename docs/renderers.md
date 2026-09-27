@@ -5,8 +5,11 @@ Wine's builtins but is not user-selectable and is never used as an automatic
 fallback — see [Selection and fallback](#selection-and-fallback). D3DMetal
 (Apple's Game Porting Toolkit) and DXVK are not supported.
 
-Selection happens at process start in `cxcompatdb.so`, built from
-`runtime/cxcompatdb/cxcompatdb.c` and loaded by CrossOver's `ntdll`.
+DXMT comes from a release of [`elseform/dxmt`](https://github.com/elseform/dxmt),
+downloaded and verified at pack time (see
+[building.md](building.md#the-dxmt-payload)). Selection happens at process
+start in `cxcompatdb.so`, built from `runtime/cxcompatdb/cxcompatdb.c` and
+loaded by CrossOver's `ntdll`.
 
 ## Engine layout
 
