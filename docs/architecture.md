@@ -95,6 +95,12 @@ Python (no `cabextract` or `7z`), checks every file's SHA-256, and installs them
 into the prefix. `d3dcompiler_47.dll` has no public Microsoft installer; it comes
 from the `mozilla/fxc2` build that winetricks also uses.
 
+Why not winetricks: its verbs install whole packages, running the Visual C++
+installer under Wine and unpacking every D3DX version a package carries
+(`d3dx9` alone is `d3dx9_24` to `d3dx9_43`). The manifest installs only the
+listed files, so the prefix gets the minimum the game needs, with the same
+Microsoft binaries, and setup runs no Windows installer at all.
+
 ## Patches
 
 The engine's Wine is upstream Wine 11.16 with `patches/series` applied: the
