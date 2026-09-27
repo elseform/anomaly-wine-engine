@@ -30,9 +30,10 @@ wswine.bundle/
   lib/wine/x86_64-unix/         Wine's unix side, bundled dylibs, cxcompatdb.so
   lib/dxmt/x86_64-windows/      DXMT: d3d10core, d3d11, d3d12, dxgi, nvapi64, nvngx, winemetal
   lib/dxmt/x86_64-unix/         DXMT's host bridge, winemetal.so
+  lib/dxmt/NOTICE               DXMT's license notice
   share/gamma/redist-manifest.json
   share/gamma/redist-fetch/     gamma_redist.py, which installs the Microsoft runtime files
-  engine-manifest.json          identity, build number, base versions, patch list
+  engine-manifest.json          identity, build number, base versions, patch list, DXMT release
   version                       the version label
 ```
 

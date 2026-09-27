@@ -77,6 +77,18 @@ command -v gh > /dev/null 2>&1 || {
 
 ENGINE_ID="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['engineId'])" "$MANIFEST_PATH")"
 VERSION_LABEL="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['versionLabel'])" "$MANIFEST_PATH")"
+# Only an archive whose DXMT came from a verified elseform/dxmt release is
+# publishable; a --dxmt local test pack is refused.
+DXMT_TAG="$(python3 -c "
+import json, sys
+dxmt = json.load(open(sys.argv[1])).get('dxmt') or {}
+if dxmt.get('source') != 'release' or not dxmt.get('tag'):
+    sys.exit('the archive was not packed from an elseform/dxmt release (dxmt.source is %r)' % dxmt.get('source'))
+print(dxmt['tag'])
+" "$MANIFEST_PATH")" || {
+  echo "Refusing to publish $MANIFEST_PATH" >&2
+  exit 1
+}
 
 ARTIFACT_BASENAME="$(basename "$ARTIFACT_PATH")"
 # Trailing "-<N>" build counter already present in the artifact filename
@@ -90,6 +102,8 @@ TITLE="${VERSION_LABEL}-${BUILD_NUMBER}"
 NOTES="Engine: ${VERSION_LABEL}
 Artifact: ${ARTIFACT_BASENAME}
 SHA256: $(cut -d' ' -f1 "$SHA256_PATH")
+
+DXMT: [${DXMT_TAG}](https://github.com/elseform/dxmt/releases/tag/${DXMT_TAG})
 
 Requires an Apple Silicon Mac running macOS 15 or newer.
 Built per docs/building.md; see config/engine-release.json for the full patch list."

@@ -10,6 +10,10 @@ BUILD_NUMBER=""
 NTDLL_SHA256=""
 ARTIFACT=""
 ARTIFACT_SHA256=""
+DXMT_SOURCE=""
+DXMT_TAG=""
+DXMT_COMMIT=""
+DXMT_SHA256=""
 RELEASE_CONFIG="${GAMMA_ENGINE_RELEASE_CONFIG:-$ROOT/config/engine-release.json}"
 
 while [[ $# -gt 0 ]]; do
@@ -20,6 +24,10 @@ while [[ $# -gt 0 ]]; do
     --ntdll-sha256) NTDLL_SHA256="$2"; shift 2 ;;
     --artifact) ARTIFACT="$2"; shift 2 ;;
     --artifact-sha256) ARTIFACT_SHA256="$2"; shift 2 ;;
+    --dxmt-source) DXMT_SOURCE="$2"; shift 2 ;;
+    --dxmt-tag) DXMT_TAG="$2"; shift 2 ;;
+    --dxmt-commit) DXMT_COMMIT="$2"; shift 2 ;;
+    --dxmt-sha256) DXMT_SHA256="$2"; shift 2 ;;
     --config) RELEASE_CONFIG="$2"; shift 2 ;;
     *)
       echo "Unknown argument: $1" >&2
@@ -29,7 +37,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -n "$OUTPUT" && -n "$VERSION_LABEL" && -n "$NTDLL_SHA256" ]] || {
-  echo "Usage: $(basename "$0") --output FILE --version LABEL --ntdll-sha256 HEX [--build-number N] [--config FILE] [--artifact NAME --artifact-sha256 HEX]" >&2
+  echo "Usage: $(basename "$0") --output FILE --version LABEL --ntdll-sha256 HEX [--build-number N] [--config FILE] [--artifact NAME --artifact-sha256 HEX] [--dxmt-source release|local --dxmt-tag TAG --dxmt-commit SHA --dxmt-sha256 HEX]" >&2
   exit 1
 }
 [[ "$VERSION_LABEL" =~ ^[A-Za-z0-9._()[:space:]-]+$ ]] || {
@@ -49,6 +57,11 @@ if [[ -n "$ARTIFACT_SHA256" && ! "$ARTIFACT_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
   exit 1
 fi
 
+case "$DXMT_SOURCE" in
+  "" | release | local) ;;
+  *) echo "Invalid DXMT source: $DXMT_SOURCE" >&2; exit 1 ;;
+esac
+
 mkdir -p "$(dirname "$OUTPUT")"
 [[ -f "$RELEASE_CONFIG" ]] || {
   echo "Missing engine release metadata: $RELEASE_CONFIG" >&2
@@ -59,11 +72,13 @@ mkdir -p "$(dirname "$OUTPUT")"
 # patch list in one canonical file. The version and checksums are build outputs
 # and intentionally replace their config counterparts here.
 python3 - "$RELEASE_CONFIG" "$OUTPUT" "$VERSION_LABEL" "$NTDLL_SHA256" \
-  "$ARTIFACT" "$ARTIFACT_SHA256" "$BUILD_NUMBER" <<'PY'
+  "$ARTIFACT" "$ARTIFACT_SHA256" "$BUILD_NUMBER" \
+  "$DXMT_SOURCE" "$DXMT_TAG" "$DXMT_COMMIT" "$DXMT_SHA256" <<'PY'
 import json
 import sys
 
-config_path, output_path, version, ntdll_sha, artifact, artifact_sha, build_number = sys.argv[1:]
+(config_path, output_path, version, ntdll_sha, artifact, artifact_sha, build_number,
+ dxmt_source, dxmt_tag, dxmt_commit, dxmt_sha) = sys.argv[1:]
 with open(config_path, encoding="utf-8") as stream:
     manifest = json.load(stream)
 
@@ -72,6 +87,15 @@ manifest["buildNumber"] = int(build_number) if build_number else None
 manifest["ntdllSHA256"] = ntdll_sha
 manifest["artifact"] = artifact or None
 manifest["artifactSHA256"] = artifact_sha or None
+# Where the bundled DXMT came from: a verified elseform/dxmt release, or a
+# local payload (--dxmt), which publish-release.sh refuses to publish.
+if dxmt_source:
+    manifest["dxmt"] = {
+        "source": dxmt_source,
+        "tag": dxmt_tag or None,
+        "commit": dxmt_commit or None,
+        "archiveSHA256": dxmt_sha or None,
+    }
 
 with open(output_path, "w", encoding="utf-8") as stream:
     json.dump(manifest, stream, ensure_ascii=False, indent=2)

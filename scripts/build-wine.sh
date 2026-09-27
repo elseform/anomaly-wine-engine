@@ -77,7 +77,7 @@ Options:
                      crossover: copy MoltenVK out of a local CrossOver.app
                      (auto-detected; override with CROSSOVER_APP)
   --configure-only   Run configure without make/install
-  --skip-renderers   Do not stage DXMT into the install tree
+  --skip-renderers   Skip install-renderers.sh (backend cleanup of the install tree)
   --jobs N           Parallel make jobs (default: CPU count)
   --dry-run          Print commands without executing
   -h, --help         Show this help
@@ -577,7 +577,7 @@ if [[ "$CONFIGURE_ONLY" -eq 0 ]]; then
       "$SCRIPT_DIR/bundle-wine-dylibs.sh" "$WINE_INSTALL"
   fi
   if [[ "$SKIP_RENDERERS" -eq 1 ]]; then
-    echo "Skipping renderer staging (--skip-renderers)"
+    echo "Skipping backend cleanup of the install tree (--skip-renderers)"
   elif [[ "$DRY_RUN" -eq 1 ]]; then
     echo "+ $SCRIPT_DIR/install-renderers.sh $WINE_INSTALL"
   else
