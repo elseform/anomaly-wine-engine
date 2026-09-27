@@ -45,7 +45,7 @@ than its floor.
 | `install/wine-cx26-x86_64` | The live, uncompressed engine tree | no |
 | `dist/artifacts/` | Packed archives with `.sha256` and `.manifest.json` | no |
 | `renderers/dxmt/` | The DXMT payload staged into every build | yes |
-| `config/` | Version label, release metadata, redist manifest, entitlements | yes |
+| `config/` | Version label, last build number, release metadata, redist manifest, entitlements | yes |
 
 Packing always works on a temporary copy, so `install/` is never stripped or
 signed in place.
@@ -115,13 +115,14 @@ normal pipeline.
   `engine-cx26-w11-gamma-<N>`), the exact base versions (`crossover`,
   `wine`), `minimumMacOS`, and the ordered patch list.
 - **Archive name** — the version label plus the build number,
-  `CX26-W11-GAMMA-<N>.tar.xz`. Builds up to `-18` were named
-  `CX26W11-GAMMA-DXMT-<N>.tar.xz`; they still count toward `<N>`. Naming lives
-  in `scripts/engine-common.sh`.
-- **Build number** — `<N>` is one more than the highest existing archive for
-  that name in `dist/artifacts/`. It is recorded as `buildNumber` in both
-  manifests. It is not stored anywhere else, so deleting old archives restarts
-  the count.
+  `CX26-W11-GAMMA-<N>.tar.xz` (builds up to `-18` were named
+  `CX26W11-GAMMA-DXMT-<N>.tar.xz`). Naming lives in `scripts/engine-common.sh`.
+- **Build number** — `<N>` is `config/build-number` (the last packed build)
+  plus one, or whatever `--build-number N` sets. A successful pack writes `<N>`
+  back to `config/build-number`; commit it. It is recorded as `buildNumber` in
+  both manifests and in the release tag. `gamma-setup-tool` orders releases by
+  it, so it must keep growing. Old archives in `dist/artifacts/` can be deleted
+  freely.
 - **Base bumps** — a new CrossOver source archive needs
   `prepare-build-deps.sh` updated, `base` in `engine-release.json` updated to
   what the tree reports (`build/cx26/sources/wine/VERSION`), and a review of the

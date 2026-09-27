@@ -112,24 +112,21 @@ gamma_engine_version_from_tarball() {
   printf '%s\n' "$ver"
 }
 
-# Archive path for a version label: the label itself plus a build counter,
-# e.g. "CX26-W11-GAMMA" -> dist/artifacts/CX26-W11-GAMMA-19.tar.xz. The counter
-# is one more than the highest existing archive of the same label. Archives
-# named before the label became the file name ("CX26W11-GAMMA-DXMT-<N>") count
-# toward it, so numbering continues across the rename instead of restarting
-# (gamma-setup-tool orders releases by this counter). See docs/building.md,
-# "Versioning".
+# Archive path for a version label and build number, e.g.
+# "CX26-W11-GAMMA" 19 -> dist/artifacts/CX26-W11-GAMMA-19.tar.xz. The build
+# number comes from config/build-number or --build-number (see
+# pack-engine-artifact.sh and docs/building.md, "Versioning").
 gamma_engine_archive_path_for_format() {
   local label="$1"
   local dir="${2:-$(gamma_engine_artifacts_dir)}"
   local format="${3:-xz}"
-  local ext path name suffix max=0 legacy nullglob_was_set=0
+  local build_number="$4"
+  local ext
   label="$(gamma_engine_version_label_trim "$label")"
-  if [[ ! "$label" =~ ^CX([0-9]+)-W([0-9]+)-GAMMA$ ]]; then
+  if [[ ! "$label" =~ ^CX[0-9]+-W[0-9]+-GAMMA$ ]]; then
     echo "Unsupported engine version label: $label (expected CX<n>-W<n>-GAMMA)" >&2
     return 1
   fi
-  legacy="CX${BASH_REMATCH[1]}W${BASH_REMATCH[2]}-GAMMA-DXMT"
   case "$format" in
     zst | zstd) ext="tar.zst" ;;
     xz) ext="tar.xz" ;;
@@ -138,22 +135,7 @@ gamma_engine_archive_path_for_format() {
       return 1
       ;;
   esac
-  if [[ -d "$dir" ]]; then
-    shopt -q nullglob && nullglob_was_set=1
-    shopt -s nullglob
-    for path in "$dir/$label"-*.tar.zst "$dir/$label"-*.tar.xz \
-                "$dir/$legacy"-*.tar.zst "$dir/$legacy"-*.tar.xz; do
-      name="${path##*/}"
-      suffix="${name%.tar.zst}"
-      suffix="${suffix%.tar.xz}"
-      suffix="${suffix##*-}"
-      if [[ "$suffix" =~ ^[0-9]+$ ]] && (( 10#$suffix > max )); then
-        max=$((10#$suffix))
-      fi
-    done
-    (( nullglob_was_set )) || shopt -u nullglob
-  fi
-  printf '%s/%s-%d.%s\n' "$dir" "$label" "$((max + 1))" "$ext"
+  printf '%s/%s-%s.%s\n' "$dir" "$label" "$build_number" "$ext"
 }
 
 gamma_find_zstd() {

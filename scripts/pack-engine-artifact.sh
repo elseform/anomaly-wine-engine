@@ -11,6 +11,7 @@ source "$SCRIPT_DIR/env-x86_64.sh"
 
 FORCE=0
 DRY_RUN=0
+BUILD_NUMBER=""
 # xz is the default: macOS tar and Python's lzma unpack it with no extra
 # tools, so gamma-setup-tool (which only accepts .tar.xz) needs no zstd.
 FORMAT="${GAMMA_ENGINE_FORMAT:-xz}"
@@ -46,6 +47,10 @@ while [[ $# -gt 0 ]]; do
       FORMAT="xz"
       shift
       ;;
+    --build-number)
+      BUILD_NUMBER="${2:-}"
+      shift 2
+      ;;
     --media-profile)
       MEDIA_PROFILE="${2:-}"
       if [[ -z "$MEDIA_PROFILE" ]]; then
@@ -64,6 +69,8 @@ Build a compressed engine artifact from install/wine-cx26-x86_64 (or WINE_INSTAL
   zstd: dist/artifacts/CX26-W11-GAMMA-<N>.tar.zst (--zstd, zstd -$ZSTD_LEVEL;
         not accepted by gamma-setup-tool)
 DXMT is the only graphics backend.
+<N> is config/build-number plus one, or --build-number N. A successful pack
+writes <N> back to config/build-number (commit it).
 --dry-run performs only a fast source/layout preflight; it does not stage,
 strip, rewrite dylib paths, sign, scan minOS, compress, or verify an archive.
 Set GAMMA_ENGINE_VERSION_LABEL to override the detected version label.
@@ -156,16 +163,24 @@ fi
 ENGINE_VERSION_SLUG="$(gamma_engine_version_slug_from_label "$ENGINE_VERSION_LABEL")"
 ENGINE_VERSION="$ENGINE_VERSION_SLUG"
 ARTIFACTS_DIR="$(gamma_engine_artifacts_dir)"
-ARCHIVE="$(gamma_engine_archive_path_for_format "$ENGINE_VERSION_LABEL" "$ARTIFACTS_DIR" "$FORMAT")"
 # The -<N> build counter, also recorded in the manifest as buildNumber so a
-# consumer never has to parse it out of a filename.
-BUILD_NUMBER="$(basename "$ARCHIVE")"
-BUILD_NUMBER="${BUILD_NUMBER%%.tar.*}"
-BUILD_NUMBER="${BUILD_NUMBER##*-}"
+# consumer never has to parse it out of a filename. gamma-setup-tool orders
+# releases by it, so it must keep growing: the last packed number is tracked
+# in config/build-number.
+BUILD_NUMBER_FILE="$OGOM/config/build-number"
+if [[ -z "$BUILD_NUMBER" ]]; then
+  last="$(tr -d '[:space:]' <"$BUILD_NUMBER_FILE" 2>/dev/null || true)"
+  [[ "$last" =~ ^[0-9]+$ ]] || {
+    echo "Cannot read the last build number from $BUILD_NUMBER_FILE; pass --build-number N" >&2
+    exit 1
+  }
+  BUILD_NUMBER=$((10#$last + 1))
+fi
 [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]] || {
-  echo "Cannot derive the build number from $(basename "$ARCHIVE")" >&2
+  echo "Invalid build number: $BUILD_NUMBER" >&2
   exit 1
 }
+ARCHIVE="$(gamma_engine_archive_path_for_format "$ENGINE_VERSION_LABEL" "$ARTIFACTS_DIR" "$FORMAT" "$BUILD_NUMBER")" || exit 1
 VERSION_FILE="$ARTIFACTS_DIR/engine-version.txt"
 STAMP_FILE="$ARTIFACTS_DIR/.pack-stamp"
 
@@ -391,6 +406,9 @@ bash "$SCRIPT_DIR/write-engine-manifest.sh" \
   --artifact "$(basename "$ARCHIVE")" \
   --artifact-sha256 "$ARTIFACT_SHA256"
 
+printf '%s\n' "$BUILD_NUMBER" >"$BUILD_NUMBER_FILE"
+
 echo "==> Created $ARCHIVE ($(du -sh "$ARCHIVE" | awk '{print $1}'))"
+echo "==> Build number $BUILD_NUMBER recorded in config/build-number (commit it)"
 echo "==> Version file: $VERSION_FILE"
 echo "==> Manifest: ${ARCHIVE}.manifest.json"
