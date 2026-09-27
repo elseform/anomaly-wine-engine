@@ -7,6 +7,7 @@ DRY_RUN=0
 BOOTSTRAP_BREW=0
 INSTALL_DEPS=0
 CONFIGURE_ONLY=0
+RECONFIGURE=0
 PREPARE_ONLY=0
 CX_VERSION="${CX_VERSION:-26}"
 JOBS="$(sysctl -n hw.ncpu 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)"
@@ -34,6 +35,7 @@ while [[ $# -gt 0 ]]; do
     --bootstrap-brew) BOOTSTRAP_BREW=1 ;;
     --install-deps) INSTALL_DEPS=1 ;;
     --configure-only) CONFIGURE_ONLY=1 ;;
+    --reconfigure) RECONFIGURE=1 ;;
     --skip-renderers) SKIP_RENDERERS=1 ;;
     --prepare-only) PREPARE_ONLY=1 ;;
     --with-tests) BUILD_TESTS=1 ;;
@@ -78,6 +80,7 @@ Options:
                      crossover: copy MoltenVK out of a local CrossOver.app
                      (auto-detected; override with CROSSOVER_APP)
   --configure-only   Run configure without make/install
+  --reconfigure      Run configure even when it already ran with the same options
   --skip-renderers   Skip install-renderers.sh (backend cleanup of the install tree)
   --jobs N           Parallel make jobs (default: CPU count)
   --dry-run          Print commands without executing
@@ -405,7 +408,20 @@ done
 printf '\n'
 echo "host minOS: MACOSX_DEPLOYMENT_TARGET=$GAMMA_MIN_OS_TARGET ($GAMMA_MIN_FLAG)"
 
-run "${CONFIGURE_CMD[@]}"
+# Resume: when build64 was already configured with exactly these options
+# against the current configure script, go straight to make, which continues
+# from whatever it compiled before. The stamp is written only after configure
+# succeeds; a newly applied patch regenerates configure and so invalidates it.
+CONFIGURE_STAMP="$WINE_SRC/build64/.gamma-configure"
+CONFIGURE_KEY="$(printf '%q ' "${CONFIGURE_CMD[@]}")"
+if [[ "$RECONFIGURE" -eq 0 && -f config.status && -f "$CONFIGURE_STAMP" &&
+      config.status -nt ../configure && "$(cat "$CONFIGURE_STAMP")" == "$CONFIGURE_KEY" ]]; then
+  echo "configure already ran with these options; resuming (--reconfigure to force)"
+else
+  rm -f "$CONFIGURE_STAMP"
+  run "${CONFIGURE_CMD[@]}"
+  [[ "$DRY_RUN" -eq 1 ]] || printf '%s\n' "$CONFIGURE_KEY" >"$CONFIGURE_STAMP"
+fi
 
 if [[ "$CONFIGURE_ONLY" -eq 0 ]]; then
   run arch -x86_64 env PATH="$BUILD_PATH" PKG_CONFIG_PATH="$VULKAN_PKG_PC_PATH" \
