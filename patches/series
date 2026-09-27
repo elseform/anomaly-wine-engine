@@ -1,0 +1,43 @@
+# Wine source patch series for gamma-wine-engine.
+#
+# Applied in this order to upstream wine-11.16 by scripts/apply-wine-series.sh
+# with `patch -p1 -F0` (no fuzz). One file name per line; `#` starts a comment.
+# A second field limits a patch to one build mode:
+#   without-vulkan  only when Wine is configured --without-vulkan (the default)
+# config/engine-release.json lists the same names in the same order.
+
+# CrossOver 26.3.0 (CodeWeavers, LGPL), ported onto Wine 11.16
+crossover-26.3.0-wine-11.16-port.patch
+
+# Engine changes recovered from the 2026-08-29 Wine 11.16 tree
+gamma-advapi32-consistent-username-opt-in.patch
+gamma-ntdll-mono-last-error-gs.patch
+gamma-winemac-host-app-icon.patch
+gamma-winemac-cross-process-child-swapchain.patch
+gamma-nsiproxy-null-ifaddr-and-leaks.patch
+gamma-ntdll-unwind-null-guards.patch
+gamma-winegstreamer-bundled-plugins-and-pool.patch
+gamma-faudio-26.08.patch
+
+# Engine patches (cyder-wine-engine, upstream backports, GAMMA)
+a6-final-same-view-backing-sync.patch
+w1-win32u-vulkan-soname.patch without-vulkan
+wine-11.1-rtlwalkframechain-null-function.patch
+cyder-ntdll-frame-walk-page-fault-guard.patch
+cyder-wineserver-sock-reselect-pseudo-fd.patch
+cyder-wineserver-poll-slot-guard.patch
+cyder-wineserver-exit-diagnostics.patch
+cyder-wineserver-fd-reselect-async-null-ops.patch
+cyder-wineserver-sock-rebind-async-fd.patch
+cyder-wineserver-async-terminate-null-fd.patch
+cyder-wineserver-free-async-queue-null-fd.patch
+cyder-wineserver-pipe-end-disconnect-null-fd.patch
+cyder-wineserver-add-completion-guard.patch
+cyder-ntdll-qdo-optnone-NtQueryDirectoryObject.patch
+gamma-ntdll-flush-write-buffers-sync.patch
+
+# Upstream Wine merge requests still under review (winemac.so only). Mouse
+# input changes touch the same area as the reverted maplestory message-wait
+# patch (see patches/README.md): retest menus and clicks.
+wine-mr11880-winemac-transparent-hidden-cursor.patch
+wine-mr11799-winemac-gcmouse-raw-input.patch

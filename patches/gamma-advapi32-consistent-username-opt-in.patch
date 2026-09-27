@@ -1,0 +1,36 @@
+CrossOver Hack 12735 reports the Windows user name as "crossover" unless
+CX_REPORT_REAL_USERNAME is set. Make it opt-in instead: the real name is
+reported unless CX_CONSISTENT_USERNAME is set, because a fixed name changes
+the DPAPI key and blobs written by a stock Wine prefix cannot be read back.
+
+Origin: written for this engine in an unrecorded agent session on
+2026-08-29, while porting CrossOver 26.3.0 onto Wine 11.16; recovered on
+2026-09-27 from the source tree that built engine builds 14-18. Not in
+upstream Wine (master 2026-09-25) or any public project found.
+
+--- a/dlls/advapi32/advapi.c
++++ b/dlls/advapi32/advapi.c
+@@ -48,8 +48,9 @@
+     DWORD len = GetEnvironmentVariableA( "WINEUSERNAME", name, *size );
+     BOOL ret;
+ 
+-    /* CrossOver Hack 12735: Use a consistent username */
+-    if (!getenv( "CX_REPORT_REAL_USERNAME" ))
++    /* CrossOver Hack 12735, flipped to opt-in: a fixed username changes the
++     * DPAPI key, so blobs written by a stock wine prefix cannot be read back */
++    if (getenv( "CX_CONSISTENT_USERNAME" ))
+     {
+         len = sizeof("crossover");
+         if ((ret = (len <= *size))) strcpy( name, "crossover" );
+@@ -73,8 +74,9 @@
+     DWORD len = GetEnvironmentVariableW( L"WINEUSERNAME", name, *size );
+     BOOL ret;
+ 
+-    /* CrossOver Hack 12735: Use a consistent username */
+-    if (!getenv( "CX_REPORT_REAL_USERNAME" ))
++    /* CrossOver Hack 12735, flipped to opt-in: a fixed username changes the
++     * DPAPI key, so blobs written by a stock wine prefix cannot be read back */
++    if (getenv( "CX_CONSISTENT_USERNAME" ))
+     {
+         len = ARRAY_SIZE( L"crossover" );
+         if ((ret = (len <= *size))) wcscpy( name, L"crossover" );

@@ -1,0 +1,21 @@
+Wine source patches — licensing notices
+
+Wine is licensed under the GNU Lesser General Public License, version 2.1 or
+later. Every patch in this directory modifies Wine source and is distributed
+under the same license.
+
+crossover-26.3.0-wine-11.16-port.patch
+  Carries the changes CodeWeavers, Inc. made to Wine in the CrossOver 26.3.0
+  source release (crossover-sources-26.3.0.tar.gz), ported from Wine 11.0 to
+  Wine 11.16. CodeWeavers publishes that source under the same license as Wine
+  (LGPL 2.1 or later). Copyright notices in the patched files are preserved.
+
+gamma-faudio-26.08.patch
+  Updates the FAudio copy in libs/faudio. FAudio is distributed under the zlib
+  license; see libs/faudio/LICENSE in the Wine source tree.
+
+cyder-*.patch, a6-final-same-view-backing-sync.patch, w1-win32u-vulkan-soname.patch
+  From cyder-wine-engine (https://github.com/dspp779/cyder-wine-engine).
+
+wine-mr11799-*.patch, wine-mr11880-*.patch, wine-11.1-*.patch
+  Upstream Wine commits and merge requests; authors are named in each patch.

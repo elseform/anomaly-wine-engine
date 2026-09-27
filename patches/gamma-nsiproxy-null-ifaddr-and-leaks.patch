@@ -1,0 +1,49 @@
+nsiproxy.sys: skip interfaces without an address (macOS lists some with a
+NULL ifa_addr), clamp a sockaddr copy to its buffer, and free addr_scopes
+in the TCP and UDP tables as the IP table already does.
+
+Origin: written for this engine in an unrecorded agent session on
+2026-08-29, while porting CrossOver 26.3.0 onto Wine 11.16; recovered on
+2026-09-27 from the source tree that built engine builds 14-18. Not in
+upstream Wine (master 2026-09-25) or any public project found.
+
+--- a/dlls/nsiproxy.sys/ip.c
++++ b/dlls/nsiproxy.sys/ip.c
+@@ -1654,7 +1654,7 @@
+                      * 5 bytes (1 sa_len, 1 sa_family, 2 sa_port and 1 for the first
+                      * byte of sin_addr). */
+                     struct sockaddr_in sin = {0};
+-                    memcpy( &sin, sa, sa->sa_len );
++                    memcpy( &sin, sa, min( sa->sa_len, sizeof(sin) ) );
+                     addr = sin.sin_addr;
+                     break;
+                 }
+--- a/dlls/nsiproxy.sys/tcp.c
++++ b/dlls/nsiproxy.sys/tcp.c
+@@ -238,7 +238,7 @@
+             struct sockaddr_in6 *sin6;
+             struct ipv6_addr_scope *entry;
+ 
+-            if (cur->ifa_addr->sa_family != AF_INET6) continue;
++            if (!cur->ifa_addr || cur->ifa_addr->sa_family != AF_INET6) continue;
+ 
+             if (++num > table_size)
+             {
+@@ -385,6 +385,7 @@
+         }
+     }
+ 
++    free( addr_scopes );
+     free( connections );
+     return STATUS_SUCCESS;
+ }
+--- a/dlls/nsiproxy.sys/udp.c
++++ b/dlls/nsiproxy.sys/udp.c
+@@ -281,6 +281,7 @@
+         }
+     }
+ 
++    free( addr_scopes );
+     free( endpoints );
+     return STATUS_SUCCESS;
+ }

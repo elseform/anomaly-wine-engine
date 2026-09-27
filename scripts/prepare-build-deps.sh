@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
-# Extract the llvm-mingw and CrossOver source archives from reference/ into
-# build/. Both archives are local-only (reference/ is not tracked); override the
-# directory with OGOM_ARCHIVES_DIR.
+# Fetch, verify and extract the build inputs into build/.
+#
+#   wine-11.16.tar.xz          upstream Wine (dl.winehq.org)  -> build/wine-11.16/wine
+#   llvm-mingw-...tar.xz       PE cross toolchain (GitHub)    -> build/llvm-mingw-...
+#
+# Each archive is pinned by sha256. A copy in reference/ (OGOM_ARCHIVES_DIR) is
+# used when its checksum matches; otherwise the archive is downloaded into
+# build/cache/sources/ and verified before use. Nothing has to be supplied by
+# hand. The Wine tree is extracted unpatched; scripts/apply-wine-series.sh
+# applies patches/series to it.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,13 +18,23 @@ fi
 
 ARCHIVES_DIR="${OGOM_ARCHIVES_DIR:-$OGOM/reference}"
 BUILD_DIR="${OGOM_BUILD_DIR:-$OGOM/build}"
+CACHE_DIR="$BUILD_DIR/cache/sources"
+
+WINE_VERSION="11.16"
+WINE_ARCHIVE="wine-$WINE_VERSION.tar.xz"
+WINE_URL="https://dl.winehq.org/wine/source/11.x/$WINE_ARCHIVE"
+WINE_SHA256="c66e2090343dcd727f7f7fd2f87ee0bfb0b118790c1d745ab7b8a4c3a4197f2f"
+WINE_DIR="$BUILD_DIR/wine-$WINE_VERSION"
+WINE_SRC_DIR="$WINE_DIR/wine"
+
 LLVM_MINGW_NAME="llvm-mingw-20260616-ucrt-macos-universal"
-LLVM_MINGW_ARCHIVE="$ARCHIVES_DIR/${LLVM_MINGW_NAME}.tar.xz"
+LLVM_MINGW_ARCHIVE="$LLVM_MINGW_NAME.tar.xz"
+LLVM_MINGW_URL="https://github.com/mstorsjo/llvm-mingw/releases/download/20260616/$LLVM_MINGW_ARCHIVE"
+LLVM_MINGW_SHA256="2cab02a2e964bd4aae981150a45985d07c657cfa8d244959eb9e2dcc5eedd7b1"
 LLVM_MINGW_DIR="$BUILD_DIR/$LLVM_MINGW_NAME"
 
 DRY_RUN=0
 FORCE=0
-CX_VERSIONS=()
 
 run() {
   if [[ "$DRY_RUN" -eq 1 ]]; then
@@ -35,117 +52,20 @@ usage() {
   cat <<EOF
 Usage: $(basename "$0") [options]
 
-Extract build inputs from $ARCHIVES_DIR into $BUILD_DIR.
+Fetch, verify and extract build inputs into $BUILD_DIR.
 
 Options:
-  --cx 26       Prepare CrossOver sources for CX26 (repeatable)
-  --all            Prepare CX26 sources
-  --dry-run        Print commands without extracting
-  --force          Re-extract even when markers already exist
-  -h, --help       Show this help
+  --force              Extract again even when the targets exist. This deletes
+                       $WINE_DIR, including its build64
+  --dry-run            Print commands without running them
+  -h, --help           Show this help
 EOF
-}
-
-cx_archive_for() {
-  case "$1" in
-    25)
-      echo "CX25 support was retired; this tree only builds CrossOver 26." >&2
-      return 1
-      ;;
-    26) printf '%s\n' "$ARCHIVES_DIR/crossover-sources-26.3.0.tar.gz" ;;
-    *)
-      echo "Unknown CX version: $1 (expected 26)" >&2
-      return 1
-      ;;
-  esac
-}
-
-cx_wine_src_for() {
-  printf '%s/cx%s/sources/wine\n' "$BUILD_DIR" "$1"
-}
-
-ensure_llvm_mingw() {
-  local marker="$LLVM_MINGW_DIR/bin/x86_64-w64-mingw32-clang"
-  if [[ -x "$marker" && "$FORCE" -eq 0 ]]; then
-    echo "llvm-mingw already present at $LLVM_MINGW_DIR"
-    return 0
-  fi
-  if [[ "$DRY_RUN" -eq 1 && ! -f "$LLVM_MINGW_ARCHIVE" ]]; then
-    echo "Extracting llvm-mingw from $LLVM_MINGW_ARCHIVE to $BUILD_DIR (dry-run; archive not present)"
-    run mkdir -p "$BUILD_DIR"
-    run tar -xJf "$LLVM_MINGW_ARCHIVE" -C "$BUILD_DIR"
-    return 0
-  fi
-  [[ -f "$LLVM_MINGW_ARCHIVE" ]] || {
-    echo "Missing archive: $LLVM_MINGW_ARCHIVE" >&2
-    exit 1
-  }
-  if [[ "$FORCE" -eq 1 && -d "$LLVM_MINGW_DIR" ]]; then
-    echo "Removing existing $LLVM_MINGW_DIR (--force)"
-    run rm -rf "$LLVM_MINGW_DIR"
-  fi
-  echo "Extracting llvm-mingw to $BUILD_DIR"
-  run mkdir -p "$BUILD_DIR"
-  run tar -xJf "$LLVM_MINGW_ARCHIVE" -C "$BUILD_DIR"
-  if [[ "$DRY_RUN" -eq 1 ]]; then
-    return 0
-  fi
-  [[ -x "$marker" ]] || {
-    echo "llvm-mingw extract failed: missing $marker" >&2
-    exit 1
-  }
-}
-
-ensure_cx_sources() {
-  local ver="$1"
-  local archive dest marker
-  archive="$(cx_archive_for "$ver")"
-  dest="$BUILD_DIR/cx$ver"
-  marker="$(cx_wine_src_for "$ver")/configure"
-
-  if [[ -f "$marker" && "$FORCE" -eq 0 ]]; then
-    echo "CX$ver sources already present at $(cx_wine_src_for "$ver")"
-    return 0
-  fi
-  if [[ "$DRY_RUN" -eq 1 && ! -f "$archive" ]]; then
-    echo "Extracting CX$ver sources from $archive to $dest (dry-run; archive not present)"
-    run mkdir -p "$dest"
-    run tar -xzf "$archive" -C "$dest"
-    return 0
-  fi
-  [[ -f "$archive" ]] || {
-    echo "Missing archive: $archive" >&2
-    exit 1
-  }
-  if [[ "$FORCE" -eq 1 && -d "$dest" ]]; then
-    echo "Removing existing $dest (--force)"
-    run rm -rf "$dest"
-  fi
-  echo "Extracting CX$ver sources to $dest"
-  run mkdir -p "$dest"
-  run tar -xzf "$archive" -C "$dest"
-  if [[ "$DRY_RUN" -eq 1 ]]; then
-    return 0
-  fi
-  [[ -f "$marker" ]] || {
-    echo "CX$ver extract failed: missing $marker" >&2
-    exit 1
-  }
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --cx)
-      [[ $# -ge 2 ]] || { echo "Missing value for --cx" >&2; exit 1; }
-      CX_VERSIONS+=("$2")
-      shift 2
-      ;;
-    --all)
-      CX_VERSIONS+=(26)
-      shift
-      ;;
-    --dry-run) DRY_RUN=1; shift ;;
     --force) FORCE=1; shift ;;
+    --dry-run) DRY_RUN=1; shift ;;
     -h | --help)
       usage
       exit 0
@@ -158,23 +78,85 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ ${#CX_VERSIONS[@]} -eq 0 ]]; then
-  CX_VERSIONS=(26)
-fi
+sha256_of() {
+  shasum -a 256 "$1" | awk '{print $1}'
+}
+
+# Print the path of a verified copy of an archive, downloading it if needed.
+fetch_archive() {
+  local name="$1" url="$2" sha="$3"
+  local local_copy="$ARCHIVES_DIR/$name" cached="$CACHE_DIR/$name"
+
+  if [[ -f "$local_copy" && "$(sha256_of "$local_copy")" == "$sha" ]]; then
+    printf '%s\n' "$local_copy"
+    return 0
+  fi
+  if [[ -f "$cached" && "$(sha256_of "$cached")" == "$sha" ]]; then
+    printf '%s\n' "$cached"
+    return 0
+  fi
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    echo "+ curl -fL -o $cached $url (sha256 $sha)" >&2
+    printf '%s\n' "$cached"
+    return 0
+  fi
+  mkdir -p "$CACHE_DIR"
+  echo "Downloading $url" >&2
+  curl -fsSL --retry 3 -o "$cached.part" "$url" || {
+    rm -f "$cached.part"
+    echo "Could not download $url" >&2
+    return 1
+  }
+  if [[ "$(sha256_of "$cached.part")" != "$sha" ]]; then
+    echo "$name: sha256 $(sha256_of "$cached.part") does not match the pinned $sha" >&2
+    rm -f "$cached.part"
+    return 1
+  fi
+  mv "$cached.part" "$cached"
+  printf '%s\n' "$cached"
+}
+
+ensure_llvm_mingw() {
+  local marker="$LLVM_MINGW_DIR/bin/x86_64-w64-mingw32-clang" archive
+  if [[ -x "$marker" && "$FORCE" -eq 0 ]]; then
+    echo "llvm-mingw already present at $LLVM_MINGW_DIR"
+    return 0
+  fi
+  archive="$(fetch_archive "$LLVM_MINGW_ARCHIVE" "$LLVM_MINGW_URL" "$LLVM_MINGW_SHA256")"
+  if [[ -d "$LLVM_MINGW_DIR" ]]; then
+    run rm -rf "$LLVM_MINGW_DIR"
+  fi
+  echo "Extracting llvm-mingw to $BUILD_DIR"
+  run mkdir -p "$BUILD_DIR"
+  run tar -xJf "$archive" -C "$BUILD_DIR"
+  [[ "$DRY_RUN" -eq 1 || -x "$marker" ]] || {
+    echo "llvm-mingw extract failed: missing $marker" >&2
+    exit 1
+  }
+}
+
+ensure_wine_sources() {
+  local marker="$WINE_SRC_DIR/configure.ac" archive
+  if [[ -f "$marker" && "$FORCE" -eq 0 ]]; then
+    echo "Wine $WINE_VERSION sources already present at $WINE_SRC_DIR"
+    return 0
+  fi
+  archive="$(fetch_archive "$WINE_ARCHIVE" "$WINE_URL" "$WINE_SHA256")"
+  if [[ -d "$WINE_DIR" ]]; then
+    echo "Removing existing $WINE_DIR"
+    run rm -rf "$WINE_DIR"
+  fi
+  echo "Extracting Wine $WINE_VERSION to $WINE_SRC_DIR"
+  run mkdir -p "$WINE_DIR"
+  run tar -xJf "$archive" -C "$WINE_DIR"
+  run mv "$WINE_DIR/wine-$WINE_VERSION" "$WINE_SRC_DIR"
+  [[ "$DRY_RUN" -eq 1 || -f "$marker" ]] || {
+    echo "Wine extract failed: missing $marker" >&2
+    exit 1
+  }
+}
 
 ensure_llvm_mingw
-for ver in "${CX_VERSIONS[@]}"; do
-  case "$ver" in
-    25)
-      echo "CX25 support was retired; this tree only builds CrossOver 26." >&2
-      exit 1
-      ;;
-    26) ensure_cx_sources "$ver" ;;
-    *)
-      echo "Unknown CX version: $ver (expected 26)" >&2
-      exit 1
-      ;;
-  esac
-done
+ensure_wine_sources
 
 echo "Prepare complete."

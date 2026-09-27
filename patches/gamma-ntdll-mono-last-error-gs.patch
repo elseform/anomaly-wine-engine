@@ -1,0 +1,106 @@
+Mirror the thread's last error into %gs:0x68. Mono's JIT reads
+Marshal.GetLastWin32Error() straight off %gs; on macOS %gs is the pthread
+TSD base, not the TEB, so the value must be written there too. gmtime() is
+hooked away from that slot the same way CrossOver hooks localtime() off the
+PEB slot at 0x60.
+
+Origin: written for this engine in an unrecorded agent session on
+2026-08-29, while porting CrossOver 26.3.0 onto Wine 11.16; recovered on
+2026-09-27 from the source tree that built engine builds 14-18. Not in
+upstream Wine (master 2026-09-25) or any public project found.
+
+--- a/dlls/ntdll/error.c
++++ b/dlls/ntdll/error.c
+@@ -31,6 +31,27 @@
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(ntdll);
+ 
++#ifdef __x86_64__
++/* Mono's jit compiles Marshal.GetLastWin32Error() to a bare `mov reg,%gs:0x68`
++ * instead of a call, so the last error has to be readable straight off %gs.
++ * That is free on hosts where %gs is the TEB, but macOS keeps its own thread
++ * data there and only a handful of TEB fields are mirrored into it, so write
++ * this one as well. 0x68 is the pthread slot gmtime() would use; loader.c hooks
++ * gmtime() away for that reason, the same way it already does for localtime()
++ * over the PEB at 0x60. */
++static inline void mirror_last_error( DWORD err )
++{
++    /* a 4-byte store: where %gs really is the TEB this is the very field we
++     * just wrote, and anything wider would take CountOfOwnedCriticalSections
++     * with it. init_syscall_frame clears the whole slot once per thread. */
++    __asm__ volatile( "movl %0,%%gs:0x68" :: "r" (err) );
++}
++#else
++static inline void mirror_last_error( DWORD err )
++{
++}
++#endif
++
+ /**************************************************************************
+  *           RtlNtStatusToDosErrorNoTeb (NTDLL.@)
+  *
+@@ -121,6 +142,7 @@
+ void WINAPI RtlSetLastWin32Error( DWORD err )
+ {
+     NtCurrentTeb()->LastErrorValue = err;
++    mirror_last_error( err );
+ }
+ 
+ /***********************************************************************
+@@ -137,4 +159,5 @@
+ void WINAPI RtlSetLastWin32ErrorAndNtStatusFromNtStatus( NTSTATUS status )
+ {
+     NtCurrentTeb()->LastErrorValue = RtlNtStatusToDosError( status );
++    mirror_last_error( NtCurrentTeb()->LastErrorValue );
+ }
+--- a/dlls/ntdll/unix/loader.c
++++ b/dlls/ntdll/unix/loader.c
+@@ -2180,6 +2180,12 @@
+     return localtime_r(timep, &localtime_tls);
+ }
+ 
++static __thread struct tm gmtime_tls;
++struct tm *my_gmtime(const time_t *timep)
++{
++    return gmtime_r(timep, &gmtime_tls);
++}
++
+ static void hook(void *to_hook, const void *replace)
+ {
+     size_t offset;
+@@ -2242,6 +2248,9 @@
+     /* This is necessary because we poke PEB into pthread TLS at offset 0x60. It is normally in use by
+      * localtime(), which is called a lot by system libraries. Make localtime() go away. */
+     hook(localtime, my_localtime);
++    /* Likewise for gmtime() over offset 0x68, where the last error is mirrored so that mono can read
++     * it off %gs the way it does on Windows. */
++    hook(gmtime, my_gmtime);
+ #endif
+ 
+     /* CW Hack 24067 */
+--- a/dlls/ntdll/unix/signal_x86_64.c
++++ b/dlls/ntdll/unix/signal_x86_64.c
+@@ -3087,6 +3087,9 @@
+     __asm__ volatile ("movq %0,%%gs:%c1" :: "r" (teb->Tib.Self), "n" (FIELD_OFFSET(TEB, Tib.Self)));
+     __asm__ volatile ("movq %0,%%gs:%c1" :: "r" (teb->ThreadLocalStoragePointer), "n" (FIELD_OFFSET(TEB, ThreadLocalStoragePointer)));
+     __asm__ volatile ("movq %0,%%gs:%c1" :: "r" (teb->Peb), "n" (FIELD_OFFSET(TEB, Peb)));
++    /* mono reads the last error straight off %gs, see RtlSetLastWin32Error */
++    __asm__ volatile ("movq %0,%%gs:%c1" :: "r" ((ULONG64)teb->LastErrorValue),
++                      "n" (FIELD_OFFSET(TEB, LastErrorValue)));
+     thread_data->pthread_teb = mac_thread_gsbase();
+     /* alloc_tls_slot() needs to poke a value to an address relative to each
+        thread's gsbase.  Have each thread record its gsbase pointer into its
+--- a/include/winbase.h
++++ b/include/winbase.h
+@@ -2523,6 +2523,11 @@
+ static FORCEINLINE void WINAPI SetLastError( DWORD err )
+ {
+     *(DWORD *)((void **)NtCurrentTeb() + 13) = err;
++#ifdef __x86_64__
++    /* mirror it into %gs as well, mono reads the last error straight off there.
++     * see RtlSetLastWin32Error in dlls/ntdll/error.c for why. */
++    __asm__ __volatile__( "movl %0,%%gs:0x68" :: "r" (err) );
++#endif
+ }
+ 
+ #else  /* __WINESRC__ */
