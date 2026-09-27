@@ -375,6 +375,14 @@ GAMMA_HOST_CFLAGS="-arch x86_64 ${CFLAGS:--g -O2} ${GAMMA_MIN_FLAG}"
 GAMMA_HOST_OBJCFLAGS="-arch x86_64 ${OBJCFLAGS:--g -O2} ${GAMMA_MIN_FLAG}"
 GAMMA_HOST_LDFLAGS="-arch x86_64 ${LDFLAGS:-} ${GAMMA_MIN_FLAG}"
 
+# configure enables any function the build Mac's SDK exports. Functions newer
+# than the product floor are weak-linked and NULL on an older macOS, so they are
+# pinned off here; check-sdk-availability.py below refuses any it finds.
+#   pipe2: macOS 27.0 SDK (ntdll server_pipe, process creation, msv1_0)
+CONFIGURE_CACHE_PINS=(
+  ac_cv_func_pipe2=no
+)
+
 CONFIGURE_CMD=(
   arch -x86_64 env
   PATH="$BUILD_PATH"
@@ -392,6 +400,7 @@ CONFIGURE_CMD=(
   --enable-archs=i386,x86_64
   --with-mingw=llvm-mingw
   --prefix="$WINE_INSTALL"
+  "${CONFIGURE_CACHE_PINS[@]}"
 )
 if [[ "$BUILD_TESTS" -eq 0 ]]; then
   CONFIGURE_CMD+=(--disable-tests)
@@ -421,6 +430,11 @@ else
   rm -f "$CONFIGURE_STAMP"
   run "${CONFIGURE_CMD[@]}"
   [[ "$DRY_RUN" -eq 1 ]] || printf '%s\n' "$CONFIGURE_KEY" >"$CONFIGURE_STAMP"
+fi
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  echo "+ $SCRIPT_DIR/check-sdk-availability.py include/config.h $GAMMA_PRODUCT_MIN_OS"
+else
+  python3 "$SCRIPT_DIR/check-sdk-availability.py" include/config.h "$GAMMA_PRODUCT_MIN_OS"
 fi
 
 if [[ "$CONFIGURE_ONLY" -eq 0 ]]; then

@@ -6,7 +6,7 @@ out what went wrong. To build an archive yourself, see
 
 ## 1. Requirements
 
-- An Apple Silicon Mac with macOS 15 or newer, and Rosetta 2
+- An Apple Silicon Mac with macOS 26 or newer, and Rosetta 2
   (`softwareupdate --install-rosetta`).
 - An existing S.T.A.L.K.E.R. G.A.M.M.A. installation.
 - An engine archive (`CX26-W11-GAMMA-<N>.tar.xz`).
@@ -93,7 +93,7 @@ validation failed and the process was terminated; there is no fallback. The
 `gamma-cxcompatdb:` line before it names the missing piece. See
 [renderers.md](renderers.md).
 
-**The app will not open on an older Mac.** The engine needs macOS 15 or newer
+**The app will not open on an older Mac.** The engine needs macOS 26 or newer
 on Apple Silicon.
 
 **The game freezes on menu or UI clicks.** That was caused by
