@@ -11,7 +11,6 @@ source "$SCRIPT_DIR/env-x86_64.sh"
 
 FORCE=0
 DRY_RUN=0
-DXMT_ONLY=0
 # xz is the default: macOS tar and Python's lzma unpack it with no extra
 # tools, so gamma-setup-tool (which only accepts .tar.xz) needs no zstd.
 FORMAT="${GAMMA_ENGINE_FORMAT:-xz}"
@@ -29,10 +28,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --dry-run)
       DRY_RUN=1
-      shift
-      ;;
-    --dxmt-only)
-      DXMT_ONLY=1
       shift
       ;;
     --format)
@@ -61,17 +56,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     -h | --help)
       cat <<EOF
-Usage: $(basename "$0") [--force] [--dry-run] [--dxmt-only] [--zstd|--xz]
+Usage: $(basename "$0") [--force] [--dry-run] [--zstd|--xz]
        [--format zstd|xz] [--media-profile full-video|minimal]
 
 Build a compressed engine artifact from install/wine-cx26-x86_64 (or WINE_INSTALL).
-  xz:   dist/artifacts/CX26W11-GAMMA-<N>.tar.xz (default, xz -$XZ_LEVEL)
-  zstd: dist/artifacts/CX26W11-GAMMA-<N>.tar.zst (--zstd, zstd -$ZSTD_LEVEL;
+  xz:   dist/artifacts/CX26-W11-GAMMA-<N>.tar.xz (default, xz -$XZ_LEVEL)
+  zstd: dist/artifacts/CX26-W11-GAMMA-<N>.tar.zst (--zstd, zstd -$ZSTD_LEVEL;
         not accepted by gamma-setup-tool)
-GPTK/D3DMetal is optional and user-supplied (see docs/renderers.md): if no
-GPTK payload was staged, packing is DXMT-only automatically, producing
-dist/artifacts/CX26W11-GAMMA-DXMT-<N>.tar.xz. --dxmt-only forces this and
-strips any staged GPTK payload from the tree even if one is present.
+DXMT is the only graphics backend.
 --dry-run performs only a fast source/layout preflight; it does not stage,
 strip, rewrite dylib paths, sign, scan minOS, compress, or verify an archive.
 Set GAMMA_ENGINE_VERSION_LABEL to override the detected version label.
@@ -164,21 +156,7 @@ fi
 ENGINE_VERSION_SLUG="$(gamma_engine_version_slug_from_label "$ENGINE_VERSION_LABEL")"
 ENGINE_VERSION="$ENGINE_VERSION_SLUG"
 ARTIFACTS_DIR="$(gamma_engine_artifacts_dir)"
-# Read by install-renderers.sh's flag file so the artifact name records which
-# GPTK payload (gptk40b1, gptk40b2, ...) got staged into this WINE_INSTALL.
-GPTK_VERSION="$(gamma_engine_gptk_version "$WINE_INSTALL")"
-# GPTK is optional and user-supplied (see docs/renderers.md): if
-# install-renderers.sh wasn't given a GPTK payload, no lib64/apple_gptk was
-# staged, so pack DXMT-only automatically instead of hard-failing.
-if [[ "$DXMT_ONLY" -ne 1 && ! -d "$WINE_INSTALL/lib64/apple_gptk/wine/x86_64-windows" ]]; then
-  echo "==> No staged GPTK/D3DMetal payload — packing DXMT-only (pass --apple-gptk to install-renderers.sh first to include D3DMetal)"
-  DXMT_ONLY=1
-fi
-if [[ "$DXMT_ONLY" -eq 1 ]]; then
-  ARCHIVE="$(gamma_engine_dxmt_archive_path_for_format "$ENGINE_VERSION_LABEL" "$ARTIFACTS_DIR" "$FORMAT")"
-else
-  ARCHIVE="$(gamma_engine_archive_path_for_format "$ENGINE_VERSION_LABEL" "$ARTIFACTS_DIR" "$FORMAT" "$GPTK_VERSION")"
-fi
+ARCHIVE="$(gamma_engine_archive_path_for_format "$ENGINE_VERSION_LABEL" "$ARTIFACTS_DIR" "$FORMAT")"
 # The -<N> build counter, also recorded in the manifest as buildNumber so a
 # consumer never has to parse it out of a filename.
 BUILD_NUMBER="$(basename "$ARCHIVE")"
@@ -193,17 +171,11 @@ STAMP_FILE="$ARTIFACTS_DIR/.pack-stamp"
 
 # Cheap source preflight. Keep this before mktemp/rsync so --dry-run never
 # performs packaging work.
-if [[ "$DXMT_ONLY" -ne 1 ]]; then
-  [[ -d "$WINE_INSTALL/lib64/apple_gptk/wine/x86_64-windows" ]] || {
-    echo "Missing packaged D3DMetal payload at lib64/apple_gptk/wine" >&2
-    exit 1
-  }
-fi
 [[ -d "$WINE_INSTALL/lib/dxmt/x86_64-windows" ]] || {
   echo "Missing packaged DXMT payload at lib/dxmt" >&2
   exit 1
 }
-for obsolete in lib/d3dmetal lib/dxvk lib/external lib/gptk40b1 lib/gptk40b2 lib/apple_gptk; do
+for obsolete in lib/d3dmetal lib/dxvk lib/external lib/gptk40b1 lib/gptk40b2 lib/apple_gptk lib64/apple_gptk; do
   [[ ! -e "$WINE_INSTALL/$obsolete" ]] || {
     echo "Refusing obsolete renderer layout in source engine: $obsolete" >&2
     exit 1
@@ -249,8 +221,8 @@ strings -a "$CXCOMPATDB" | grep -q 'GAMMA_GRAPHICS_BACKEND' || {
   echo "Refusing to pack an incompatible cxcompatdb.so" >&2
   exit 1
 }
-strings -a "$CXCOMPATDB" | grep -q 'lib64/apple_gptk/wine' || {
-  echo "Refusing to pack cxcompatdb without CrossOver D3DMetal layout support" >&2
+strings -a "$CXCOMPATDB" | grep -q '/lib/dxmt' || {
+  echo "Refusing to pack cxcompatdb without DXMT backend support" >&2
   exit 1
 }
 if strings -a "$CXCOMPATDB" | grep -q 'CX_ACTIVE_GRAPHICS_BACKEND'; then
@@ -262,8 +234,6 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   echo "DRY RUN: preflight passed"
   echo "  source: $WINE_INSTALL"
   echo "  version: $ENGINE_VERSION_LABEL"
-  echo "  gptk: ${GPTK_VERSION:-<unlabeled>}"
-  echo "  dxmt-only: $([[ "$DXMT_ONLY" -eq 1 ]] && echo yes || echo no)"
   echo "  media: $MEDIA_PROFILE ($MEDIA_INSTALL)"
   echo "  output: $ARCHIVE"
   exit 0
@@ -292,27 +262,16 @@ find "$ENGINE_TREE" -name '.DS_Store' -delete 2>/dev/null || true
 rm -rf "$ENGINE_TREE/redist"
 gamma_write_engine_version_file "$ENGINE_TREE" "$ENGINE_VERSION_LABEL"
 
-if [[ "$DXMT_ONLY" -ne 1 ]]; then
-  [[ -d "$ENGINE_TREE/lib64/apple_gptk/wine/x86_64-windows" ]] || {
-    echo "Missing packaged D3DMetal payload at lib64/apple_gptk/wine" >&2
-    exit 1
-  }
-fi
 [[ -d "$ENGINE_TREE/lib/dxmt/x86_64-windows" ]] || {
   echo "Missing packaged DXMT payload at lib/dxmt" >&2
   exit 1
 }
-for obsolete in lib/d3dmetal lib/dxvk lib/external lib/gptk40b1 lib/gptk40b2 lib/apple_gptk; do
+for obsolete in lib/d3dmetal lib/dxvk lib/external lib/gptk40b1 lib/gptk40b2 lib/apple_gptk lib64/apple_gptk; do
   [[ ! -e "$ENGINE_TREE/$obsolete" ]] || {
     echo "Refusing obsolete renderer layout in artifact: $obsolete" >&2
     exit 1
   }
 done
-
-if [[ "$DXMT_ONLY" -eq 1 ]]; then
-  echo "==> Stripping GPTK/D3DMetal payload (--dxmt-only)"
-  rm -rf "$ENGINE_TREE/lib64/apple_gptk"
-fi
 
 echo "==> Embedding the DirectX/VC++ redistributable manifest and fetcher"
 mkdir -p "$ENGINE_TREE/share/gamma/redist-fetch"
@@ -347,8 +306,8 @@ strings -a "$PACKED_CXCOMPATDB" | grep -q 'GAMMA_GRAPHICS_BACKEND' || {
   echo "Refusing to pack an incompatible cxcompatdb.so" >&2
   exit 1
 }
-strings -a "$PACKED_CXCOMPATDB" | grep -q 'lib64/apple_gptk/wine' || {
-  echo "Refusing to pack cxcompatdb without CrossOver D3DMetal layout support" >&2
+strings -a "$PACKED_CXCOMPATDB" | grep -q '/lib/dxmt' || {
+  echo "Refusing to pack cxcompatdb without DXMT backend support" >&2
   exit 1
 }
 if strings -a "$PACKED_CXCOMPATDB" | grep -q 'CX_ACTIVE_GRAPHICS_BACKEND'; then

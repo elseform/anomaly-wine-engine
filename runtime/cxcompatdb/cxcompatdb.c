@@ -2,12 +2,12 @@
  * Minimal graphics-backend selector for GAMMA's CrossOver Wine build.
  *
  * CrossOver's ntdll.so loads this library at process start and exports the
- * two loader primitives used below. The only public selector is
- * GAMMA_GRAPHICS_BACKEND=d3dmetal|dxmt. There is no WineD3D fallback: if the
- * requested backend's payload does not validate for the running process
- * (wrong architecture, missing/corrupt module, missing native support
- * library), this constructor terminates the process instead of silently
- * degrading to WineD3D.
+ * two loader primitives used below. DXMT is the only backend;
+ * GAMMA_GRAPHICS_BACKEND may be unset or "dxmt". There is no WineD3D
+ * fallback: if the DXMT payload does not validate for the running process
+ * (wrong architecture, missing/corrupt module, missing host bridge), this
+ * constructor terminates the process instead of silently degrading to
+ * WineD3D.
  */
 
 #include "config.h"
@@ -35,7 +35,7 @@ static const char *const graphics_modules[] =
 {
     "ddraw", "d3d8", "d3d9", "d3d10", "d3d10_1", "d3d10core",
     "d3d11", "d3d12", "dxgi", "winemetal", "nvapi64", "nvngx",
-    "nvngx-on-metalfx", "atidxx64"
+    "atidxx64"
 };
 
 static void log_message( const char *level, const char *format, ... )
@@ -156,22 +156,13 @@ static int readable_file( const char *format, const char *root, char output[PATH
     return !stat( output, &st ) && S_ISREG( st.st_mode ) && !access( output, R_OK );
 }
 
-static int activate_backend( const char *backend )
+static int activate_backend(void)
 {
     char root[PATH_MAX], candidate[PATH_MAX], path[PATH_MAX];
-    char support[PATH_MAX], framework[PATH_MAX];
+    char support[PATH_MAX];
     const char *machine_dir;
     uint16_t machine;
     unsigned int i;
-    /* nvngx (renamed from GPTK's nvngx-on-metalfx by install-renderers.sh) is
-     * always staged, but only D3DMetal's launcher backs it into the prefix's
-     * system32, gated on D3DM_ENABLE_METALFX=1 — cxcompatdb's own builtin
-     * override for it should track that same toggle for d3dmetal so the
-     * unix-side DLL search does not offer NGX/DLSS when the feature is off.
-     * DXMT ships and overrides its own nvngx.dll independently of this var. */
-    const char *metalfx_env = getenv( "D3DM_ENABLE_METALFX" );
-    int nvngx_disabled = !strcmp( backend, "d3dmetal" ) &&
-                          (!metalfx_env || strcmp( metalfx_env, "1" ));
 
     if (!engine_root_from_ntdll( root ))
     {
@@ -179,11 +170,7 @@ static int activate_backend( const char *backend )
         return 0;
     }
 
-    if (!strcmp( backend, "d3dmetal" ))
-        snprintf( candidate, sizeof(candidate), "%s/lib64/apple_gptk/wine", root );
-    else
-        snprintf( candidate, sizeof(candidate), "%s/lib/dxmt", root );
-
+    snprintf( candidate, sizeof(candidate), "%s/lib/dxmt", root );
     if (!canonical_directory( candidate, path ))
     {
         log_message( "error", "backend directory unavailable: %s", candidate );
@@ -192,39 +179,17 @@ static int activate_backend( const char *backend )
 
     machine_dir = current_machine_directory( &machine );
     if (!validate_module( path, machine_dir, "d3d11", machine ) ||
-        !validate_module( path, machine_dir, "dxgi", machine )) return 0;
-
-    if (!strcmp( backend, "dxmt" ))
+        !validate_module( path, machine_dir, "dxgi", machine ) ||
+        !validate_module( path, machine_dir, "winemetal", machine ) ||
+        !readable_file( "%s/lib/dxmt/x86_64-unix/winemetal.so", root, support ))
     {
-        if (!validate_module( path, machine_dir, "winemetal", machine ) ||
-            !readable_file( "%s/lib/dxmt/x86_64-unix/winemetal.so", root, support ))
-        {
-            log_message( "error", "DXMT host bridge unavailable below %s", root );
-            return 0;
-        }
-    }
-    else
-    {
-        if (!readable_file( "%s/lib64/apple_gptk/external/libd3dshared.dylib", root, support ))
-        {
-            log_message( "error", "D3DMetal libd3dshared.dylib unavailable below %s", root );
-            return 0;
-        }
-        if (snprintf( framework, sizeof(framework),
-                      "%s/lib64/apple_gptk/external/D3DMetal.framework", root ) >=
-            (int)sizeof(framework) || access( framework, R_OK ))
-        {
-            log_message( "error", "D3DMetal.framework unavailable below %s", root );
-            return 0;
-        }
-        setenv( "CX_APPLEGPTK_LIBD3DSHARED_PATH", support, 1 );
-        setenv( "CX_D3DMETALPATH", framework, 1 );
+        log_message( "error", "DXMT payload or host bridge unavailable below %s", root );
+        return 0;
     }
 
     for (i = 0; i < ARRAY_SIZE(graphics_modules); ++i)
     {
         char file[PATH_MAX];
-        if (nvngx_disabled && !strcmp( graphics_modules[i], "nvngx" )) continue;
         if (snprintf( file, sizeof(file), "%s/%s/%s.dll", path, machine_dir,
                       graphics_modules[i] ) < (int)sizeof(file) && !access( file, R_OK ))
             add_override( graphics_modules[i] );
@@ -235,7 +200,7 @@ static int activate_backend( const char *backend )
         if (!retained) return 0;
         prepend_dll_path( retained ); /* ntdll retains this pointer for process lifetime */
     }
-    log_message( "info", "graphics backend=%s machine=%s path=%s", backend, machine_dir, path );
+    log_message( "info", "graphics backend=dxmt machine=%s path=%s", machine_dir, path );
     return 1;
 }
 
@@ -244,15 +209,14 @@ static void compatdb_init(void)
 {
     const char *backend = getenv( "GAMMA_GRAPHICS_BACKEND" );
 
-    if (!backend || !*backend) backend = "dxmt";
-    if (strcmp( backend, "d3dmetal" ) && strcmp( backend, "dxmt" ))
+    if (backend && *backend && strcmp( backend, "dxmt" ))
     {
-        log_message( "error", "invalid GAMMA_GRAPHICS_BACKEND=%s", backend );
+        log_message( "error", "invalid GAMMA_GRAPHICS_BACKEND=%s (only dxmt is supported)", backend );
         _exit( 1 );
     }
-    if (!activate_backend( backend ))
+    if (!activate_backend())
     {
-        log_message( "error", "graphics backend=%s unavailable, refusing to launch", backend );
+        log_message( "error", "graphics backend=dxmt unavailable, refusing to launch" );
         _exit( 1 );
     }
 }

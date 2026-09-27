@@ -11,7 +11,7 @@ One artifact: a relocatable Wine 11.16 / CrossOver 26.3.0 engine, built for
 `x86_64` and run under Rosetta 2 on Apple Silicon Macs with macOS 15 or newer.
 
 ```text
-dist/artifacts/CX26W11-GAMMA-DXMT-<N>.tar.xz
+dist/artifacts/CX26-W11-GAMMA-<N>.tar.xz
                                   .tar.xz.sha256
                                   .tar.xz.manifest.json
 ```
@@ -36,9 +36,6 @@ wswine.bundle/
   version                       the version label
 ```
 
-A build that includes Apple's D3DMetal adds `lib64/apple_gptk/`; GPTK is not
-distributed with this repository (see [renderers.md](renderers.md)).
-
 Every Mach-O is signed (ad-hoc unless `SIGN_IDENTITY` is set). Wine's PE
 modules are stripped of debug data during packing.
 
@@ -46,7 +43,7 @@ modules are stripped of debug data during packing.
 
 `cxcompatdb.so` (`runtime/cxcompatdb/cxcompatdb.c`) is loaded by CrossOver's
 `ntdll` in every Wine process. It reads `GAMMA_GRAPHICS_BACKEND`
-(`dxmt` or `d3dmetal`, default `dxmt`), finds the engine root from the loaded
+(unset or `dxmt`; DXMT is the only backend), finds the engine root from the loaded
 `ntdll.so`, and validates the backend for the process's architecture. For
 `dxmt` it requires `d3d11`, `dxgi` and `winemetal` in
 `lib/dxmt/<arch>-windows/` and `lib/dxmt/x86_64-unix/winemetal.so`. It then sets

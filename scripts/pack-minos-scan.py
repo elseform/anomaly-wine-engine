@@ -7,8 +7,8 @@ Two limits apply:
   ntdll.so and the bundled dylibs are compiled for. Every Mach-O outside the
   renderer trees must declare `minos` at or below it.
 - The product floor (GAMMA_PRODUCT_MIN_OS, default 15.0) is the oldest macOS the
-  engine supports: Apple Silicon, macOS 15. Renderer payloads (`lib/dxmt/`,
-  `lib64/apple_gptk/`) may target up to it, never beyond. That covers both their Mach-O `minos` and
+  engine supports: Apple Silicon, macOS 15. The DXMT payload (`lib/dxmt/`)
+  may target up to it, never beyond. That covers both their Mach-O `minos` and
   the Metal shader libraries DXMT embeds in its PE DLLs, whose AIR target triple
   (`air64...-apple-macosx<version>`) comes from the build Mac's OS unless the
   build pins MACOSX_DEPLOYMENT_TARGET.
@@ -19,7 +19,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-RENDERER_PATH_PREFIXES = ("lib/dxmt/", "lib64/apple_gptk/")
+RENDERER_PATH_PREFIXES = ("lib/dxmt/",)
 AIR_TARGET = re.compile(rb"apple-macosx(\d+(?:\.\d+)*)")
 
 
