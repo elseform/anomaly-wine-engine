@@ -13,7 +13,7 @@ built for `x86_64` and runs under Rosetta 2. Two floors apply:
 | Floor | Value | Applies to |
 |---|---|---|
 | Build floor | `MACOSX_DEPLOYMENT_TARGET`, default `10.15` | Wine, `ntdll.so`, `cxcompatdb.so`, the bundled dylibs |
-| Product floor | `GAMMA_PRODUCT_MIN_OS`, default `15.0` | The DXMT payload (including the Metal shaders embedded in its DLLs) and the Configurator |
+| Product floor | `GAMMA_PRODUCT_MIN_OS`, default `15.0` | The DXMT payload (including the Metal shaders embedded in its DLLs) |
 
 `scripts/pack-minos-scan.py` refuses to pack anything that needs a newer macOS
 than its floor.
@@ -69,9 +69,8 @@ Run the steps in this order.
    `scripts/install-renderers.sh install/wine-cx26-x86_64`. Packing refuses to
    run when the install tree's DXMT files differ from `renderers/dxmt/`.
 4. **Pack** — `scripts/pack-engine-artifact.sh` (`--dry-run` for a fast
-   preflight). In order: build the Configurator (`build-configurator.sh`), copy
-   the install tree to a staging `wswine.bundle/`, add the redist manifest and
-   fetcher and the Configurator under `share/gamma/`, strip
+   preflight). In order: copy the install tree to a staging `wswine.bundle/`,
+   add the redist manifest and fetcher under `share/gamma/`, strip
    (`strip-wine-install.sh`), re-link dylibs (`bundle-wine-dylibs.sh`), sign
    every Mach-O (`sign-wine.sh`), check `cxcompatdb`, run the minOS scan, write
    `engine-manifest.json`, compress with `xz -6`, re-extract and verify every
@@ -134,7 +133,7 @@ normal pipeline.
 
 ## Known limitations
 
-- The Configurator is built for Apple Silicon only.
+- The native wrapper UI is built and distributed by `gamma-setup-tool`, independently of engine packing.
 - `engineId` in `engine-release.json` is typed by hand and must be kept in step
   with the version label.
 - A complete from-scratch `build-wine.sh` run has not been re-timed recently;

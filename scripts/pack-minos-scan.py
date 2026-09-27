@@ -5,11 +5,10 @@ Two limits apply:
 
 - The build floor (MACOSX_DEPLOYMENT_TARGET, default 10.15) is what Wine,
   ntdll.so and the bundled dylibs are compiled for. Every Mach-O outside the
-  renderer and Configurator trees must declare `minos` at or below it.
+  renderer trees must declare `minos` at or below it.
 - The product floor (GAMMA_PRODUCT_MIN_OS, default 15.0) is the oldest macOS the
   engine supports: Apple Silicon, macOS 15. Renderer payloads (`lib/dxmt/`,
-  `lib64/apple_gptk/`) and the Configurator (`share/gamma/Configurator.app/`)
-  may target up to it, never beyond. That covers both their Mach-O `minos` and
+  `lib64/apple_gptk/`) may target up to it, never beyond. That covers both their Mach-O `minos` and
   the Metal shader libraries DXMT embeds in its PE DLLs, whose AIR target triple
   (`air64...-apple-macosx<version>`) comes from the build Mac's OS unless the
   build pins MACOSX_DEPLOYMENT_TARGET.
@@ -20,7 +19,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-RENDERER_PATH_PREFIXES = ("lib/dxmt/", "lib64/apple_gptk/", "share/gamma/Configurator.app/")
+RENDERER_PATH_PREFIXES = ("lib/dxmt/", "lib64/apple_gptk/")
 AIR_TARGET = re.compile(rb"apple-macosx(\d+(?:\.\d+)*)")
 
 
@@ -70,7 +69,7 @@ def main(argv) -> int:
     if violations:
         print(
             f"Refusing to pack: binaries need a newer macOS than allowed "
-            f"(build floor {build_floor_s}; renderers and Configurator up to "
+            f"(build floor {build_floor_s}; renderers up to "
             f"the product floor {product_floor_s}):",
             file=sys.stderr,
         )
@@ -78,7 +77,7 @@ def main(argv) -> int:
             print(f"  {ver}  {rel}  ({what})", file=sys.stderr)
         return 1
     print(
-        f"OK: Mach-O minos <= {build_floor_s}; renderers, Configurator and DXMT "
+        f"OK: Mach-O minos <= {build_floor_s}; renderers and DXMT "
         f"Metal shaders <= {product_floor_s}"
     )
     return 0

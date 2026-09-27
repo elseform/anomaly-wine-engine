@@ -30,7 +30,6 @@ wswine.bundle/
   lib/wine/x86_64-unix/         Wine's unix side, bundled dylibs, cxcompatdb.so
   lib/dxmt/x86_64-windows/      DXMT: d3d10core, d3d11, d3d12, dxgi, nvapi64, nvngx, winemetal
   lib/dxmt/x86_64-unix/         DXMT's host bridge, winemetal.so
-  share/gamma/Configurator.app  settings editor, copied into each wrapper
   share/gamma/redist-manifest.json
   share/gamma/redist-fetch/     gamma_redist.py, which installs the Microsoft runtime files
   engine-manifest.json          identity, build number, base versions, patch list
@@ -73,36 +72,19 @@ A launch from a terminal prints the selected backend:
 gamma-cxcompatdb:info: graphics backend=dxmt machine=x86_64-windows path=…/lib/dxmt
 ```
 
-## Configurator
+## Wrapper UI
 
-`runtime/configurator-gui/` is a small SwiftUI app, built by
-`scripts/build-configurator.sh` during packing (Apple Silicon, macOS 15). The
-setup tool copies it into each wrapper, where it edits the wrapper's `app.env`.
+`gamma-setup-tool` owns the native settings and launcher application, its
+Gamma icon, and the schema and persistence of `app.env`. The setup tool builds
+these resources independently and installs them as the wrapper's main UI.
+This repository owns the runtime environment-variable interface consumed by
+Wine and DXMT, not its editor.
 
-- **Where settings live.** It finds `app.env` through
-  `Contents/Resources/configurator-paths.json` in the wrapper, a legacy
-  `paths.json` inside its own bundle, or
-  `~/Library/Application Support/<App name>/app.env`. If none exists it shows
-  an error and disables editing.
-- **Backend.** It offers DXMT only. `GAMMA_GRAPHICS_BACKEND` is always written
-  as `dxmt`, an install that had selected D3DMetal is switched to DXMT when the
-  Configurator opens, and leftover `D3DM_*` lines are dropped from `app.env`.
-  The engine and launcher still accept `d3dmetal` if `app.env` is edited by
-  hand.
-- **Layout.** Settings a player changes (V-Sync, DLSS support, MetalFX, the
-  Metal HUD, the NaN and FMA rendering fixes) are always visible. Everything
-  else sits under a collapsed Advanced section (launch arguments, display,
-  compatibility, GPU identity, shader cache, debugging), whose header counts
-  the settings that differ from a new install's defaults.
-- **Storage.** `app.env` is the only store. Enabled settings are
-  `export KEY=VALUE`, disabled ones keep their value as `#export KEY=VALUE`,
-  DXMT's sub-options are packed into one `DXMT_CONFIG` line, and unrecognised
-  lines are kept. Hand edits are therefore never lost. Installs from before this
-  design also have a `configurator-state.json`, read once to recover the values
-  of disabled settings.
-- **Keys.** `Sources/Schema.swift` defines every key and its default, and
-  `mainGroups`/`advancedGroups` there decide where each one appears. Defaults
-  must match the seed the setup tool writes.
+Engine packing neither builds nor includes Configurator. The setup tool accepts
+older engine archives containing it but does not use it. Older setup-tool builds
+require that legacy archive layout; updated setup-tool support must ship before
+an engine archive without Configurator is published. See
+[Setup Tool Contract](setup-tool-contract.md).
 
 ## Microsoft runtime files
 

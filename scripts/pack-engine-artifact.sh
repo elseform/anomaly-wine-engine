@@ -246,11 +246,6 @@ python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$REDIST_MANIFEST_SRC
   echo "Refusing to pack an unparsable redist manifest: $REDIST_MANIFEST_SRC" >&2
   exit 1
 }
-CONFIGURATOR_GUI_SRC="$OGOM/runtime/configurator-gui/Sources"
-[[ -d "$CONFIGURATOR_GUI_SRC" ]] || {
-  echo "Missing configurator GUI source at $CONFIGURATOR_GUI_SRC" >&2
-  exit 1
-}
 strings -a "$CXCOMPATDB" | grep -q 'GAMMA_GRAPHICS_BACKEND' || {
   echo "Refusing to pack an incompatible cxcompatdb.so" >&2
   exit 1
@@ -330,14 +325,10 @@ rsync -a --delete --exclude '__pycache__' \
   exit 1
 }
 
-echo "==> Building GAMMA Configurator (SwiftUI)"
-bash "$SCRIPT_DIR/build-configurator.sh" "$STAGING/Configurator.app"
-mkdir -p "$ENGINE_TREE/share/gamma"
-cp -R "$STAGING/Configurator.app" "$ENGINE_TREE/share/gamma/Configurator.app"
-# Sweep again before signing: everything staged after the first sweep (the
-# configurator build above included) can carry Finder metadata of its own.
-# `._*` are macOS AppleDouble sidecars, which cross-volume copies (SMB, exFAT,
-# zip round-trips) leave next to real files.
+# The wrapper UI is supplied by gamma-setup-tool. Remove any legacy copy
+# carried by an older install tree from this disposable archive staging tree.
+rm -rf "$ENGINE_TREE/share/gamma/Configurator.app"
+# Remove Finder metadata introduced while staging.
 find "$ENGINE_TREE" \( -name '.DS_Store' -o -name '._*' \) -delete 2>/dev/null || true
 
 bash "$SCRIPT_DIR/strip-wine-install.sh" "$ENGINE_TREE"
