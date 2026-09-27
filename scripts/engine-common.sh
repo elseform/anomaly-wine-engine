@@ -113,7 +113,7 @@ gamma_engine_version_from_tarball() {
 }
 
 # Compact basename derived mechanically from a version label, e.g.
-# "CX26.3.0-W11-Gamma086" -> "CX26W11-Gamma086". This used to be a separate,
+# "CX26-W11-GAMMA" -> "CX26W11-GAMMA". This used to be a separate,
 # hand-typed field (artifactBasename in engine-release.json) that had to be
 # kept in sync with versionLabel/engine-version.txt by hand and could drift;
 # it is now always computed from the label, so there is exactly one place a
@@ -121,12 +121,11 @@ gamma_engine_version_from_tarball() {
 gamma_engine_artifact_basename_from_label() {
   local label gptk_version="${2:-}"
   label="$(gamma_engine_version_label_trim "${1:-}")"
-  if [[ "$label" =~ ^CX([0-9]+)(\.[0-9]+)*-W([0-9]+)-Gamma([0-9]+)$ ]]; then
+  if [[ "$label" =~ ^CX([0-9]+)(\.[0-9]+)*-W([0-9]+)-GAMMA$ ]]; then
     if [[ -n "$gptk_version" ]]; then
-      printf 'CX%sW%s-%s-Gamma%s\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[3]}" \
-        "$gptk_version" "${BASH_REMATCH[4]}"
+      printf 'CX%sW%s-%s-GAMMA\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[3]}" "$gptk_version"
     else
-      printf 'CX%sW%s-Gamma%s\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[4]}"
+      printf 'CX%sW%s-GAMMA\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[3]}"
     fi
     return 0
   fi
@@ -200,11 +199,11 @@ gamma_engine_artifact_next_basename() {
   printf '%s-%d\n' "$base" "$seq"
 }
 
-# CX/W segments only, no Gamma### — used only for --dxmt-only packs.
+# CX/W segments plus -GAMMA-DXMT — used for DXMT-only packs.
 gamma_engine_dxmt_basename_from_label() {
   local label
   label="$(gamma_engine_version_label_trim "${1:-}")"
-  if [[ "$label" =~ ^CX([0-9]+)(\.[0-9]+)*-W([0-9]+)-Gamma([0-9]+)$ ]]; then
+  if [[ "$label" =~ ^CX([0-9]+)(\.[0-9]+)*-W([0-9]+)-GAMMA$ ]]; then
     printf 'CX%sW%s-GAMMA-DXMT\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[3]}"
     return 0
   fi
