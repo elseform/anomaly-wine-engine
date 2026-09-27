@@ -106,7 +106,8 @@ packed tree), `SIGN_IDENTITY` (a Developer ID instead of ad-hoc signing),
 DXMT is not stored in this repository. Packing downloads it from a release of
 [`elseform/dxmt`](https://github.com/elseform/dxmt), the maintained fork of
 [DXMT](https://github.com/3Shain/dxmt): by default the newest release tagged
-`gamma-YYYY.MM.DD`, or the one named by `--dxmt-tag TAG`.
+`gamma-YYYY.MM.DD` (`gamma-YYYY.MM.DD.N` for a further release on the same day),
+or the one named by `--dxmt-tag TAG`.
 `scripts/fetch-dxmt-release.sh` downloads the release's
 `dxmt-macos-x86_64-<tag>.tar.gz`, `.sha256` and `.manifest.json` into
 `build/cache/dxmt/<tag>/` and verifies them on every pack: the tarball against
@@ -118,7 +119,7 @@ directory to download again. The tag, commit and tarball checksum go into
 `engine-manifest.json` as `dxmt`.
 
 The fork's releases are built to the requirements this engine needs: a
-release build installed with `meson install --strip`, `MACOSX_DEPLOYMENT_TARGET=15.0`
+release build installed with `meson install --strip`, `MACOSX_DEPLOYMENT_TARGET=26.0`
 (checked again by the minOS scan), x86_64 only.
 
 `--dxmt DIR` packs a local, unreleased payload with the same `x86_64-windows/`
