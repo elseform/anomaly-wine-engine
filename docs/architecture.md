@@ -8,7 +8,7 @@ the pieces that ship next to Wine. For producing an archive, see
 ## What this repository produces
 
 One artifact: a relocatable Wine 11.16 / CrossOver 26.3.0 engine, built for
-`x86_64` and run under Rosetta 2 on Apple Silicon Macs with macOS 15 or newer.
+`x86_64` and run under Rosetta 2 on Apple Silicon Macs with macOS 26 or newer.
 
 ```text
 dist/artifacts/CX26-W11-GAMMA-<N>.tar.xz

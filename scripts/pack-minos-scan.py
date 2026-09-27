@@ -6,8 +6,8 @@ Two limits apply:
 - The build floor (MACOSX_DEPLOYMENT_TARGET, default 10.15) is what Wine,
   ntdll.so and the bundled dylibs are compiled for. Every Mach-O outside the
   renderer trees must declare `minos` at or below it.
-- The product floor (GAMMA_PRODUCT_MIN_OS, default 15.0) is the oldest macOS the
-  engine supports: Apple Silicon, macOS 15. The DXMT payload (`lib/dxmt/`)
+- The product floor (GAMMA_PRODUCT_MIN_OS, default 26.0) is the oldest macOS the
+  engine supports: Apple Silicon, macOS 26. The DXMT payload (`lib/dxmt/`)
   may target up to it, never beyond. That covers both their Mach-O `minos` and
   the Metal shader libraries DXMT embeds in its PE DLLs, whose AIR target triple
   (`air64...-apple-macosx<version>`) comes from the build Mac's OS unless the
@@ -64,7 +64,7 @@ def main(argv) -> int:
         return 2
     root = Path(argv[1])
     build_floor_s = argv[2]
-    product_floor_s = argv[3] if len(argv) == 4 else os.environ.get("GAMMA_PRODUCT_MIN_OS", "15.0")
+    product_floor_s = argv[3] if len(argv) == 4 else os.environ.get("GAMMA_PRODUCT_MIN_OS", "26.0")
     violations = scan(root, parse_version(build_floor_s), parse_version(product_floor_s))
     if violations:
         print(

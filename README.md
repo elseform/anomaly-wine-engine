@@ -1,6 +1,6 @@
 # gamma-wine-engine
 
-A Wine 11.16 / CrossOver 26.3.0 engine for running S.T.A.L.K.E.R. Anomaly and G.A.M.M.A. on Apple Silicon Macs with macOS 15 or newer, with [DXMT](https://github.com/3Shain/dxmt) as its Direct3D 11 backend.
+A Wine 11.16 / CrossOver 26.3.0 engine for running S.T.A.L.K.E.R. Anomaly and G.A.M.M.A. on Apple Silicon Macs with macOS 26 or newer, with [DXMT](https://github.com/3Shain/dxmt) as its Direct3D 11 backend.
 
 The engine is packed as `dist/artifacts/CX26-W11-GAMMA-<N>.tar.xz`. [GAMMA Setup Tool](https://github.com/elseform/gamma-setup-tool) turns an archive into a game app with its own Wine prefix and a settings editor.
 

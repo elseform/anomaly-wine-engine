@@ -105,7 +105,7 @@ SHA256: $(cut -d' ' -f1 "$SHA256_PATH")
 
 DXMT: [${DXMT_TAG}](https://github.com/elseform/dxmt/releases/tag/${DXMT_TAG})
 
-Requires an Apple Silicon Mac running macOS 15 or newer.
+Requires an Apple Silicon Mac running macOS 26 or newer.
 Built per docs/building.md; see config/engine-release.json for the full patch list."
 
 echo "Tag:      $TAG"

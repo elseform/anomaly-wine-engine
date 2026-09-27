@@ -46,7 +46,7 @@ it.
 <App>.app/Contents/MacOS/winetricks                  prefix-aware winetricks
 <App>.app/Contents/MacOS/winecfg                     prefix-aware winecfg
 <App>.app/Contents/Resources/engine/                 the extracted engine
-<App>.app/Contents/Resources/Gamma.icns              macOS 15 icon fallback
+<App>.app/Contents/Resources/Gamma.icns              icon fallback
 <App>.app/Contents/Resources/Assets.car              compiled Gamma icon appearances
 <App>.app/Contents/Resources/configurator-paths.json where the native launcher finds app.env
 
@@ -56,7 +56,7 @@ it.
 
 Settings and the prefix live outside the app so it can be replaced and
 re-signed without losing them. The wrapper declares
-`LSMinimumSystemVersion` 15.0.
+`LSMinimumSystemVersion` 26.0.
 
 ## Settings (`app.env`)
 

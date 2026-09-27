@@ -7,16 +7,25 @@ it, see [setup-tool-contract.md](setup-tool-contract.md).
 
 ## Supported target
 
-The engine runs on **Apple Silicon Macs with macOS 15 or newer**. Wine itself is
+The engine runs on **Apple Silicon Macs with macOS 26 or newer**. Wine itself is
 built for `x86_64` and runs under Rosetta 2. Two floors apply:
 
 | Floor | Value | Applies to |
 |---|---|---|
 | Build floor | `MACOSX_DEPLOYMENT_TARGET`, default `10.15` | Wine, `ntdll.so`, `cxcompatdb.so`, the bundled dylibs |
-| Product floor | `GAMMA_PRODUCT_MIN_OS`, default `15.0` | The DXMT payload (including the Metal shaders embedded in its DLLs) |
+| Product floor | `GAMMA_PRODUCT_MIN_OS`, default `26.0` | The DXMT payload (including the Metal shaders embedded in its DLLs), and the C library functions Wine's configure enables |
 
 `scripts/pack-minos-scan.py` refuses to pack anything that needs a newer macOS
 than its floor.
+
+Wine's configure enables every function the build Mac's SDK exports. One that
+is newer than the product floor is weak-linked and NULL on an older macOS, so
+Wine crashes when it calls it (the macOS 27 SDK's `pipe2()` is one).
+`build-wine.sh` pins those off (`CONFIGURE_CACHE_PINS`, e.g.
+`ac_cv_func_pipe2=no`), and after configure
+`scripts/check-sdk-availability.py` compiles a reference to every C library
+function `config.h` enables against the product floor and stops the build on
+any it finds; pin that function and run `build-wine.sh` again.
 
 ## Prerequisites
 
