@@ -10,7 +10,7 @@ The engine is packed as `dist/artifacts/CX26W11-GAMMA-DXMT-<N>.tar.xz`. [GAMMA S
 |---|---|
 | [Getting Started](docs/getting-started.md) | Creating the app, changing settings, troubleshooting |
 | [Building](docs/building.md) | Prerequisites, the build and packing pipeline, versioning |
-| [Architecture](docs/architecture.md) | Archive layout, backend selection, Configurator, Microsoft runtime files |
+| [Architecture](docs/architecture.md) | Archive layout, backend selection, wrapper ownership, Microsoft runtime files |
 | [Setup Tool Contract](docs/setup-tool-contract.md) | What `gamma-setup-tool` relies on in an archive, and what it builds |
 | [Graphics Backends](docs/renderers.md) | DXMT and the optional, user-supplied D3DMetal |
 | [Patch Set](patches/README.md) | What each Wine patch does, and the one deliberately left out |

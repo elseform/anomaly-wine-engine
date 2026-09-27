@@ -33,7 +33,7 @@ already have can be passed with `--redist-installer-dir`. The script's
 `--runtime-mode verbs` installs through winetricks instead, which covers a
 slightly different set (no `d3dx10_43`, no `vcruntime140_threads`).
 
-Launch the app from Finder, or from a terminal to see log output:
+Open the app from Finder, adjust settings if needed, and press **Launch**. The native UI quits after handing off. The terminal helper launches directly:
 
 ```bash
 open ~/Applications/<App>.app
@@ -44,7 +44,6 @@ open ~/Applications/<App>.app
 
 ```text
 ~/Applications/<App>.app                              the app, with the engine inside
-~/Applications/<App> Configurator                     alias to the app's settings editor
 ~/Library/Application Support/<App>/prefix            Wine prefix
 ~/Library/Application Support/<App>/app.env           settings
 ```
@@ -60,11 +59,11 @@ without losing saves or settings. The app also contains `winetricks` and
 
 ## 3. Changing settings
 
-Open the `<App> Configurator` alias. It edits
+Open the wrapper app. Its settings interface edits
 `~/Library/Application Support/<App>/app.env`, which the launcher sources on
 every start. Changes apply on the next launch; nothing is rebuilt.
 
-`app.env` is plain shell and can also be edited by hand. The Configurator reads
+`app.env` is plain shell and can also be edited by hand. The wrapper reads
 hand edits back the next time it opens. A setting that is switched off keeps its
 value as a commented line, e.g. `#export DXMT_LOG_LEVEL=debug`.
 
@@ -72,7 +71,7 @@ Some settings:
 
 | Key | Effect |
 |---|---|
-| `DEFAULT_GAME_ARGS` | Arguments for Finder and Dock launches; arguments given on the command line win |
+| `DEFAULT_GAME_ARGS` | Default game arguments; disabled for Mod Organizer; explicit CLI arguments win |
 | `EXE_PATH`, `EXE_RUN_DIR` | The Windows path of the game executable and the macOS directory it runs in |
 | `DXMT_CONFIG` | DXMT options, e.g. `d3d11.displaySync=true;d3d11.preferredMaxFrameRate=120;` |
 | `DXMT_ENABLE_NVEXT` | `1` copies DXMT's `nvngx.dll` and `nvapi64.dll` into the prefix so DLSS can be detected; `0` restores what was there |
@@ -105,5 +104,5 @@ does not apply; see [patches/README.md](../patches/README.md).
 then create the app again. Do not delete only `app.env`: it also holds the game
 path (`EXE_PATH`, `EXE_RUN_DIR`), which only setup writes.
 
-**Uninstall.** Delete the app, its Configurator alias, and
+**Uninstall.** Delete the app and
 `~/Library/Application Support/<App>/`.

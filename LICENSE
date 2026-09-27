@@ -24,8 +24,8 @@ SOFTWARE.
 
 This license covers this repository's own original code: build/patch/package
 scripts (`scripts/`), the `cxcompatdb` backend switcher
-(`runtime/cxcompatdb/`), the Swift configurator
-(`runtime/configurator-gui/`), and the patches under `patches/`.
+(`runtime/cxcompatdb/`), the redist fetcher (`runtime/redist-fetch/`), and
+the patches under `patches/`.
 
 It does not cover, and does not grant any rights to, third-party components
 this repo builds against or optionally stages:

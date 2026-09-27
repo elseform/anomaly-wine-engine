@@ -24,7 +24,6 @@ it.
 | `lib64/apple_gptk/wine/` | The D3DMetal backend (only for `--backend d3dmetal`) |
 | `share/gamma/redist-manifest.json` | The Microsoft runtime files to install (`--runtime-mode redist`) |
 | `share/gamma/redist-fetch/gamma_redist.py` | Imported by the setup script; must provide `load_manifest(path)`, `install(manifest, system32, cache_dir, search_dirs, log)` returning the installed DLL names, and `RedistError` |
-| `share/gamma/Configurator.app` | Copied into the wrapper |
 
 ### Optional
 
@@ -45,12 +44,14 @@ it.
 ## Wrapper layout
 
 ```text
-<App>.app/Contents/MacOS/launcher                    sources app.env, runs the game
+<App>.app/Contents/MacOS/GAMMALauncher               native settings and launch UI
+<App>.app/Contents/MacOS/launcher                    sources app.env, runs the target
 <App>.app/Contents/MacOS/winetricks                  prefix-aware winetricks
 <App>.app/Contents/MacOS/winecfg                     prefix-aware winecfg
 <App>.app/Contents/Resources/engine/                 the extracted engine
-<App>.app/Contents/Resources/Configurator.app        settings editor
-<App>.app/Contents/Resources/configurator-paths.json where the Configurator finds app.env
+<App>.app/Contents/Resources/Gamma.icns              macOS 15 icon fallback
+<App>.app/Contents/Resources/Assets.car              compiled Gamma icon appearances
+<App>.app/Contents/Resources/configurator-paths.json where the native launcher finds app.env
 
 ~/Library/Application Support/<App>/prefix           Wine prefix
 ~/Library/Application Support/<App>/app.env          settings, sourced by the launcher
@@ -62,8 +63,8 @@ re-signed without losing them. The wrapper declares
 
 ## Settings (`app.env`)
 
-`interactive_setup.py` writes the first `app.env`; after that the Configurator
-owns it. The Configurator's schema (`runtime/configurator-gui/Sources/Schema.swift`)
+`interactive_setup.py` writes the first `app.env`; after that the native wrapper UI
+owns it. Its schema (`sources/GAMMALauncher/Schema.swift` in gamma-setup-tool)
 and the setup script's seed must agree on key names and defaults. Current seed
 for a DXMT wrapper:
 
@@ -80,27 +81,41 @@ export WINEDEBUG="-all"
 export DEFAULT_GAME_ARGS=""
 export DXMT_METALFX_SPATIAL_SWAPCHAIN=0
 export DXMT_ENABLE_NVEXT=1
-export DXMT_CONFIG="d3d11.sampleNaNToZero=true;"
+export DXMT_CONFIG="d3d11.displaySync=true;d3d11.sampleNaNToZero=true;"
 ```
 
-The Configurator keeps a disabled setting's value as a commented line
+Shader IR release and blit encoder merging are omitted from the seed, using
+DXMT's defaults of on and off, respectively. Both are available under the
+wrapper's Advanced settings.
+
+The wrapper UI keeps a disabled setting's value as a commented line
 (`#export KEY=VALUE`), so `app.env` alone carries every setting.
 
-## Configurator paths file
+## Wrapper UI resources and paths
 
-The setup script writes `{"configFile", "stateFile", "dxmtOnly"}` to
-`Contents/Resources/configurator-paths.json` in the wrapper, and the same
-content to `Configurator.app/Contents/Resources/paths.json` for older
-Configurator builds. The Configurator also works without either, from
-`~/Library/Application Support/<App name>/app.env`. `stateFile` is only read to
-migrate installs from before `app.env` became the Configurator's only store.
-`dxmtOnly` is still accepted but no longer read: the Configurator offers only
-DXMT.
+The setup tool supplies the prebuilt native UI and icon through the script's
+required `--launcher-resources` directory. It contains executable
+`GAMMALauncher`, `Gamma.icns`, `Assets.car`, and `icon-info.plist` naming `Gamma`
+for both `CFBundleIconFile` and `CFBundleIconName`. These resources are validated
+before wrapper or prefix changes. `CFBundleExecutable` is `GAMMALauncher`;
+`Contents/MacOS/launcher` remains the direct Wine helper. No Finder alias or
+separate Configurator is created; the old alias-suppression flag is a no-op.
+
+`Contents/Resources/configurator-paths.json` contains `configFile`, `stateFile`,
+and `winePrefix`. `stateFile` is read only for legacy disabled-setting recovery.
+The executable picker writes `EXE_PATH` and `EXE_RUN_DIR` together to `app.env`;
+paths use existing G: or Z: mappings. Game argument defaults are retained but
+suppressed for `ModOrganizer.exe`; explicit CLI arguments still pass through.
+
+The UI and icon are no longer required in engine archives. Legacy
+`share/gamma/Configurator.app` copies are ignored by new setup-tool builds.
+Older setup-tool builds require the former layout, so distribute new setup-tool
+support before publishing engines without Configurator. This is a packaging
+compatibility boundary, not an engine-version gate.
 
 ## Versioning
 
 The archive carries `engine-manifest.json` with `engineId`, `versionLabel`,
 `buildNumber`, `base`, `minimumMacOS` and `minimumSetupToolVersion`; the
 `.manifest.json` sidecar adds `artifact` and `artifactSHA256`. The setup tool
-does not check any of these yet, so compatibility is kept by not removing or
-renaming anything in this document.
+does not check any of these yet, so the setup-tool release must be coordinated with incompatible archive layout changes described above.
