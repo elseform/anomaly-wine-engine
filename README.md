@@ -19,11 +19,15 @@ The engine is packed as `dist/artifacts/CX26-W11-GAMMA-<N>.tar.xz`. [GAMMA Setup
 
 ## Features
 
-- **Backend switcher (`cxcompatdb.so`)** — activates DXMT in every process, without modifying DLLs in the prefix, and terminates the process rather than falling back to WineD3D when the backend is incomplete.
-- **Msync (`WINEMSYNC=1`)** — Mach-semaphore synchronization in shared memory instead of wineserver round trips.
-- **Stability patches** — wineserver socket and async fixes, `ntdll` frame-walk guards, and a hardware memory barrier in `NtFlushProcessWriteBuffers` that avoids stalls under Rosetta 2. The CrossOver message-wait handoff patch that freezes the game on UI clicks is deliberately not applied.
-- **High-precision mouse input** — backports of upstream Wine merge requests [!11799](https://gitlab.winehq.org/wine/wine/-/merge_requests/11799) and [!11880](https://gitlab.winehq.org/wine/wine/-/merge_requests/11880). On macOS 14 and newer, Raw Input mouse movement, which Wine's DirectInput mouse is built on, comes unaccelerated from `GCMouse` at the mouse's full polling rate instead of from coalesced `NSEvent` deltas. The hidden cursor is a transparent cursor instead of `[NSCursor hide]`, so moving the mouse no longer pulls the frame rate down to the display refresh rate. Turn GCMouse off with `UseGCMouse=N` under `HKCU\Software\Wine\Mac Driver`.
-- **Relocatable** — bundled libraries are linked `@loader_path`-relative and every Mach-O is signed.
+The engine is Wine 11.16 with CrossOver 26.3.0's changes ported onto it and the patches below on top. [patches/README.md](patches/README.md) has the full list.
+
+- **High-precision mouse input.** Backports of upstream Wine merge requests [!11799](https://gitlab.winehq.org/wine/wine/-/merge_requests/11799) and [!11880](https://gitlab.winehq.org/wine/wine/-/merge_requests/11880). On macOS 14 and newer, Raw Input mouse movement, which Wine's DirectInput mouse is built on, comes unaccelerated from `GCMouse` at the mouse's full polling rate instead of from coalesced `NSEvent` deltas. The hidden cursor is a transparent cursor instead of `[NSCursor hide]`, so moving the mouse no longer pulls the frame rate down to the display refresh rate. Turn GCMouse off with `UseGCMouse=N` under `HKCU\Software\Wine\Mac Driver`.
+- **No Rosetta 2 stalls in `NtFlushProcessWriteBuffers`.** The call uses a hardware memory barrier instead of walking every thread's registers, which stalled threads under Rosetta 2.
+- **A wineserver that survives busy networking.** Fixes for socket re-selection and rebinding races, stale poll slots, and null file descriptors on async, pipe and completion-port paths. Several of these used to abort wineserver, which takes every process in the prefix down with it.
+- **Stack walking that does not crash.** `ntdll` guards against null handler data, null functions and page faults while unwinding or walking frames, so an exception in a game or in Wine's own code no longer becomes a second crash inside the unwinder.
+- **Web views inside launchers.** Metal swapchains work on child windows whose top-level window belongs to another process, which is how Chromium-based windows, such as Mod Organizer 2's embedded browser, draw.
+- **Correct window resizing.** AppKit's and Wine's backing surfaces are synchronised when a window is created or resized.
+- **One CrossOver patch left out on purpose.** CrossOver's message-wait handoff patch, which freezes the game on UI clicks, is not applied.
 
 ## Quick build
 
