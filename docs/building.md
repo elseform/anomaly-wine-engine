@@ -91,7 +91,8 @@ Run the steps in this order.
    `engine-manifest.json`, compress with `xz -6`, re-extract and verify every
    signature, then write the `.sha256` and `.manifest.json` sidecars.
 3. **Publish** — `scripts/publish-release.sh --dry-run`, then without
-   `--dry-run`. It uploads an existing archive and its sidecars as a GitHub
+   `--dry-run`. `--notes-file PATH` puts your release notes above the generated
+   block (archive, checksum, DXMT release). It uploads an existing archive and its sidecars as a GitHub
    release tagged `engine-<engineId>-<N>`; it builds nothing, and refuses an
    archive whose DXMT did not come from an `elseform/dxmt` release.
 

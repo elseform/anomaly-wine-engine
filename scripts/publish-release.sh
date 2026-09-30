@@ -17,13 +17,17 @@ GH_REPO="${GH_REPO:-elseform/gamma-wine-engine}"
 
 DRY_RUN=0
 ARTIFACT_PATH=""
+NOTES_FILE=""
 
 usage() {
   cat << 'EOF'
-Usage: publish-release.sh [--artifact PATH] [--dry-run]
+Usage: publish-release.sh [--artifact PATH] [--notes-file PATH] [--dry-run]
 
   --artifact PATH   Engine archive to publish (default: newest
                      dist/artifacts/*.tar.zst or *.tar.xz).
+  --notes-file PATH Release notes (Markdown) to put at the top of the release
+                     description, above the generated block with the archive
+                     name, checksum, DXMT release and requirements.
   --dry-run         Print the planned `gh release create` command and exit
                      without publishing anything.
 EOF
@@ -33,6 +37,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --artifact)
       ARTIFACT_PATH="${2:-}"
+      shift 2
+      ;;
+    --notes-file)
+      NOTES_FILE="${2:-}"
       shift 2
       ;;
     --dry-run)
@@ -99,7 +107,14 @@ BUILD_NUMBER="$(printf '%s\n' "$ARTIFACT_BASENAME" | sed -E 's/\.tar\.(zst|xz)$/
 TAG="engine-${ENGINE_ID}-${BUILD_NUMBER}"
 TITLE="${VERSION_LABEL}-${BUILD_NUMBER}"
 
-NOTES="Engine: ${VERSION_LABEL}
+if [[ -n "$NOTES_FILE" ]]; then
+  [[ -f "$NOTES_FILE" ]] || {
+    echo "Error: release notes file not found: $NOTES_FILE" >&2
+    exit 1
+  }
+fi
+
+TECHNICAL_NOTES="Engine: ${VERSION_LABEL}
 Artifact: ${ARTIFACT_BASENAME}
 SHA256: $(cut -d' ' -f1 "$SHA256_PATH")
 
@@ -108,12 +123,21 @@ DXMT: [${DXMT_TAG}](https://github.com/elseform/dxmt/releases/tag/${DXMT_TAG})
 Requires an Apple Silicon Mac running macOS 26 or newer.
 Built per docs/building.md; see config/engine-release.json for the full patch list."
 
+if [[ -n "$NOTES_FILE" ]]; then
+  NOTES="$(cat "$NOTES_FILE")
+
+$TECHNICAL_NOTES"
+else
+  NOTES="$TECHNICAL_NOTES"
+fi
+
 echo "Tag:      $TAG"
 echo "Title:    $TITLE"
 echo "Repo:     $GH_REPO"
 echo "Artifact: $ARTIFACT_PATH"
 echo "Manifest: $MANIFEST_PATH"
 echo "Checksum: $SHA256_PATH"
+echo "Notes:    ${NOTES_FILE:-(generated block only)}"
 echo
 
 CMD=(gh release create "$TAG"
