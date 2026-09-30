@@ -17,5 +17,5 @@ The engine archive is consumed by `anomaly-setup-tool`, whose
 `interactive_setup.py` (lives there, not in this repo) builds a wrapper `.app`
 around it. DXMT is not stored here: packing downloads a verified
 `elseform/dxmt` release (`scripts/fetch-dxmt-release.sh`); releases are built
-per `gamma-project`'s `docs/engine/dxmt-build.md` from the `dxmt` source
+per `gamma-project`'s `docs/dxmt/dxmt-build.md` from the `dxmt` source
 checkout resolved via `project-paths-get.py --field dxmt_root`.
