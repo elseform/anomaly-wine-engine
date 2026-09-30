@@ -10,7 +10,7 @@ crossover-26.3.0-wine-11.16-port.patch
   Wine 11.16. CodeWeavers publishes that source under the same license as Wine
   (LGPL 2.1 or later). Copyright notices in the patched files are preserved.
 
-gamma-faudio-26.08.patch
+anomaly-faudio-26.08.patch
   Updates the FAudio copy in libs/faudio. FAudio is distributed under the zlib
   license; see libs/faudio/LICENSE in the Wine source tree.
 

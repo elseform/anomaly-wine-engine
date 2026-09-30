@@ -50,7 +50,7 @@ def declaring_headers(include: Path, names: set) -> dict:
 def check(name: str, headers: list, floor: str):
     """Return (introduced-version or None, checked?)."""
     for header in headers:
-        source = f"#include <sys/types.h>\n#include <{header}>\nvoid *gamma_ref = (void *)&{name};\n"
+        source = f"#include <sys/types.h>\n#include <{header}>\nvoid *anomaly_ref = (void *)&{name};\n"
         result = subprocess.run(
             ["xcrun", "clang", "-arch", "x86_64", "-fsyntax-only", f"-mmacosx-version-min={floor}",
              "-Werror=unguarded-availability", "-x", "c", "-"],

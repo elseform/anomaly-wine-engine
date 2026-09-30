@@ -16,9 +16,9 @@ Release cleanup:
   - DWARF debug sections from PE modules (runtime data is preserved)
 
 Environment:
-  GAMMA_SKIP_ENGINE_STRIP=1   no-op (for debugging)
-  GAMMA_KEEP_DEBUG_SYMBOLS=1  remove development files but retain DWARF
-  GAMMA_LLVM_STRIP=/path      explicitly select llvm-strip
+  ANOMALY_SKIP_ENGINE_STRIP=1   no-op (for debugging)
+  ANOMALY_KEEP_DEBUG_SYMBOLS=1  remove development files but retain DWARF
+  ANOMALY_LLVM_STRIP=/path      explicitly select llvm-strip
 
 Does not modify sources/ or the caller's WINE_INSTALL unless WINE_ROOT points there.
 EOF
@@ -61,8 +61,8 @@ WINE_ROOT="$(cd "$WINE_ROOT" && pwd)"
   exit 1
 }
 
-if [[ "${GAMMA_SKIP_ENGINE_STRIP:-}" == "1" ]]; then
-  echo "GAMMA_SKIP_ENGINE_STRIP=1 — skipping strip"
+if [[ "${ANOMALY_SKIP_ENGINE_STRIP:-}" == "1" ]]; then
+  echo "ANOMALY_SKIP_ENGINE_STRIP=1 — skipping strip"
   exit 0
 fi
 
@@ -130,8 +130,8 @@ done < <(find "$WINE_ROOT/lib" -name '*.a' -print0 2>/dev/null)
 # script runs, so changing the file here cannot invalidate the final signature.
 find_llvm_tool() {
   local name="$1" candidate strip_dir
-  if [[ -n "${GAMMA_LLVM_STRIP:-}" ]]; then
-    strip_dir="$(dirname "$GAMMA_LLVM_STRIP")"
+  if [[ -n "${ANOMALY_LLVM_STRIP:-}" ]]; then
+    strip_dir="$(dirname "$ANOMALY_LLVM_STRIP")"
     candidate="$strip_dir/$name"
     [[ -x "$candidate" ]] && { printf '%s\n' "$candidate"; return 0; }
   fi
@@ -143,7 +143,7 @@ find_llvm_tool() {
   return 1
 }
 
-if [[ "${GAMMA_KEEP_DEBUG_SYMBOLS:-}" != "1" ]]; then
+if [[ "${ANOMALY_KEEP_DEBUG_SYMBOLS:-}" != "1" ]]; then
   llvm_strip="$(find_llvm_tool llvm-strip 2>/dev/null || true)"
   llvm_objdump="$(find_llvm_tool llvm-objdump 2>/dev/null || true)"
   if [[ -n "$llvm_strip" && -n "$llvm_objdump" ]]; then

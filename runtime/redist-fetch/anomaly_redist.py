@@ -1,8 +1,8 @@
-"""Obtain the Microsoft redistributable DLLs the GAMMA Wine engine needs.
+"""Obtain the Microsoft redistributable DLLs the Anomaly Wine engine needs.
 
 The engine used to ship these DLLs inside its own archive. It no longer does:
 they are Microsoft's to distribute, not ours. Instead the engine declares what
-it needs in `share/gamma/redist-manifest.json` and this module fetches exactly
+it needs in `share/anomaly/redist-manifest.json` and this module fetches exactly
 that set from Microsoft's own public installers at wrapper-setup time.
 
 Two properties make this safe to do unattended:
@@ -244,7 +244,7 @@ def install(
             raise RedistError(f"manifest references unknown installer {installer_name!r}")
         installer = resolve_installer(installer_name, spec, cache_dir, search_dirs, log)
 
-        with tempfile.TemporaryDirectory(prefix="gamma-redist-") as tmp:
+        with tempfile.TemporaryDirectory(prefix="anomaly-redist-") as tmp:
             work = Path(tmp)
             kind = spec.get("container", "cab")
             if kind == "raw":

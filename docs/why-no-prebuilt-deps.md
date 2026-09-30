@@ -5,7 +5,7 @@
 Homebrew's prebuilt binaries ("bottles") are compiled with a hardcoded
 install path baked into them: `/usr/local` on Intel, `/opt/homebrew` on
 Apple Silicon. Our build uses neither — it installs into
-`gamma-wine-engine/.brew-x86/`, a project-local x86_64 prefix, on purpose.
+`anomaly-wine-engine/.brew-x86/`, a project-local x86_64 prefix, on purpose.
 A bottle whose libraries/binaries expect `/usr/local` won't run correctly
 from a different path, so Homebrew refuses to pour the bottle and falls
 back to compiling from source instead. That's the
@@ -32,7 +32,7 @@ The Wine binary and the runtime libraries copied into its
 `lib/wine/x86_64-unix/` tree need to (a) be x86_64 Mach-O (Wine runs
 under Rosetta on Apple Silicon) and (b) target an old-enough macOS
 deployment version (`MACOSX_DEPLOYMENT_TARGET`, default 10.15) so the
-shipped engine works on the range of macOS versions gamma-setup-tool
+shipped engine works on the range of macOS versions anomaly-setup-tool
 supports. Homebrew's official x86_64 bottles are built for whatever
 macOS/deployment-target Homebrew's CI currently targets, which is
 typically much newer — using them as-is would still require a fixup

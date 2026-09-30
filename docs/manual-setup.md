@@ -1,6 +1,6 @@
 # Manual Prefix Setup & Launch
 
-`interactive_setup.py` (lives in `gamma-setup-tool`, see [README.md](../README.md)) automates everything below. This doc exists
+`interactive_setup.py` (lives in `anomaly-setup-tool`, see [README.md](../README.md)) automates everything below. This doc exists
 for debugging the prefix by hand, or understanding what the script actually
 does under the hood — it isn't a supported alternative entry point.
 
@@ -10,7 +10,7 @@ does under the hood — it isn't a supported alternative entry point.
 
 ```bash
 export WINE_DIR="$PWD/install/wine-cx26-x86_64"
-export WINEPREFIX="$HOME/Library/Application Support/GAMMA/prefix"
+export WINEPREFIX="$HOME/Library/Application Support/Anomaly/prefix"
 
 # Clean prior server instance
 arch -x86_64 "$WINE_DIR/bin/wineserver" -k 2>/dev/null || true
@@ -73,7 +73,7 @@ WINEPREFIX="$WINEPREFIX" arch -x86_64 "$WINE_DIR/bin/wineserver" -w
 To run the game with full performance and DirectInput mouse capture:
 
 ```bash
-export WINEPREFIX="$HOME/Library/Application Support/GAMMA/prefix"
+export WINEPREFIX="$HOME/Library/Application Support/Anomaly/prefix"
 export WINEMSYNC=1
 export ROSETTA_ADVERTISE_AVX=1
 export MTL_HUD_ENABLED=1

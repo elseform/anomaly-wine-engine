@@ -4,7 +4,7 @@
 The manifest is what lets the engine stop shipping Microsoft's redistributable
 DLLs: it records, for every DLL the engine needs, which public installer
 carries it, where inside that installer it lives, and what its SHA-256 is.
-`runtime/redist-fetch/gamma_redist.py` consumes it at wrapper-setup time.
+`runtime/redist-fetch/anomaly_redist.py` consumes it at wrapper-setup time.
 
 This script discovers the member paths rather than trusting a hand-written
 list: it walks each installer's cabinets, matches members by filename, and
@@ -34,7 +34,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "runtime/redist-fetch"))
 
-import gamma_redist  # noqa: E402
+import anomaly_redist  # noqa: E402
 
 MANIFEST_PATH = REPO_ROOT / "config/redist-manifest.json"
 REFERENCE_DIR = REPO_ROOT / "runtime/redist"
@@ -116,11 +116,11 @@ VC_SUFFIXES = (".dll_amd64", ".dll_system_amd64")
 
 def _listing(archive: Path) -> list[str]:
     result = subprocess.run(
-        [gamma_redist.BSDTAR, "-tf", str(archive)],
+        [anomaly_redist.BSDTAR, "-tf", str(archive)],
         capture_output=True, text=True,
     )
     if result.returncode != 0:
-        raise gamma_redist.RedistError(f"cannot list {archive}: {result.stderr.strip()}")
+        raise anomaly_redist.RedistError(f"cannot list {archive}: {result.stderr.strip()}")
     return [line for line in result.stdout.splitlines() if line]
 
 
@@ -130,10 +130,10 @@ def discover_vc(container: Path, wanted: list[str], work: Path) -> dict[str, lis
     for cab_name in _listing(container):
         if not cab_name.startswith("a"):
             continue
-        cab = gamma_redist._extract_member(container, cab_name, work / cab_name)
+        cab = anomaly_redist._extract_member(container, cab_name, work / cab_name)
         try:
             members = _listing(cab)
-        except gamma_redist.RedistError:
+        except anomaly_redist.RedistError:
             continue
         for member in members:
             for suffix in VC_SUFFIXES:
@@ -160,12 +160,12 @@ def discover_directx(container: Path, wanted: list[str]) -> dict[str, list[str]]
 
 
 def build(installer_dirs: list[Path]) -> dict:
-    cache_dir = Path(tempfile.gettempdir()) / "gamma-redist-installers"
+    cache_dir = Path(tempfile.gettempdir()) / "anomaly-redist-installers"
     files: list[dict] = []
 
     for name, wanted in WANTED.items():
         spec = INSTALLERS[name]
-        installer = gamma_redist.resolve_installer(
+        installer = anomaly_redist.resolve_installer(
             name, spec, cache_dir, installer_dirs, log=lambda m: print(f"  {m}")
         )
         print(f"==> {name}: {installer}")
@@ -176,14 +176,14 @@ def build(installer_dirs: list[Path]) -> dict:
                 "target": target,
                 "installer": name,
                 "memberPath": [],
-                "sha256": gamma_redist._sha256(installer),
+                "sha256": anomaly_redist._sha256(installer),
                 "size": installer.stat().st_size,
             })
             continue
 
-        with tempfile.TemporaryDirectory(prefix="gamma-redist-gen-") as tmp:
+        with tempfile.TemporaryDirectory(prefix="anomaly-redist-gen-") as tmp:
             work = Path(tmp)
-            container = gamma_redist._container_for(installer, spec["container"], work)
+            container = anomaly_redist._container_for(installer, spec["container"], work)
             if spec["container"] == "wix-burn":
                 mapping = discover_vc(container, wanted, work / "cabs")
             else:
@@ -197,14 +197,14 @@ def build(installer_dirs: list[Path]) -> dict:
 
             for target in wanted:
                 member_path = mapping[target]
-                extracted = gamma_redist._extract_path(
+                extracted = anomaly_redist._extract_path(
                     container, member_path, work / f"x-{target}"
                 )
                 files.append({
                     "target": target,
                     "installer": name,
                     "memberPath": member_path,
-                    "sha256": gamma_redist._sha256(extracted),
+                    "sha256": anomaly_redist._sha256(extracted),
                     "size": extracted.stat().st_size,
                 })
 
@@ -212,7 +212,7 @@ def build(installer_dirs: list[Path]) -> dict:
     return {
         "schemaVersion": 1,
         "description": (
-            "Microsoft redistributable DLLs the GAMMA Wine engine needs in its "
+            "Microsoft redistributable DLLs the Anomaly Wine engine needs in its "
             "prefix, and the public installers they are extracted from. "
             "Regenerate with scripts/write-redist-manifest.py."
         ),
@@ -227,7 +227,7 @@ def cross_check(files: list[dict]) -> int:
         print(f"note: no local reference set at {REFERENCE_DIR}, skipping cross-check")
         return 0
     reference = {
-        path.name: gamma_redist._sha256(path)
+        path.name: anomaly_redist._sha256(path)
         for path in sorted(REFERENCE_DIR.glob("*/x86_64-windows/*.dll"))
         if not path.name.startswith("._")
     }

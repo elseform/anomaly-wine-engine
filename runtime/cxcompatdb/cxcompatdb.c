@@ -1,9 +1,9 @@
 /*
- * Minimal graphics-backend selector for GAMMA's CrossOver Wine build.
+ * Minimal graphics-backend selector for Anomaly's CrossOver Wine build.
  *
  * CrossOver's ntdll.so loads this library at process start and exports the
  * two loader primitives used below. DXMT is the only backend;
- * GAMMA_GRAPHICS_BACKEND may be unset or "dxmt". There is no WineD3D
+ * ANOMALY_GRAPHICS_BACKEND may be unset or "dxmt". There is no WineD3D
  * fallback: if the DXMT payload does not validate for the running process
  * (wrong architecture, missing/corrupt module, missing host bridge), this
  * constructor terminates the process instead of silently degrading to
@@ -41,7 +41,7 @@ static const char *const graphics_modules[] =
 static void log_message( const char *level, const char *format, ... )
 {
     va_list args;
-    fprintf( stderr, "gamma-cxcompatdb:%s: ", level );
+    fprintf( stderr, "anomaly-cxcompatdb:%s: ", level );
     va_start( args, format );
     vfprintf( stderr, format, args );
     va_end( args );
@@ -207,11 +207,11 @@ static int activate_backend(void)
 __attribute__((constructor))
 static void compatdb_init(void)
 {
-    const char *backend = getenv( "GAMMA_GRAPHICS_BACKEND" );
+    const char *backend = getenv( "ANOMALY_GRAPHICS_BACKEND" );
 
     if (backend && *backend && strcmp( backend, "dxmt" ))
     {
-        log_message( "error", "invalid GAMMA_GRAPHICS_BACKEND=%s (only dxmt is supported)", backend );
+        log_message( "error", "invalid ANOMALY_GRAPHICS_BACKEND=%s (only dxmt is supported)", backend );
         _exit( 1 );
     }
     if (!activate_backend())

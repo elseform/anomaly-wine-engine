@@ -8,16 +8,16 @@ source "$SCRIPT_DIR/env-x86_64.sh"
 WINE_SRC="${WINE_SRC:-$ROOT/build/wine-11.16/wine}"
 WINE_INSTALL="${WINE_INSTALL:-$ROOT/install/wine-cx26-x86_64}"
 SOURCE="$ROOT/runtime/cxcompatdb/cxcompatdb.c"
-OUTPUT="${GAMMA_CXCOMPATDB_OUTPUT:-$WINE_INSTALL/lib/wine/x86_64-unix/cxcompatdb.so}"
+OUTPUT="${ANOMALY_CXCOMPATDB_OUTPUT:-$WINE_INSTALL/lib/wine/x86_64-unix/cxcompatdb.so}"
 TARGET="${MACOSX_DEPLOYMENT_TARGET:-10.15}"
-CONFIG_DIR="${GAMMA_CXCOMPATDB_CONFIG_DIR:-$WINE_SRC/build64/include}"
+CONFIG_DIR="${ANOMALY_CXCOMPATDB_CONFIG_DIR:-$WINE_SRC/build64/include}"
 
 # OEM source snapshots are distributed without a configured build64 tree. The
 # standalone plugin only needs Wine's public headers and the config include
 # guard, so the OEM repack flow supplies a config.h copied from config.h.in.
 [[ -f "$CONFIG_DIR/config.h" ]] || {
   echo "Missing cxcompatdb config header: $CONFIG_DIR/config.h" >&2
-  echo "Set GAMMA_CXCOMPATDB_CONFIG_DIR to a configured Wine include directory." >&2
+  echo "Set ANOMALY_CXCOMPATDB_CONFIG_DIR to a configured Wine include directory." >&2
   exit 1
 }
 
@@ -33,9 +33,9 @@ clang_args=(
   -mmacosx-version-min="$TARGET"
   -DWINE_UNIX_LIB
 )
-if [[ -n "${GAMMA_CXCOMPATDB_EXTRA_CFLAGS:-}" ]]; then
+if [[ -n "${ANOMALY_CXCOMPATDB_EXTRA_CFLAGS:-}" ]]; then
   extra_cflags=()
-  read -r -a extra_cflags <<<"$GAMMA_CXCOMPATDB_EXTRA_CFLAGS"
+  read -r -a extra_cflags <<<"$ANOMALY_CXCOMPATDB_EXTRA_CFLAGS"
   clang_args+=("${extra_cflags[@]}")
 fi
 clang_args+=(

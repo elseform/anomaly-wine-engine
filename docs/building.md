@@ -2,7 +2,7 @@
 
 How to go from this repository to a packed engine archive, and how builds are
 versioned. For what the archive contains and how it behaves at runtime, see
-[architecture.md](architecture.md). For what `gamma-setup-tool` expects from
+[architecture.md](architecture.md). For what `anomaly-setup-tool` expects from
 it, see [setup-tool-contract.md](setup-tool-contract.md).
 
 ## Supported target
@@ -13,7 +13,7 @@ built for `x86_64` and runs under Rosetta 2. Two floors apply:
 | Floor | Value | Applies to |
 |---|---|---|
 | Build floor | `MACOSX_DEPLOYMENT_TARGET`, default `10.15` | Wine, `ntdll.so`, `cxcompatdb.so`, the bundled dylibs |
-| Product floor | `GAMMA_PRODUCT_MIN_OS`, default `26.0` | The DXMT payload (including the Metal shaders embedded in its DLLs), and the C library functions Wine's configure enables |
+| Product floor | `ANOMALY_PRODUCT_MIN_OS`, default `26.0` | The DXMT payload (including the Metal shaders embedded in its DLLs), and the C library functions Wine's configure enables |
 
 `scripts/pack-minos-scan.py` refuses to pack anything that needs a newer macOS
 than its floor.
@@ -85,7 +85,7 @@ Run the steps in this order.
    order: fetch and verify DXMT (`fetch-dxmt-release.sh`), copy the install
    tree to a staging `wswine.bundle/`, add DXMT under `lib/dxmt/` (plus the
    `winemetal.dll` copy in `lib/wine/x86_64-windows/` and `NOTICE`), add the
-   redist manifest and fetcher under `share/gamma/`, strip
+   redist manifest and fetcher under `share/anomaly/`, strip
    (`strip-wine-install.sh`), re-link dylibs (`bundle-wine-dylibs.sh`), sign
    every Mach-O (`sign-wine.sh`), check `cxcompatdb`, run the minOS scan, write
    `engine-manifest.json`, compress with `xz -6`, re-extract and verify every
@@ -96,9 +96,9 @@ Run the steps in this order.
    release tagged `engine-<engineId>-<N>`; it builds nothing, and refuses an
    archive whose DXMT did not come from an `elseform/dxmt` release.
 
-Useful knobs: `GAMMA_ENGINE_COMPRESS_LEVEL` (compression level),
-`GAMMA_ENGINE_FORMAT=zstd` or `--zstd` (zstd instead of xz; gamma-setup-tool does not accept it),
-`GAMMA_SKIP_ENGINE_STRIP=1` and `GAMMA_KEEP_DEBUG_SYMBOLS=1` (debugging a
+Useful knobs: `ANOMALY_ENGINE_COMPRESS_LEVEL` (compression level),
+`ANOMALY_ENGINE_FORMAT=zstd` or `--zstd` (zstd instead of xz; anomaly-setup-tool does not accept it),
+`ANOMALY_SKIP_ENGINE_STRIP=1` and `ANOMALY_KEEP_DEBUG_SYMBOLS=1` (debugging a
 packed tree), `SIGN_IDENTITY` (a Developer ID instead of ad-hoc signing),
 `--skip-renderers` on `build-wine.sh`.
 
@@ -107,7 +107,7 @@ packed tree), `SIGN_IDENTITY` (a Developer ID instead of ad-hoc signing),
 DXMT is not stored in this repository. Packing downloads it from a release of
 [`elseform/dxmt`](https://github.com/elseform/dxmt), the maintained fork of
 [DXMT](https://github.com/3Shain/dxmt): by default the newest release tagged
-`gamma-YYYY.MM.DD` (`gamma-YYYY.MM.DD.N` for a further release on the same day),
+`anomaly-YYYY.MM.DD` (`anomaly-YYYY.MM.DD.N` for a further release on the same day),
 or the one named by `--dxmt-tag TAG`.
 `scripts/fetch-dxmt-release.sh` downloads the release's
 `dxmt-macos-x86_64-<tag>.tar.gz`, `.sha256` and `.manifest.json` into
@@ -130,20 +130,21 @@ Such an archive's manifest records `dxmt.source: "local"`, and
 
 ## Versioning
 
-- **Version label** — `config/engine-version.txt`, e.g. `CX26-W11-GAMMA`:
+- **Version label** — `config/engine-version.txt`, e.g. `CX26-W11-ANOMALY`:
   CrossOver major and Wine major. It changes only with a new CrossOver or
   Wine major; builds are told apart by the build number below.
   `config/engine-release.json` mirrors it as `versionLabel`, and holds a
-  hand-kept `engineId` slug (`cx26-w11-gamma`, also the release tag prefix
-  `engine-cx26-w11-gamma-<N>`), the exact base versions (`crossover`,
+  hand-kept `engineId` slug (`cx26-w11-anomaly`, also the release tag prefix
+  `engine-cx26-w11-anomaly-<N>`), the exact base versions (`crossover`,
   `wine`), `minimumMacOS`, and the ordered patch list.
 - **Archive name** — the version label plus the build number,
-  `CX26-W11-GAMMA-<N>.tar.xz` (builds up to `-18` were named
-  `CX26W11-GAMMA-DXMT-<N>.tar.xz`). Naming lives in `scripts/engine-common.sh`.
+  `CX26-W11-ANOMALY-<N>.tar.xz` (builds up to `-19` were named
+  `CX26-W11-GAMMA-<N>.tar.xz`, and up to `-18` `CX26W11-GAMMA-DXMT-<N>.tar.xz`, before the rename to
+  Anomaly). Naming lives in `scripts/engine-common.sh`.
 - **Build number** — `<N>` is `config/build-number` (the last packed build)
   plus one, or whatever `--build-number N` sets. A successful pack writes `<N>`
   back to `config/build-number`; commit it. It is recorded as `buildNumber` in
-  both manifests and in the release tag. `gamma-setup-tool` orders releases by
+  both manifests and in the release tag. `anomaly-setup-tool` orders releases by
   it, so it must keep growing. Old archives in `dist/artifacts/` can be deleted
   freely.
 - **Base bumps** — a new Wine release needs its archive name and sha256 in
@@ -153,7 +154,7 @@ Such an archive's manifest records `dxmt.source: "local"`, and
   changes again: `crossover-26.3.0-wine-11.16-port.patch` is CrossOver
   26.3.0's delta to Wine 11.0, carried onto 11.16.
 - **Changing the series** — `apply-wine-series.sh` records each applied patch
-  and its sha256 in `build/wine-11.16/wine/.gamma-series`. Appending a patch
+  and its sha256 in `build/wine-11.16/wine/.anomaly-series`. Appending a patch
   to the series applies just that patch on the next build; editing, removing
   or reordering one needs a fresh tree (`prepare-build-deps.sh --force`, which
   also deletes `build64`). `config/engine-release.json` must list the same
@@ -166,7 +167,7 @@ Such an archive's manifest records `dxmt.source: "local"`, and
 
 ## Known limitations
 
-- The native wrapper UI is built and distributed by `gamma-setup-tool`, independently of engine packing.
+- The native wrapper UI is built and distributed by `anomaly-setup-tool`, independently of engine packing.
 - `engineId` in `engine-release.json` is typed by hand and must be kept in step
   with the version label.
 - A complete from-scratch `build-wine.sh` run has not been re-timed recently;

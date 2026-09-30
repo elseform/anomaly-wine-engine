@@ -14,7 +14,7 @@ DXMT_SOURCE=""
 DXMT_TAG=""
 DXMT_COMMIT=""
 DXMT_SHA256=""
-RELEASE_CONFIG="${GAMMA_ENGINE_RELEASE_CONFIG:-$ROOT/config/engine-release.json}"
+RELEASE_CONFIG="${ANOMALY_ENGINE_RELEASE_CONFIG:-$ROOT/config/engine-release.json}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in

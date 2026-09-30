@@ -32,7 +32,7 @@ under `lib/dxmt/x86_64-unix`, matching CrossOver.
 ## Selection and fallback
 
 There is no fallback: a validation failure terminates the process.
-`GAMMA_GRAPHICS_BACKEND` may be unset or `dxmt`; any other value (including
+`ANOMALY_GRAPHICS_BACKEND` may be unset or `dxmt`; any other value (including
 the former `d3dmetal`) terminates the process. `cxcompatdb` derives the engine
 root from the loaded `ntdll.so`, validates DXMT for the current process
 architecture (`d3d11`, `dxgi` and `winemetal` in `lib/dxmt/<arch>-windows/`,
@@ -43,7 +43,7 @@ path.
 If validation fails, `cxcompatdb` calls `_exit(1)` from its process
 constructor instead of prepending anything — it does not leave Wine to
 resolve its own builtins. The reason is logged to stderr with the
-`gamma-cxcompatdb:` prefix immediately before the process exits.
+`anomaly-cxcompatdb:` prefix immediately before the process exits.
 
 | Backend | API | Architecture | Notes |
 |---|---|---|---|

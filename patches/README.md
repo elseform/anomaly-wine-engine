@@ -15,14 +15,14 @@ regenerates `configure`. The same list, in the same order, is in
 | # | Patch | Subsystem | Origin | Purpose |
 |---|---|---|---|---|
 | 1 | `crossover-26.3.0-wine-11.16-port.patch` | many (199 files) | CodeWeavers, ported | CrossOver 26.3.0's changes to Wine, carried from Wine 11.0 onto 11.16. See [Lineage](#lineage). |
-| 2 | `gamma-advapi32-consistent-username-opt-in.patch` | `advapi32` | engine | CrossOver Hack 12735 (user name "crossover") only when `CX_CONSISTENT_USERNAME` is set; the real name otherwise, so DPAPI blobs from a stock prefix stay readable. |
-| 3 | `gamma-ntdll-mono-last-error-gs.patch` | `ntdll` | engine | Mirrors the last error into `%gs:0x68`, where Mono's JIT reads it, and hooks `gmtime()` off that TLS slot. |
-| 4 | `gamma-winemac-host-app-icon.patch` | `winemac.drv` | engine | `WINE_APP_ICON_PATH` (optionally limited by `WINE_APP_IDENTITY_EXE`) names the Dock icon, ahead of the executable's own. |
-| 5 | `gamma-winemac-cross-process-child-swapchain.patch` | `winemac.drv` | engine | Metal swapchains on child windows whose top level belongs to another process (Chromium GPU processes); `surface.c` no longer hides a window's `client_view` when it paints through GDI. |
-| 6 | `gamma-nsiproxy-null-ifaddr-and-leaks.patch` | `nsiproxy.sys` | engine | Skips interfaces with no address, clamps a sockaddr copy, frees `addr_scopes` in the TCP and UDP tables. |
-| 7 | `gamma-ntdll-unwind-null-guards.patch` | `ntdll` | engine | NULL handler-data guard in the x86_64 unwinder; initialised module pointer in `virtual_unwind()`. |
-| 8 | `gamma-winegstreamer-bundled-plugins-and-pool.patch` | `winegstreamer` | engine | Bundled GStreamer plugin path and a zero-sized buffer pool fix. Inert today: the engine is built without GStreamer, so `winegstreamer.so` is not built. |
-| 9 | `gamma-faudio-26.08.patch` | `libs/faudio` | upstream FAudio | Bundled FAudio 26.06 → 26.08. |
+| 2 | `anomaly-advapi32-consistent-username-opt-in.patch` | `advapi32` | engine | CrossOver Hack 12735 (user name "crossover") only when `CX_CONSISTENT_USERNAME` is set; the real name otherwise, so DPAPI blobs from a stock prefix stay readable. |
+| 3 | `anomaly-ntdll-mono-last-error-gs.patch` | `ntdll` | engine | Mirrors the last error into `%gs:0x68`, where Mono's JIT reads it, and hooks `gmtime()` off that TLS slot. |
+| 4 | `anomaly-winemac-host-app-icon.patch` | `winemac.drv` | engine | `WINE_APP_ICON_PATH` (optionally limited by `WINE_APP_IDENTITY_EXE`) names the Dock icon, ahead of the executable's own. |
+| 5 | `anomaly-winemac-cross-process-child-swapchain.patch` | `winemac.drv` | engine | Metal swapchains on child windows whose top level belongs to another process (Chromium GPU processes); `surface.c` no longer hides a window's `client_view` when it paints through GDI. |
+| 6 | `anomaly-nsiproxy-null-ifaddr-and-leaks.patch` | `nsiproxy.sys` | engine | Skips interfaces with no address, clamps a sockaddr copy, frees `addr_scopes` in the TCP and UDP tables. |
+| 7 | `anomaly-ntdll-unwind-null-guards.patch` | `ntdll` | engine | NULL handler-data guard in the x86_64 unwinder; initialised module pointer in `virtual_unwind()`. |
+| 8 | `anomaly-winegstreamer-bundled-plugins-and-pool.patch` | `winegstreamer` | engine | Bundled GStreamer plugin path and a zero-sized buffer pool fix. Inert today: the engine is built without GStreamer, so `winegstreamer.so` is not built. |
+| 9 | `anomaly-faudio-26.08.patch` | `libs/faudio` | upstream FAudio | Bundled FAudio 26.06 → 26.08. |
 | 10 | `a6-final-same-view-backing-sync.patch` | `winemac.drv` | cyder-wine-engine, 11.16 rebase | Synchronises AppKit / Wine backing surfaces on window resize and creation. |
 | 11 | `w1-win32u-vulkan-soname.patch` | `win32u` | cyder-wine-engine | `--without-vulkan` builds only: supplies the `SONAME_LIBVULKAN` fallback define so `dlls/win32u/vulkan.c` compiles without libvulkan or MoltenVK. |
 | 12 | `wine-11.1-rtlwalkframechain-null-function.patch` | `ntdll` | upstream Wine 11.1 | NULL function guard during stack walking. |
@@ -37,14 +37,14 @@ regenerates `configure`. The same list, in the same order, is in
 | 21 | `cyder-wineserver-pipe-end-disconnect-null-fd.patch` | `wineserver` | cyder-wine-engine | Named pipe disconnect after the fd is closed. |
 | 22 | `cyder-wineserver-add-completion-guard.patch` | `wineserver` | cyder-wine-engine | Invalid I/O completion port notifications. |
 | 23 | `cyder-ntdll-qdo-optnone-NtQueryDirectoryObject.patch` | `ntdll` | cyder-wine-engine | Disables the Clang optimisation that miscompiled `NtQueryDirectoryObject`. |
-| 24 | `gamma-ntdll-flush-write-buffers-sync.patch` | `ntdll` | engine | Hardware barrier instead of the Mach register walk in `NtFlushProcessWriteBuffers`, avoiding Rosetta 2 thread stalls. |
+| 24 | `anomaly-ntdll-flush-write-buffers-sync.patch` | `ntdll` | engine | Hardware barrier instead of the Mach register walk in `NtFlushProcessWriteBuffers`, avoiding Rosetta 2 thread stalls. |
 | 25 | `wine-mr11880-winemac-transparent-hidden-cursor.patch` | `winemac.drv` | upstream MR !11880 (open) | Transparent `NSCursor` instead of `[NSCursor hide]`, which on macOS 26 ties presentation to the display refresh while the mouse moves. |
 | 26 | `wine-mr11799-winemac-gcmouse-raw-input.patch` | `winemac.drv` | upstream MR !11799 (open) | On macOS 14+, Raw Input (and so DirectInput) mouse movement comes unaccelerated from `GCMouse`. Off switch: `HKCU\Software\Wine\Mac Driver`, `UseGCMouse=N`. |
 
 ### Filenames
 
 - `crossover-` — CodeWeavers' code (LGPL), ported here.
-- `gamma-` — written for this engine.
+- `anomaly-` — written for this engine.
 - `cyder-`, `a6-`, `w1-` — from
   [cyder-wine-engine](https://github.com/dspp779/cyder-wine-engine), the
   pipeline this repository was forked from; the names are provenance.
@@ -66,7 +66,7 @@ this series, with autoconf regenerating `configure`, reproduced it byte for
 byte, file modes included. The series then changed on purpose in three ways:
 
 - **Dropped:** Proton's `lsteamclient` (Steam client bridge, under Valve's
-  Steamworks SDK license, not needed by GAMMA) and a D3D12 layer
+  Steamworks SDK license, not needed by Anomaly) and a D3D12 layer
   (`d3d12core` implementation, D3DKMT adapter queries, an Apple GPU driver
   version string) that DXMT does not use.
 - **Fixed:** the port had lost CrossOver's `IOKit/usb/IOUSBLib.h` configure
@@ -86,7 +86,7 @@ The CrossOver 26.3.0 source archive is no longer a build input.
 - **The fix:** the standard upstream behaviour. The patch is not in this
   repository.
 
-### `gamma-ntdll-flush-write-buffers-sync.patch` in `ntdll.so`
+### `anomaly-ntdll-flush-write-buffers-sync.patch` in `ntdll.so`
 
 - **The problem:** CrossOver's macOS `NtFlushProcessWriteBuffers` in
   `dlls/ntdll/unix/virtual.c` called `task_threads()` and

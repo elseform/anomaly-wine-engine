@@ -9,11 +9,11 @@ out what went wrong. To build an archive yourself, see
 - An Apple Silicon Mac with macOS 26 or newer, and Rosetta 2
   (`softwareupdate --install-rosetta`).
 - An existing S.T.A.L.K.E.R. G.A.M.M.A. installation.
-- An engine archive (`CX26-W11-GAMMA-<N>.tar.xz`).
+- An engine archive (`CX26-W11-ANOMALY-<N>.tar.xz`).
 
 ## 2. Create the app
 
-Use [GAMMA Setup Tool](https://github.com/elseform/gamma-setup-tool): choose an
+Use [Anomaly Setup Tool](https://github.com/elseform/anomaly-setup-tool): choose an
 app name, the GAMMA folder that contains `ModOrganizer.exe`, and the engine
 archive. It creates the app in `~/Applications`.
 
@@ -21,8 +21,8 @@ The setup tool runs its `interactive_setup.py`, which can also be used directly
 from a checkout of the setup tool; every prompt has a matching flag (`--help`):
 
 ```bash
-python3 sources/GAMMASetupTool/Resources/wine-engine/interactive_setup.py \
-  --archive /path/to/CX26-W11-GAMMA-<N>.tar.xz
+python3 sources/AnomalySetupTool/Resources/wine-engine/interactive_setup.py \
+  --archive /path/to/CX26-W11-ANOMALY-<N>.tar.xz
 ```
 
 Setup extracts the engine into the app, creates a Wine prefix, mounts the game
@@ -85,12 +85,12 @@ Some settings:
 to stderr even with `WINEDEBUG=-all`:
 
 ```text
-gamma-cxcompatdb:info: graphics backend=dxmt machine=x86_64-windows path=…/lib/dxmt
+anomaly-cxcompatdb:info: graphics backend=dxmt machine=x86_64-windows path=…/lib/dxmt
 ```
 
 **The game exits immediately with no `graphics backend=` line.** Backend
 validation failed and the process was terminated; there is no fallback. The
-`gamma-cxcompatdb:` line before it names the missing piece. See
+`anomaly-cxcompatdb:` line before it names the missing piece. See
 [renderers.md](renderers.md).
 
 **The app will not open on an older Mac.** The engine needs macOS 26 or newer
