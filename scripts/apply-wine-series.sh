@@ -4,7 +4,7 @@
 #   apply-wine-series.sh [--src DIR] [--with-vulkan] [--dry-run]
 #
 # Patches apply in series order with `patch -p1 -F0` (no fuzz). Every applied
-# patch is recorded with its sha256 in DIR/.gamma-series, so a re-run skips
+# patch is recorded with its sha256 in DIR/.anomaly-series, so a re-run skips
 # what is already there and applies only patches appended to the series since.
 # A recorded patch whose name, content or position no longer matches the series
 # is fatal: the tree then has to be extracted again
@@ -46,7 +46,7 @@ done
 
 PATCHES_DIR="$OGOM/patches"
 SERIES="$PATCHES_DIR/series"
-STAMP="$SRC/.gamma-series"
+STAMP="$SRC/.anomaly-series"
 RELEASE_CONFIG="$OGOM/config/engine-release.json"
 
 [[ -f "$SERIES" ]] || { echo "Missing $SERIES" >&2; exit 1; }

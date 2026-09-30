@@ -12,7 +12,7 @@ CODESIGN_CMD="${CODESIGN_CMD:-codesign}"
 XATTR_CMD="${XATTR_CMD:-xattr}"
 
 # Default stays ad-hoc: this script also re-signs the installed engine on end-user
-# machines (gamma_sign_installed_engine), where no Developer ID cert exists.
+# machines (anomaly_sign_installed_engine), where no Developer ID cert exists.
 # Release builds export SIGN_IDENTITY="Developer ID Application: ..." instead.
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 # Ad-hoc signatures cannot carry a secure timestamp; Developer ID ones must

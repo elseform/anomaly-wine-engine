@@ -1,9 +1,9 @@
-# GAMMA Wine Engine Adapter
+# Anomaly Wine Engine Adapter
 
 ## Project identity
 
 - Project root: `../gamma-project`
-- Repository: `gamma-wine-engine`
+- Repository: `anomaly-wine-engine`
 - Role: `supporting-application`
 
 Read `../gamma-project/AGENTS.md` before work. Shared safety and cross-repository
@@ -13,7 +13,7 @@ switcher, DXMT packaging (no WineD3D fallback), and
 release artifacts (`dist/artifacts/*.tar.xz`). Build and lifecycle:
 `docs/building.md`; consumer interface: `docs/setup-tool-contract.md`.
 
-The engine archive is consumed by `gamma-setup-tool`, whose
+The engine archive is consumed by `anomaly-setup-tool`, whose
 `interactive_setup.py` (lives there, not in this repo) builds a wrapper `.app`
 around it. DXMT is not stored here: packing downloads a verified
 `elseform/dxmt` release (`scripts/fetch-dxmt-release.sh`); releases are built

@@ -1,8 +1,8 @@
-# gamma-wine-engine
+# anomaly-wine-engine
 
 A Wine 11.16 / CrossOver 26.3.0 engine for running S.T.A.L.K.E.R. Anomaly and G.A.M.M.A. on Apple Silicon Macs with macOS 26 or newer, with [DXMT](https://github.com/3Shain/dxmt) as its Direct3D 11 backend.
 
-The engine is packed as `dist/artifacts/CX26-W11-GAMMA-<N>.tar.xz`. [GAMMA Setup Tool](https://github.com/elseform/gamma-setup-tool) turns an archive into a game app with its own Wine prefix and a settings editor.
+The engine is packed as `dist/artifacts/CX26-W11-ANOMALY-<N>.tar.xz`. [Anomaly Setup Tool](https://github.com/elseform/anomaly-setup-tool) turns an archive into a game app with its own Wine prefix and a settings editor.
 
 ## Documentation
 
@@ -11,7 +11,7 @@ The engine is packed as `dist/artifacts/CX26-W11-GAMMA-<N>.tar.xz`. [GAMMA Setup
 | [Getting Started](docs/getting-started.md) | Creating the app, changing settings, troubleshooting |
 | [Building](docs/building.md) | Prerequisites, the build and packing pipeline, versioning |
 | [Architecture](docs/architecture.md) | Archive layout, backend selection, wrapper ownership, Microsoft runtime files |
-| [Setup Tool Contract](docs/setup-tool-contract.md) | What `gamma-setup-tool` relies on in an archive, and what it builds |
+| [Setup Tool Contract](docs/setup-tool-contract.md) | What `anomaly-setup-tool` relies on in an archive, and what it builds |
 | [Graphics Backend](docs/renderers.md) | DXMT, how it is selected and validated |
 | [Patch Set](patches/README.md) | What each Wine patch does, and the one deliberately left out |
 | [Why deps build from source](docs/why-no-prebuilt-deps.md) | The project-local `.brew-x86` |

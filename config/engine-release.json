@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "engineId": "cx26-w11-gamma",
-  "versionLabel": "CX26-W11-GAMMA",
+  "engineId": "cx26-w11-anomaly",
+  "versionLabel": "CX26-W11-ANOMALY",
   "base": {
     "crossover": "26.3.0",
     "wine": "11.16"
@@ -15,14 +15,14 @@
   "minimumSetupToolVersion": null,
   "patches": [
     "crossover-26.3.0-wine-11.16-port.patch",
-    "gamma-advapi32-consistent-username-opt-in.patch",
-    "gamma-ntdll-mono-last-error-gs.patch",
-    "gamma-winemac-host-app-icon.patch",
-    "gamma-winemac-cross-process-child-swapchain.patch",
-    "gamma-nsiproxy-null-ifaddr-and-leaks.patch",
-    "gamma-ntdll-unwind-null-guards.patch",
-    "gamma-winegstreamer-bundled-plugins-and-pool.patch",
-    "gamma-faudio-26.08.patch",
+    "anomaly-advapi32-consistent-username-opt-in.patch",
+    "anomaly-ntdll-mono-last-error-gs.patch",
+    "anomaly-winemac-host-app-icon.patch",
+    "anomaly-winemac-cross-process-child-swapchain.patch",
+    "anomaly-nsiproxy-null-ifaddr-and-leaks.patch",
+    "anomaly-ntdll-unwind-null-guards.patch",
+    "anomaly-winegstreamer-bundled-plugins-and-pool.patch",
+    "anomaly-faudio-26.08.patch",
     "a6-final-same-view-backing-sync.patch",
     "w1-win32u-vulkan-soname.patch",
     "wine-11.1-rtlwalkframechain-null-function.patch",
@@ -37,14 +37,14 @@
     "cyder-wineserver-pipe-end-disconnect-null-fd.patch",
     "cyder-wineserver-add-completion-guard.patch",
     "cyder-ntdll-qdo-optnone-NtQueryDirectoryObject.patch",
-    "gamma-ntdll-flush-write-buffers-sync.patch",
+    "anomaly-ntdll-flush-write-buffers-sync.patch",
     "wine-mr11880-winemac-transparent-hidden-cursor.patch",
     "wine-mr11799-winemac-gcmouse-raw-input.patch"
   ],
   "components": [
     "runtime/cxcompatdb/cxcompatdb.c",
     "config/redist-manifest.json",
-    "runtime/redist-fetch/gamma_redist.py"
+    "runtime/redist-fetch/anomaly_redist.py"
   ],
-  "notes": "gamma-wine-engine provides a standalone Wine 11.16 / CrossOver 26.3 engine for Apple Silicon Macs running macOS 26 or newer, with DXMT as its only graphics backend. No WineD3D fallback: cxcompatdb terminates any process whose DXMT payload fails validation."
+  "notes": "anomaly-wine-engine provides a standalone Wine 11.16 / CrossOver 26.3 engine for Apple Silicon Macs running macOS 26 or newer, with DXMT as its only graphics backend. No WineD3D fallback: cxcompatdb terminates any process whose DXMT payload fails validation."
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Publish an already-built dist/artifacts/*.tar.zst (or .tar.xz) engine
-# archive as a GitHub Release, so gamma-setup-tool can download it at
+# archive as a GitHub Release, so anomaly-setup-tool can download it at
 # runtime instead of requiring a local build.
 #
 # This does NOT build the engine — that happens locally per docs/building.md
@@ -13,7 +13,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-GH_REPO="${GH_REPO:-elseform/gamma-wine-engine}"
+GH_REPO="${GH_REPO:-elseform/anomaly-wine-engine}"
 
 DRY_RUN=0
 ARTIFACT_PATH=""
@@ -100,7 +100,7 @@ print(dxmt['tag'])
 
 ARTIFACT_BASENAME="$(basename "$ARTIFACT_PATH")"
 # Trailing "-<N>" build counter already present in the artifact filename
-# (e.g. CX26-W11-GAMMA-19.tar.xz -> 19), reused as the release/tag
+# (e.g. CX26-W11-ANOMALY-19.tar.xz -> 19), reused as the release/tag
 # counter so re-running pack-engine-artifact.sh and this script stay in
 # lockstep without a separate version bump step.
 BUILD_NUMBER="$(printf '%s\n' "$ARTIFACT_BASENAME" | sed -E 's/\.tar\.(zst|xz)$//; s/.*-([0-9]+)$/\1/')"

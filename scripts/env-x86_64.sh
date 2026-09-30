@@ -9,8 +9,8 @@ if [[ -z "${OGOM:-}" ]]; then
 fi
 
 # Optional project .env (gitignored). Only KEY=VALUE lines; no shell expansion.
-# Recognized: MACOSX_DEPLOYMENT_TARGET, GAMMA_MIN_OS (alias).
-_gamma_load_dotenv() {
+# Recognized: MACOSX_DEPLOYMENT_TARGET, ANOMALY_MIN_OS (alias).
+_anomaly_load_dotenv() {
   local env_file="$OGOM/.env"
   local line key value
   [[ -f "$env_file" ]] || return 0
@@ -30,7 +30,7 @@ _gamma_load_dotenv() {
     value="${value%\'}"
     value="${value#\'}"
     case "$key" in
-      MACOSX_DEPLOYMENT_TARGET | GAMMA_MIN_OS)
+      MACOSX_DEPLOYMENT_TARGET | ANOMALY_MIN_OS)
         [[ "$value" =~ ^[0-9]+(\.[0-9]+)*$ ]] || {
           echo "Ignoring invalid $key in $env_file: $value" >&2
           continue
@@ -43,8 +43,8 @@ _gamma_load_dotenv() {
     esac
   done <"$env_file"
 }
-_gamma_load_dotenv
-unset -f _gamma_load_dotenv
+_anomaly_load_dotenv
+unset -f _anomaly_load_dotenv
 
 export CX_VERSION="${CX_VERSION:-26}"
 # Project-local x86_64 Homebrew. Ignore shell profile HOMEBREW_PREFIX=/opt/homebrew
@@ -63,7 +63,7 @@ case "$CX_VERSION" in
     exit 1
     ;;
   26)
-    export GAMMA_ENGINE_CX_PREFIX="${GAMMA_ENGINE_CX_PREFIX:-CX26}"
+    export ANOMALY_ENGINE_CX_PREFIX="${ANOMALY_ENGINE_CX_PREFIX:-CX26}"
     # Upstream Wine 11.16, extracted by prepare-build-deps.sh and patched by
     # apply-wine-series.sh (the CrossOver 26.3.0 port comes first).
     export WINE_SRC="${WINE_SRC:-$BUILD_DIR/wine-11.16/wine}"
@@ -115,16 +115,16 @@ fi
 
 export BLUECG_PREFIX="${BLUECG_PREFIX:-$OGOM/BlueCrossgateNew}"
 export ENTITLEMENTS_PLIST="${ENTITLEMENTS_PLIST:-$OGOM/config/entitlements.plist}"
-export GAMMA_CROSSOVER_VERSION="${GAMMA_CROSSOVER_VERSION:-26.3.0}"
+export ANOMALY_CROSSOVER_VERSION="${ANOMALY_CROSSOVER_VERSION:-26.3.0}"
 # Product floor for host Mach-O (wine, ntdll.so, bundled dylibs). Prefer
 # .env / MACOSX_DEPLOYMENT_TARGET; default 10.15. Apple Silicon still needs
 # macOS 11+ for Rosetta 2. A lower floor needs a full Wine rebuild.
 export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-10.15}"
-export GAMMA_MIN_OS="${GAMMA_MIN_OS:-$MACOSX_DEPLOYMENT_TARGET}"
+export ANOMALY_MIN_OS="${ANOMALY_MIN_OS:-$MACOSX_DEPLOYMENT_TARGET}"
 # Oldest macOS the shipped engine supports (Apple Silicon, macOS 26). Renderer
 # payloads may target up to it; pack-minos-scan.py refuses anything newer.
-export GAMMA_PRODUCT_MIN_OS="${GAMMA_PRODUCT_MIN_OS:-26.0}"
-export GAMMA_MACOSX_VERSION_MIN_FLAG="-mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}"
+export ANOMALY_PRODUCT_MIN_OS="${ANOMALY_PRODUCT_MIN_OS:-26.0}"
+export ANOMALY_MACOSX_VERSION_MIN_FLAG="-mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}"
 export ARCH_CMD="arch -x86_64"
 
 export PATH="$LLVM_MINGW/bin:$HOMEBREW_PREFIX/bin:$PATH"

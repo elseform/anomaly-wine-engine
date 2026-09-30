@@ -35,6 +35,6 @@ this repo builds against or optionally stages:
   here; see `renderers/dxmt/NOTICE` for upstream attribution.
 - Microsoft redistributables (DirectX, Visual C++) — not vendored or bundled
   here. The engine only declares which files it needs in
-  `config/redist-manifest.json`; `runtime/redist-fetch/gamma_redist.py`
+  `config/redist-manifest.json`; `runtime/redist-fetch/anomaly_redist.py`
   fetches them from Microsoft's own public installers at wrapper-setup time,
   under Microsoft's redistributable terms.

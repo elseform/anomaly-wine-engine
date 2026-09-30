@@ -369,11 +369,11 @@ cd "$WINE_SRC/build64"
 
 # Bake -mmacosx-version-min into host CFLAGS so incremental `make` without an
 # exported MACOSX_DEPLOYMENT_TARGET still cannot drift to the SDK default (15+).
-GAMMA_MIN_OS_TARGET="${MACOSX_DEPLOYMENT_TARGET:-10.15}"
-GAMMA_MIN_FLAG="${GAMMA_MACOSX_VERSION_MIN_FLAG:--mmacosx-version-min=${GAMMA_MIN_OS_TARGET}}"
-GAMMA_HOST_CFLAGS="-arch x86_64 ${CFLAGS:--g -O2} ${GAMMA_MIN_FLAG}"
-GAMMA_HOST_OBJCFLAGS="-arch x86_64 ${OBJCFLAGS:--g -O2} ${GAMMA_MIN_FLAG}"
-GAMMA_HOST_LDFLAGS="-arch x86_64 ${LDFLAGS:-} ${GAMMA_MIN_FLAG}"
+ANOMALY_MIN_OS_TARGET="${MACOSX_DEPLOYMENT_TARGET:-10.15}"
+ANOMALY_MIN_FLAG="${ANOMALY_MACOSX_VERSION_MIN_FLAG:--mmacosx-version-min=${ANOMALY_MIN_OS_TARGET}}"
+ANOMALY_HOST_CFLAGS="-arch x86_64 ${CFLAGS:--g -O2} ${ANOMALY_MIN_FLAG}"
+ANOMALY_HOST_OBJCFLAGS="-arch x86_64 ${OBJCFLAGS:--g -O2} ${ANOMALY_MIN_FLAG}"
+ANOMALY_HOST_LDFLAGS="-arch x86_64 ${LDFLAGS:-} ${ANOMALY_MIN_FLAG}"
 
 # configure enables any function the build Mac's SDK exports. Functions newer
 # than the product floor are weak-linked and NULL on an older macOS, so they are
@@ -390,10 +390,10 @@ CONFIGURE_CMD=(
   PKG_CONFIG="$HOMEBREW_PREFIX/bin/pkg-config"
   PKG_CONFIG_PATH="$VULKAN_PKG_PC_PATH"
   LIBRARY_PATH="${LIBRARY_PATH:-}"
-  MACOSX_DEPLOYMENT_TARGET="$GAMMA_MIN_OS_TARGET"
-  CFLAGS="$GAMMA_HOST_CFLAGS"
-  OBJCFLAGS="$GAMMA_HOST_OBJCFLAGS"
-  LDFLAGS="$GAMMA_HOST_LDFLAGS"
+  MACOSX_DEPLOYMENT_TARGET="$ANOMALY_MIN_OS_TARGET"
+  CFLAGS="$ANOMALY_HOST_CFLAGS"
+  OBJCFLAGS="$ANOMALY_HOST_OBJCFLAGS"
+  LDFLAGS="$ANOMALY_HOST_LDFLAGS"
   ../configure
   -C
   --enable-win64
@@ -415,13 +415,13 @@ for arg in "${CONFIGURE_CMD[@]}"; do
   printf '%q ' "$arg"
 done
 printf '\n'
-echo "host minOS: MACOSX_DEPLOYMENT_TARGET=$GAMMA_MIN_OS_TARGET ($GAMMA_MIN_FLAG)"
+echo "host minOS: MACOSX_DEPLOYMENT_TARGET=$ANOMALY_MIN_OS_TARGET ($ANOMALY_MIN_FLAG)"
 
 # Resume: when build64 was already configured with exactly these options
 # against the current configure script, go straight to make, which continues
 # from whatever it compiled before. The stamp is written only after configure
 # succeeds; a newly applied patch regenerates configure and so invalidates it.
-CONFIGURE_STAMP="$WINE_SRC/build64/.gamma-configure"
+CONFIGURE_STAMP="$WINE_SRC/build64/.anomaly-configure"
 CONFIGURE_KEY="$(printf '%q ' "${CONFIGURE_CMD[@]}")"
 if [[ "$RECONFIGURE" -eq 0 && -f config.status && -f "$CONFIGURE_STAMP" &&
       config.status -nt ../configure && "$(cat "$CONFIGURE_STAMP")" == "$CONFIGURE_KEY" ]]; then
@@ -432,19 +432,19 @@ else
   [[ "$DRY_RUN" -eq 1 ]] || printf '%s\n' "$CONFIGURE_KEY" >"$CONFIGURE_STAMP"
 fi
 if [[ "$DRY_RUN" -eq 1 ]]; then
-  echo "+ $SCRIPT_DIR/check-sdk-availability.py include/config.h $GAMMA_PRODUCT_MIN_OS"
+  echo "+ $SCRIPT_DIR/check-sdk-availability.py include/config.h $ANOMALY_PRODUCT_MIN_OS"
 else
-  python3 "$SCRIPT_DIR/check-sdk-availability.py" include/config.h "$GAMMA_PRODUCT_MIN_OS"
+  python3 "$SCRIPT_DIR/check-sdk-availability.py" include/config.h "$ANOMALY_PRODUCT_MIN_OS"
 fi
 
 if [[ "$CONFIGURE_ONLY" -eq 0 ]]; then
   run arch -x86_64 env PATH="$BUILD_PATH" PKG_CONFIG_PATH="$VULKAN_PKG_PC_PATH" \
-    LIBRARY_PATH="${LIBRARY_PATH:-}" MACOSX_DEPLOYMENT_TARGET="$GAMMA_MIN_OS_TARGET" \
-    CFLAGS="$GAMMA_HOST_CFLAGS" OBJCFLAGS="$GAMMA_HOST_OBJCFLAGS" LDFLAGS="$GAMMA_HOST_LDFLAGS" \
+    LIBRARY_PATH="${LIBRARY_PATH:-}" MACOSX_DEPLOYMENT_TARGET="$ANOMALY_MIN_OS_TARGET" \
+    CFLAGS="$ANOMALY_HOST_CFLAGS" OBJCFLAGS="$ANOMALY_HOST_OBJCFLAGS" LDFLAGS="$ANOMALY_HOST_LDFLAGS" \
     make -j"$JOBS"
   run arch -x86_64 env PATH="$BUILD_PATH" PKG_CONFIG_PATH="$VULKAN_PKG_PC_PATH" \
-    LIBRARY_PATH="${LIBRARY_PATH:-}" MACOSX_DEPLOYMENT_TARGET="$GAMMA_MIN_OS_TARGET" \
-    CFLAGS="$GAMMA_HOST_CFLAGS" OBJCFLAGS="$GAMMA_HOST_OBJCFLAGS" LDFLAGS="$GAMMA_HOST_LDFLAGS" \
+    LIBRARY_PATH="${LIBRARY_PATH:-}" MACOSX_DEPLOYMENT_TARGET="$ANOMALY_MIN_OS_TARGET" \
+    CFLAGS="$ANOMALY_HOST_CFLAGS" OBJCFLAGS="$ANOMALY_HOST_OBJCFLAGS" LDFLAGS="$ANOMALY_HOST_LDFLAGS" \
     make install
   if [[ "$DRY_RUN" -eq 1 ]]; then
     echo "+ $SCRIPT_DIR/build-cxcompatdb.sh"

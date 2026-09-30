@@ -3,8 +3,8 @@
 #
 #   fetch-dxmt-release.sh [--tag TAG] [--resolve-only]
 #
-# Without --tag, picks the newest release whose tag is gamma-YYYY.MM.DD or,
-# for a further release on the same day, gamma-YYYY.MM.DD.N (drafts and
+# Without --tag, picks the newest release whose tag is anomaly-YYYY.MM.DD or,
+# for a further release on the same day, anomaly-YYYY.MM.DD.N (drafts and
 # prereleases ignored), using the anonymous GitHub API. Each
 # release carries dxmt-macos-x86_64-<tag>.tar.gz, its .sha256, and a
 # .manifest.json listing every payload file's sha256.
@@ -22,8 +22,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-REPO="${GAMMA_DXMT_REPO:-elseform/dxmt}"
-CACHE_ROOT="${GAMMA_DXMT_CACHE:-$ROOT/build/cache/dxmt}"
+REPO="${ANOMALY_DXMT_REPO:-elseform/dxmt}"
+CACHE_ROOT="${ANOMALY_DXMT_CACHE:-$ROOT/build/cache/dxmt}"
 
 TAG=""
 RESOLVE_ONLY=0
@@ -61,10 +61,10 @@ if [[ -z "$TAG" ]]; then
 import json, re, sys
 tags = [r["tag_name"] for r in json.load(sys.stdin)
         if not r.get("draft") and not r.get("prerelease")
-        and re.fullmatch(r"gamma-\d{4}\.\d{2}\.\d{2}(\.\d+)?", r["tag_name"])]
+        and re.fullmatch(r"anomaly-\d{4}\.\d{2}\.\d{2}(\.\d+)?", r["tag_name"])]
 if not tags:
-    sys.exit("no gamma-YYYY.MM.DD release found")
-print(max(tags, key=lambda t: [int(x) for x in t[len("gamma-"):].split(".")]))
+    sys.exit("no anomaly-YYYY.MM.DD release found")
+print(max(tags, key=lambda t: [int(x) for x in t[len("anomaly-"):].split(".")]))
 ')" || { echo "Could not resolve the latest DXMT release of $REPO" >&2; exit 1; }
 fi
 [[ "$TAG" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "Unsafe DXMT tag: $TAG" >&2; exit 1; }

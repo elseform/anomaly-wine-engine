@@ -4,15 +4,15 @@ set -euo pipefail
 ENGINE_COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENGINE_PROJECT_ROOT="$(cd "$ENGINE_COMMON_DIR/.." && pwd)"
 
-gamma_engine_artifacts_dir() {
-  printf '%s\n' "${GAMMA_ENGINE_ARTIFACTS_DIR:-$ENGINE_PROJECT_ROOT/dist/artifacts}"
+anomaly_engine_artifacts_dir() {
+  printf '%s\n' "${ANOMALY_ENGINE_ARTIFACTS_DIR:-$ENGINE_PROJECT_ROOT/dist/artifacts}"
 }
 
-gamma_crossover_version() {
-  printf '%s\n' "${GAMMA_CROSSOVER_VERSION:-26.3.0}"
+anomaly_crossover_version() {
+  printf '%s\n' "${ANOMALY_CROSSOVER_VERSION:-26.3.0}"
 }
 
-gamma_engine_version_label_trim() {
+anomaly_engine_version_label_trim() {
   local ver="$1"
   ver="${ver//$'\r'/}"
   ver="${ver#"${ver%%[![:space:]]*}"}"
@@ -20,12 +20,12 @@ gamma_engine_version_label_trim() {
   printf '%s\n' "$ver"
 }
 
-gamma_format_engine_version_from_wine() {
+anomaly_format_engine_version_from_wine() {
   local wine_bin="${1:-}"
   local wine_raw wine_ver cx_ver
-  local version_label="${GAMMA_ENGINE_VERSION_LABEL:-}"
+  local version_label="${ANOMALY_ENGINE_VERSION_LABEL:-}"
   if [[ -n "$version_label" ]]; then
-    gamma_engine_version_label_trim "$version_label"
+    anomaly_engine_version_label_trim "$version_label"
     return 0
   fi
   if [[ -z "$wine_bin" && -n "${WINE_INSTALL:-}" ]]; then
@@ -34,18 +34,18 @@ gamma_format_engine_version_from_wine() {
   [[ -x "$wine_bin" ]] || return 1
   wine_raw="$(arch -x86_64 "$wine_bin" --version 2>/dev/null || true)"
   wine_ver="${wine_raw#wine-}"
-  cx_ver="$(gamma_crossover_version)"
+  cx_ver="$(anomaly_crossover_version)"
   printf 'wine crossover %s (wine %s)\n' "$cx_ver" "$wine_ver"
 }
 
-gamma_detect_engine_version_label() {
-  gamma_format_engine_version_from_wine "${1:-}"
+anomaly_detect_engine_version_label() {
+  anomaly_format_engine_version_from_wine "${1:-}"
 }
 
-gamma_engine_version_slug_from_label() {
+anomaly_engine_version_slug_from_label() {
   local label="$1"
   local slug cx wine_ver tail
-  label="$(gamma_engine_version_label_trim "$label")"
+  label="$(anomaly_engine_version_label_trim "$label")"
   if [[ "$label" == wine\ crossover\ * ]]; then
     cx="${label#wine crossover }"
     cx="${cx%% (wine *)}"
@@ -75,56 +75,56 @@ gamma_engine_version_slug_from_label() {
   printf '%s\n' "$slug"
 }
 
-gamma_engine_versions_equal() {
+anomaly_engine_versions_equal() {
   local left right left_slug right_slug
-  left="$(gamma_engine_version_label_trim "${1:-}")"
-  right="$(gamma_engine_version_label_trim "${2:-}")"
+  left="$(anomaly_engine_version_label_trim "${1:-}")"
+  right="$(anomaly_engine_version_label_trim "${2:-}")"
   [[ -n "$left" && -n "$right" ]] || return 1
   [[ "$left" == "$right" ]] && return 0
-  left_slug="$(gamma_engine_version_slug_from_label "$left")"
-  right_slug="$(gamma_engine_version_slug_from_label "$right")"
+  left_slug="$(anomaly_engine_version_slug_from_label "$left")"
+  right_slug="$(anomaly_engine_version_slug_from_label "$right")"
   [[ "$left_slug" == "$right" || "$left" == "$right_slug" || "$left_slug" == "$right_slug" ]]
 }
 
-gamma_read_engine_version_file() {
+anomaly_read_engine_version_file() {
   local engine_root="$1"
   local ver
   [[ -f "$engine_root/version" ]] || return 1
-  ver="$(gamma_engine_version_label_trim "$(cat "$engine_root/version")")"
+  ver="$(anomaly_engine_version_label_trim "$(cat "$engine_root/version")")"
   [[ -n "$ver" ]] || return 1
   printf '%s\n' "$ver"
 }
 
-gamma_write_engine_version_file() {
+anomaly_write_engine_version_file() {
   local engine_root="$1"
   local ver="$2"
-  ver="$(gamma_engine_version_label_trim "$ver")"
+  ver="$(anomaly_engine_version_label_trim "$ver")"
   [[ -n "$ver" ]] || return 1
   printf '%s\n' "$ver" >"$engine_root/version"
 }
 
-gamma_engine_version_from_tarball() {
+anomaly_engine_version_from_tarball() {
   local tarball="$1"
   local ver
   ver="$(tar -xOf "$tarball" wswine.bundle/version 2>/dev/null | head -1 || true)"
-  ver="$(gamma_engine_version_label_trim "$ver")"
+  ver="$(anomaly_engine_version_label_trim "$ver")"
   [[ -n "$ver" ]] || return 1
   printf '%s\n' "$ver"
 }
 
 # Archive path for a version label and build number, e.g.
-# "CX26-W11-GAMMA" 19 -> dist/artifacts/CX26-W11-GAMMA-19.tar.xz. The build
+# "CX26-W11-ANOMALY" 19 -> dist/artifacts/CX26-W11-ANOMALY-19.tar.xz. The build
 # number comes from config/build-number or --build-number (see
 # pack-engine-artifact.sh and docs/building.md, "Versioning").
-gamma_engine_archive_path_for_format() {
+anomaly_engine_archive_path_for_format() {
   local label="$1"
-  local dir="${2:-$(gamma_engine_artifacts_dir)}"
+  local dir="${2:-$(anomaly_engine_artifacts_dir)}"
   local format="${3:-xz}"
   local build_number="$4"
   local ext
-  label="$(gamma_engine_version_label_trim "$label")"
-  if [[ ! "$label" =~ ^CX[0-9]+-W[0-9]+-GAMMA$ ]]; then
-    echo "Unsupported engine version label: $label (expected CX<n>-W<n>-GAMMA)" >&2
+  label="$(anomaly_engine_version_label_trim "$label")"
+  if [[ ! "$label" =~ ^CX[0-9]+-W[0-9]+-ANOMALY$ ]]; then
+    echo "Unsupported engine version label: $label (expected CX<n>-W<n>-ANOMALY)" >&2
     return 1
   fi
   case "$format" in
@@ -138,10 +138,10 @@ gamma_engine_archive_path_for_format() {
   printf '%s/%s-%s.%s\n' "$dir" "$label" "$build_number" "$ext"
 }
 
-gamma_find_zstd() {
+anomaly_find_zstd() {
   local candidate
   for candidate in \
-    "${GAMMA_ZSTD:-}" \
+    "${ANOMALY_ZSTD:-}" \
     "$ENGINE_PROJECT_ROOT/tools/zstd/zstd" \
     "$(command -v zstd 2>/dev/null || true)"; do
     if [[ -n "$candidate" && -x "$candidate" ]]; then

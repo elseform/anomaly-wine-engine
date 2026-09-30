@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build reusable Wine engine artifact (strip + compressed tar) for GAMMA.
+# Build reusable Wine engine artifact (strip + compressed tar) for Anomaly.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -13,13 +13,13 @@ BUILD_NUMBER=""
 DXMT_LOCAL=""
 DXMT_TAG_ARG=""
 # xz is the default: macOS tar and Python's lzma unpack it with no extra
-# tools, so gamma-setup-tool (which only accepts .tar.xz) needs no zstd.
-FORMAT="${GAMMA_ENGINE_FORMAT:-xz}"
+# tools, so anomaly-setup-tool (which only accepts .tar.xz) needs no zstd.
+FORMAT="${ANOMALY_ENGINE_FORMAT:-xz}"
 # Compression effort. The old xz -9e / zstd -22 --ultra defaults cost minutes
 # for negligible distribution benefit. Both default xz and explicit zstd use
-# a moderate level 6. Override with GAMMA_ENGINE_COMPRESS_LEVEL.
-XZ_LEVEL="${GAMMA_ENGINE_COMPRESS_LEVEL:-6}"
-ZSTD_LEVEL="${GAMMA_ENGINE_COMPRESS_LEVEL:-6}"
+# a moderate level 6. Override with ANOMALY_ENGINE_COMPRESS_LEVEL.
+XZ_LEVEL="${ANOMALY_ENGINE_COMPRESS_LEVEL:-6}"
+ZSTD_LEVEL="${ANOMALY_ENGINE_COMPRESS_LEVEL:-6}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -68,10 +68,10 @@ Usage: $(basename "$0") [--force] [--dry-run] [--zstd|--xz] [--build-number N]
        [--format zstd|xz]
 
 Build a compressed engine artifact from install/wine-cx26-x86_64 (or WINE_INSTALL).
-  xz:   dist/artifacts/CX26-W11-GAMMA-<N>.tar.xz (default, xz -$XZ_LEVEL)
-  zstd: dist/artifacts/CX26-W11-GAMMA-<N>.tar.zst (--zstd, zstd -$ZSTD_LEVEL;
-        not accepted by gamma-setup-tool)
-DXMT is the only graphics backend. It comes from the latest gamma-YYYY.MM.DD[.N]
+  xz:   dist/artifacts/CX26-W11-ANOMALY-<N>.tar.xz (default, xz -$XZ_LEVEL)
+  zstd: dist/artifacts/CX26-W11-ANOMALY-<N>.tar.zst (--zstd, zstd -$ZSTD_LEVEL;
+        not accepted by anomaly-setup-tool)
+DXMT is the only graphics backend. It comes from the latest anomaly-YYYY.MM.DD[.N]
 release of elseform/dxmt (scripts/fetch-dxmt-release.sh, verified and cached
 in build/cache/dxmt/), or from --dxmt-tag TAG. --dxmt DIR packs a local,
 unreleased payload (x86_64-windows/ and x86_64-unix/) for testing; its
@@ -80,9 +80,9 @@ manifest says so and publish-release.sh refuses it.
 writes <N> back to config/build-number (commit it).
 --dry-run performs only a fast source/layout preflight; it does not stage,
 strip, rewrite dylib paths, sign, scan minOS, compress, or verify an archive.
-Set GAMMA_ENGINE_VERSION_LABEL to override the detected version label.
-Set GAMMA_ENGINE_FORMAT=zstd or pass --zstd only for an explicit zstd build.
-Set GAMMA_ENGINE_COMPRESS_LEVEL to trade size against packing time.
+Set ANOMALY_ENGINE_VERSION_LABEL to override the detected version label.
+Set ANOMALY_ENGINE_FORMAT=zstd or pass --zstd only for an explicit zstd build.
+Set ANOMALY_ENGINE_COMPRESS_LEVEL to trade size against packing time.
 EOF
       exit 0
       ;;
@@ -116,9 +116,9 @@ CXCOMPATDB="$WINE_INSTALL/lib/wine/x86_64-unix/cxcompatdb.so"
   exit 1
 }
 if [[ "$FORMAT" == "zst" ]]; then
-  ZSTD_BIN="$(gamma_find_zstd 2>/dev/null || true)"
+  ZSTD_BIN="$(anomaly_find_zstd 2>/dev/null || true)"
   [[ -x "$ZSTD_BIN" ]] || {
-    echo "Missing zstd — install with: brew install zstd (or set GAMMA_ZSTD=/path/to/zstd)" >&2
+    echo "Missing zstd — install with: brew install zstd (or set ANOMALY_ZSTD=/path/to/zstd)" >&2
     exit 1
   }
 else
@@ -128,21 +128,21 @@ else
   }
 fi
 
-ENGINE_VERSION_LABEL="${GAMMA_ENGINE_VERSION_LABEL:-}"
+ENGINE_VERSION_LABEL="${ANOMALY_ENGINE_VERSION_LABEL:-}"
 if [[ -z "$ENGINE_VERSION_LABEL" ]]; then
   ENGINE_VERSION_LABEL="$(head -n 1 "$OGOM/config/engine-version.txt" 2>/dev/null || true)"
 fi
 if [[ -z "$ENGINE_VERSION_LABEL" ]]; then
-  ENGINE_VERSION_LABEL="$(gamma_detect_engine_version_label "$WINE_INSTALL/bin/wine")" || {
+  ENGINE_VERSION_LABEL="$(anomaly_detect_engine_version_label "$WINE_INSTALL/bin/wine")" || {
     echo "Could not detect engine version from config or wine --version" >&2
     exit 1
   }
 fi
-ENGINE_VERSION_SLUG="$(gamma_engine_version_slug_from_label "$ENGINE_VERSION_LABEL")"
+ENGINE_VERSION_SLUG="$(anomaly_engine_version_slug_from_label "$ENGINE_VERSION_LABEL")"
 ENGINE_VERSION="$ENGINE_VERSION_SLUG"
-ARTIFACTS_DIR="$(gamma_engine_artifacts_dir)"
+ARTIFACTS_DIR="$(anomaly_engine_artifacts_dir)"
 # The -<N> build counter, also recorded in the manifest as buildNumber so a
-# consumer never has to parse it out of a filename. gamma-setup-tool orders
+# consumer never has to parse it out of a filename. anomaly-setup-tool orders
 # releases by it, so it must keep growing: the last packed number is tracked
 # in config/build-number.
 BUILD_NUMBER_FILE="$OGOM/config/build-number"
@@ -158,7 +158,7 @@ fi
   echo "Invalid build number: $BUILD_NUMBER" >&2
   exit 1
 }
-ARCHIVE="$(gamma_engine_archive_path_for_format "$ENGINE_VERSION_LABEL" "$ARTIFACTS_DIR" "$FORMAT" "$BUILD_NUMBER")" || exit 1
+ARCHIVE="$(anomaly_engine_archive_path_for_format "$ENGINE_VERSION_LABEL" "$ARTIFACTS_DIR" "$FORMAT" "$BUILD_NUMBER")" || exit 1
 VERSION_FILE="$ARTIFACTS_DIR/engine-version.txt"
 STAMP_FILE="$ARTIFACTS_DIR/.pack-stamp"
 
@@ -223,15 +223,15 @@ REDIST_FETCH_SRC="$OGOM/runtime/redist-fetch"
   echo "Missing redist manifest at $REDIST_MANIFEST_SRC — regenerate it with scripts/write-redist-manifest.py." >&2
   exit 1
 }
-[[ -f "$REDIST_FETCH_SRC/gamma_redist.py" ]] || {
-  echo "Missing redist fetcher at $REDIST_FETCH_SRC/gamma_redist.py." >&2
+[[ -f "$REDIST_FETCH_SRC/anomaly_redist.py" ]] || {
+  echo "Missing redist fetcher at $REDIST_FETCH_SRC/anomaly_redist.py." >&2
   exit 1
 }
 python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$REDIST_MANIFEST_SRC" || {
   echo "Refusing to pack an unparsable redist manifest: $REDIST_MANIFEST_SRC" >&2
   exit 1
 }
-strings -a "$CXCOMPATDB" | grep -q 'GAMMA_GRAPHICS_BACKEND' || {
+strings -a "$CXCOMPATDB" | grep -q 'ANOMALY_GRAPHICS_BACKEND' || {
   echo "Refusing to pack an incompatible cxcompatdb.so" >&2
   exit 1
 }
@@ -263,7 +263,7 @@ if [[ -f "$ARCHIVE" && "$FORCE" -ne 1 ]]; then
   exit 0
 fi
 
-STAGING="$(mktemp -d "${TMPDIR:-/tmp}/gamma-engine-pack.XXXXXX")"
+STAGING="$(mktemp -d "${TMPDIR:-/tmp}/anomaly-engine-pack.XXXXXX")"
 cleanup() {
   rm -rf "$STAGING"
 }
@@ -277,7 +277,7 @@ rsync -a --delete \
   "$WINE_INSTALL/" "$ENGINE_TREE/"
 find "$ENGINE_TREE" -name '.DS_Store' -delete 2>/dev/null || true
 rm -rf "$ENGINE_TREE/redist"
-gamma_write_engine_version_file "$ENGINE_TREE" "$ENGINE_VERSION_LABEL"
+anomaly_write_engine_version_file "$ENGINE_TREE" "$ENGINE_VERSION_LABEL"
 
 # DXMT goes into lib/dxmt, which cxcompatdb puts first on the DLL search path.
 # winemetal.dll is also copied into Wine's own lib/wine/x86_64-windows: that is
@@ -306,18 +306,18 @@ for obsolete in lib/d3dmetal lib/dxvk lib/external lib/gptk40b1 lib/gptk40b2 lib
 done
 
 echo "==> Embedding the DirectX/VC++ redistributable manifest and fetcher"
-mkdir -p "$ENGINE_TREE/share/gamma/redist-fetch"
-cp "$REDIST_MANIFEST_SRC" "$ENGINE_TREE/share/gamma/redist-manifest.json"
+mkdir -p "$ENGINE_TREE/share/anomaly/redist-fetch"
+cp "$REDIST_MANIFEST_SRC" "$ENGINE_TREE/share/anomaly/redist-manifest.json"
 rsync -a --delete --exclude '__pycache__' \
-  "$REDIST_FETCH_SRC/" "$ENGINE_TREE/share/gamma/redist-fetch/"
-[[ ! -e "$ENGINE_TREE/share/gamma/redist" ]] || {
-  echo "Refusing to pack bundled redist DLLs at share/gamma/redist" >&2
+  "$REDIST_FETCH_SRC/" "$ENGINE_TREE/share/anomaly/redist-fetch/"
+[[ ! -e "$ENGINE_TREE/share/anomaly/redist" ]] || {
+  echo "Refusing to pack bundled redist DLLs at share/anomaly/redist" >&2
   exit 1
 }
 
-# The wrapper UI is supplied by gamma-setup-tool. Remove any legacy copy
+# The wrapper UI is supplied by anomaly-setup-tool. Remove any legacy copy
 # carried by an older install tree from this disposable archive staging tree.
-rm -rf "$ENGINE_TREE/share/gamma/Configurator.app"
+rm -rf "$ENGINE_TREE/share/anomaly/Configurator.app"
 # Remove Finder metadata introduced while staging.
 find "$ENGINE_TREE" \( -name '.DS_Store' -o -name '._*' \) -delete 2>/dev/null || true
 
@@ -334,7 +334,7 @@ PACKED_CXCOMPATDB="$ENGINE_TREE/lib/wine/x86_64-unix/cxcompatdb.so"
   echo "Refusing to pack without cxcompatdb.so" >&2
   exit 1
 }
-strings -a "$PACKED_CXCOMPATDB" | grep -q 'GAMMA_GRAPHICS_BACKEND' || {
+strings -a "$PACKED_CXCOMPATDB" | grep -q 'ANOMALY_GRAPHICS_BACKEND' || {
   echo "Refusing to pack an incompatible cxcompatdb.so" >&2
   exit 1
 }
@@ -348,7 +348,7 @@ if strings -a "$PACKED_CXCOMPATDB" | grep -q 'CX_ACTIVE_GRAPHICS_BACKEND'; then
 fi
 
 # Fail closed: every host Mach-O must stay at/below the product minOS floor.
-python3 "$SCRIPT_DIR/pack-minos-scan.py" "$ENGINE_TREE" "${MACOSX_DEPLOYMENT_TARGET:-10.15}" "${GAMMA_PRODUCT_MIN_OS:-26.0}"
+python3 "$SCRIPT_DIR/pack-minos-scan.py" "$ENGINE_TREE" "${MACOSX_DEPLOYMENT_TARGET:-10.15}" "${ANOMALY_PRODUCT_MIN_OS:-26.0}"
 NTDLL="$ENGINE_TREE/lib/wine/x86_64-windows/ntdll.dll"
 [[ -f "$NTDLL" ]] || {
   echo "Missing packaged NTDLL: $NTDLL" >&2
@@ -408,7 +408,7 @@ printf '%s\n' "$ENGINE_VERSION_LABEL" >"$VERSION_FILE"
   echo "slug=$ENGINE_VERSION_SLUG"
   echo "format=$FORMAT"
   echo "archive=$(basename "$ARCHIVE")"
-  if [[ -n "${GAMMA_ENGINE_VERSION_LABEL:-}" ]]; then
+  if [[ -n "${ANOMALY_ENGINE_VERSION_LABEL:-}" ]]; then
     echo "wine=$ENGINE_VERSION_LABEL"
   else
     echo "wine=$(arch -x86_64 "$WINE_INSTALL/bin/wine" --version 2>/dev/null || true)"

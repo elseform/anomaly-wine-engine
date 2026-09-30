@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "description": "Microsoft redistributable DLLs the GAMMA Wine engine needs in its prefix, and the public installers they are extracted from. Regenerate with scripts/write-redist-manifest.py.",
+  "description": "Microsoft redistributable DLLs the Anomaly Wine engine needs in its prefix, and the public installers they are extracted from. Regenerate with scripts/write-redist-manifest.py.",
   "installers": {
     "vc_redist_x64": {
       "url": "https://download.visualstudio.microsoft.com/download/pr/bd1c8d9d-ba95-4eee-bc6e-df1fcc876373/CC0FF0EB1DC3F5188AE6300FAEF32BF5BEEBA4BDD6E8E445A9184072096B713B/VC_redist.x64.exe",
