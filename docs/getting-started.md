@@ -14,7 +14,7 @@ out what went wrong. To build an archive yourself, see
 ## 2. Create the app
 
 Use [Anomaly Setup Tool](https://github.com/elseform/anomaly-setup-tool): choose an
-app name, the GAMMA folder that contains `ModOrganizer.exe`, and the engine
+app name, the MO2 folder that contains `ModOrganizer.exe`, and the engine
 archive. It creates the app in `~/Applications`.
 
 The setup tool runs its `interactive_setup.py`, which can also be used directly
