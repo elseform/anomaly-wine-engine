@@ -7,7 +7,7 @@ the pieces that ship next to Wine. For producing an archive, see
 
 ## What this repository produces
 
-One artifact: a relocatable Wine 11.16 / CrossOver 26.3.0 engine, built for
+One artifact: a relocatable Wine/CrossOver engine (versions: [README](../README.md)), built for
 `x86_64` and run under Rosetta 2 on Apple Silicon Macs with macOS 26 or newer.
 
 ```text
@@ -60,15 +60,15 @@ Two consequences of this layout:
 - `lib/wine/x86_64-windows/winemetal.dll` is a copy of DXMT's `winemetal.dll`
   (debug data stripped) so that `wineboot` finds it and creates the prefix
   entry. The copy in `lib/dxmt` is the one that loads.
+- Backend files never replace Wine's Direct3D builtins, and `winemetal.so`
+  exists only under `lib/dxmt/x86_64-unix`, matching CrossOver 26.3.0's
+  renderer placement.
 - The prefix's `system32` holds Wine's own `d3d11.dll`, `dxgi.dll` and
   `winemetal.dll` from `wineboot`. They are marked as builtins, so Wine loads
   the modules from its DLL search path — `lib/dxmt` first — instead.
 
-A launch from a terminal prints the selected backend:
-
-```text
-anomaly-cxcompatdb:info: graphics backend=dxmt machine=x86_64-windows path=…/lib/dxmt
-```
+A launch from a terminal prints the selected backend; the line is shown in
+[Getting Started](getting-started.md#4-troubleshooting).
 
 ## Wrapper UI
 
