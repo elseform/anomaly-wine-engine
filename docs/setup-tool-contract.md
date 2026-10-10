@@ -20,8 +20,8 @@ it.
 |---|---|
 | `bin/wine`, `bin/wineserver` | Everything; `wine --version` must run |
 | `lib/wine/x86_64-unix/cxcompatdb.so` | Presence check; selects the graphics backend at runtime |
-| `lib/dxmt/` | The DXMT backend (for `--backend dxmt`) |
-| `share/anomaly/redist-manifest.json` | The Microsoft runtime files to install (`--runtime-mode redist`) |
+| `lib/dxmt/` | The DXMT backend |
+| `share/anomaly/redist-manifest.json` | The Microsoft runtime files to install |
 | `share/anomaly/redist-fetch/anomaly_redist.py` | Imported by the setup script; must provide `load_manifest(path)`, `install(manifest, system32, cache_dir, search_dirs, log)` returning the installed DLL names, and `RedistError` |
 
 ### Optional
