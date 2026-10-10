@@ -81,6 +81,6 @@ export MTL_HUD_ENABLED=1
 # Change to the game's bin directory so xrCore loads local DLLs
 cd "/path/to/your/game/install/bin"
 
-# Launch Anomaly
-arch -x86_64 "$PWD/install/wine-cx26-x86_64/bin/wine" "G:\bin\AnomalyDX11AVX.exe" -dbg
+# Launch Anomaly (WINE_DIR is the variable exported at the top of this guide; keep it set)
+arch -x86_64 "$WINE_DIR/bin/wine" "G:\bin\AnomalyDX11AVX.exe" -dbg
 ```

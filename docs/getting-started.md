@@ -22,16 +22,17 @@ from a checkout of the setup tool; every prompt has a matching flag (`--help`):
 
 ```bash
 python3 sources/AnomalySetupTool/Resources/wine-engine/interactive_setup.py \
+  --launcher-resources /path/to/launcher-resources \
   --archive /path/to/CX26-W11-ANOMALY-<N>.tar.xz
 ```
+
+`--launcher-resources` (required) is the prebuilt launcher resource directory that the setup tool's build produces.
 
 Setup extracts the engine into the app, creates a Wine prefix, mounts the game
 root as `G:` and the host root as `Z:`, and installs the Visual C++ and DirectX
 runtime files the engine declares. Those come from Microsoft's own installers,
 pinned by checksum and cached for later runs; a directory of installers you
-already have can be passed with `--redist-installer-dir`. The script's
-`--runtime-mode verbs` installs through winetricks instead, which covers a
-slightly different set (no `d3dx10_43`, no `vcruntime140_threads`).
+already have can be passed with `--redist-installer-dir`.
 
 Open the app from Finder, adjust settings if needed, and press **Launch**. The native UI quits after handing off. The terminal helper launches directly:
 
