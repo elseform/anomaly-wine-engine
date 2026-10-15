@@ -8,8 +8,7 @@ reference
 # Microsoft redistributables. Purged from history and no longer tracked: they
 # are not ours to redistribute. The local copy stays here as a reference set
 # for config/redist-manifest.json; interactive_setup.py fetches the same files
-# from the public vendor installers at wrapper-setup time. Cold-stored in
-# gamma-wip under archive/removed-from-history/.
+# from the public vendor installers at wrapper-setup time.
 runtime/redist/
 
 # Apple Game Porting Toolkit payloads. Purged from history for the same
@@ -27,3 +26,6 @@ renderers/gptk40b2/
 
 # Python
 __pycache__/
+
+# Local agent instructions
+AGENTS.md
