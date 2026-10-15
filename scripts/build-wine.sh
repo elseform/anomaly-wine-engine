@@ -427,6 +427,12 @@ if [[ "$RECONFIGURE" -eq 0 && -f config.status && -f "$CONFIGURE_STAMP" &&
       config.status -nt ../configure && "$(cat "$CONFIGURE_STAMP")" == "$CONFIGURE_KEY" ]]; then
   echo "configure already ran with these options; resuming (--reconfigure to force)"
 else
+  # The key carries PATH, so a moved toolchain or dependency root lands here.
+  # configure -C would otherwise keep absolute tool paths cached for the old root.
+  if [[ -f "$CONFIGURE_STAMP" && "$(cat "$CONFIGURE_STAMP")" != "$CONFIGURE_KEY" ]]; then
+    echo "configure options or tool paths changed; discarding config.cache"
+    run rm -f config.cache
+  fi
   rm -f "$CONFIGURE_STAMP"
   run "${CONFIGURE_CMD[@]}"
   [[ "$DRY_RUN" -eq 1 ]] || printf '%s\n' "$CONFIGURE_KEY" >"$CONFIGURE_STAMP"
