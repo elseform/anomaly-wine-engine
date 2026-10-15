@@ -2,6 +2,9 @@
 # Build reusable Wine engine artifact (strip + compressed tar) for Anomaly.
 set -euo pipefail
 
+# Packaging uses the CLT host Python, independent of the x86 Homebrew build
+# tools: a relocated Homebrew Python can retain absolute framework paths.
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=engine-common.sh
 source "$SCRIPT_DIR/engine-common.sh"
@@ -227,7 +230,7 @@ REDIST_FETCH_SRC="$OGOM/runtime/redist-fetch"
   echo "Missing redist fetcher at $REDIST_FETCH_SRC/anomaly_redist.py." >&2
   exit 1
 }
-python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$REDIST_MANIFEST_SRC" || {
+/usr/bin/python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$REDIST_MANIFEST_SRC" || {
   echo "Refusing to pack an unparsable redist manifest: $REDIST_MANIFEST_SRC" >&2
   exit 1
 }
@@ -348,7 +351,7 @@ if strings -a "$PACKED_CXCOMPATDB" | grep -q 'CX_ACTIVE_GRAPHICS_BACKEND'; then
 fi
 
 # Fail closed: every host Mach-O must stay at/below the product minOS floor.
-python3 "$SCRIPT_DIR/pack-minos-scan.py" "$ENGINE_TREE" "${MACOSX_DEPLOYMENT_TARGET:-10.15}" "${ANOMALY_PRODUCT_MIN_OS:-26.0}"
+/usr/bin/python3 "$SCRIPT_DIR/pack-minos-scan.py" "$ENGINE_TREE" "${MACOSX_DEPLOYMENT_TARGET:-10.15}" "${ANOMALY_PRODUCT_MIN_OS:-26.0}"
 NTDLL="$ENGINE_TREE/lib/wine/x86_64-windows/ntdll.dll"
 [[ -f "$NTDLL" ]] || {
   echo "Missing packaged NTDLL: $NTDLL" >&2

@@ -20,6 +20,9 @@
 # --resolve-only, nothing is downloaded and only tag and cached are printed.
 set -euo pipefail
 
+# Packaging uses the CLT host Python, independent of the x86 Homebrew build
+# tools: a relocated Homebrew Python can retain absolute framework paths.
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO="${ANOMALY_DXMT_REPO:-elseform/dxmt}"
@@ -57,7 +60,7 @@ EXPECTED_FILES=(
 )
 
 if [[ -z "$TAG" ]]; then
-  TAG="$(curl -fsSL "https://api.github.com/repos/$REPO/releases?per_page=30" | python3 -c '
+  TAG="$(curl -fsSL "https://api.github.com/repos/$REPO/releases?per_page=30" | /usr/bin/python3 -c '
 import json, re, sys
 tags = [r["tag_name"] for r in json.load(sys.stdin)
         if not r.get("draft") and not r.get("prerelease")
@@ -106,7 +109,7 @@ mkdir -p "$PAYLOAD"
 tar -xzf "$CACHE/$BASE.tar.gz" -C "$PAYLOAD"
 
 # The manifest lists files as payload/<arch>/<name> with "sha256:<hex>".
-COMMIT="$(python3 - "$CACHE/$BASE.manifest.json" "$PAYLOAD" "$TAG" "${EXPECTED_FILES[@]}" <<'PY'
+COMMIT="$(/usr/bin/python3 - "$CACHE/$BASE.manifest.json" "$PAYLOAD" "$TAG" "${EXPECTED_FILES[@]}" <<'PY'
 import hashlib, json, os, sys
 
 manifest_path, payload, tag, *expected = sys.argv[1:]

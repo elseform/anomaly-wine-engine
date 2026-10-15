@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Packaging uses the CLT host Python, independent of the x86 Homebrew build
+# tools: a relocated Homebrew Python can retain absolute framework paths.
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
@@ -71,7 +74,7 @@ mkdir -p "$(dirname "$OUTPUT")"
 # Keep the release identity, compatibility floor, architectures, and ordered
 # patch list in one canonical file. The version and checksums are build outputs
 # and intentionally replace their config counterparts here.
-python3 - "$RELEASE_CONFIG" "$OUTPUT" "$VERSION_LABEL" "$NTDLL_SHA256" \
+/usr/bin/python3 - "$RELEASE_CONFIG" "$OUTPUT" "$VERSION_LABEL" "$NTDLL_SHA256" \
   "$ARTIFACT" "$ARTIFACT_SHA256" "$BUILD_NUMBER" \
   "$DXMT_SOURCE" "$DXMT_TAG" "$DXMT_COMMIT" "$DXMT_SHA256" <<'PY'
 import json

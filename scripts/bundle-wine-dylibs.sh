@@ -3,6 +3,9 @@
 # to @loader_path so the tree is relocatable (no .brew-x86 required at runtime).
 set -euo pipefail
 
+# Packaging uses the CLT host Python, independent of the x86 Homebrew build
+# tools: a relocated Homebrew Python can retain absolute framework paths.
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/env-x86_64.sh"
 
@@ -26,7 +29,7 @@ esac
 
 export GRAPHICS_LIB VULKAN_MODE VULKAN_SOURCE
 
-python3 - "$WINE_ROOT" "$BREW" "$UNIX_LIB" <<'PY'
+/usr/bin/python3 - "$WINE_ROOT" "$BREW" "$UNIX_LIB" <<'PY'
 import os
 import subprocess, re, shutil, sys
 from pathlib import Path
