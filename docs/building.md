@@ -79,7 +79,10 @@ Run the steps in this order.
    `bundle-wine-dylibs.sh` and `install-renderers.sh` (which keeps backend
    files out of the install tree), and writes the
    `version` file. Vulkan is off by default (`--with-vulkan` to enable).
-   `--dry-run` prints the commands without running them.
+   `--dry-run` previews the commands without downloading, creating directories,
+   changing patches or removing configure/cache stamps. It also works before
+   sources and tools have been prepared. Existing patch-series metadata is
+   still checked; preview output does not establish that a real build succeeds.
 2. **Pack** — `scripts/pack-engine-artifact.sh` (`--dry-run` for a fast
    preflight that resolves the DXMT release without downloading it). In
    order: fetch and verify DXMT (`fetch-dxmt-release.sh`), copy the install
@@ -164,6 +167,9 @@ Such an archive's manifest records `dxmt.source: "local"`, and
 
 - `scripts/write-redist-manifest.py` rebuilds `config/redist-manifest.json` from
   the pinned Microsoft installers; `--check` verifies it without writing.
+
+- `python3 -m pytest -n auto tests/test_build_wine_dry_run.py` checks that
+  Wine build and patch previews leave absent and existing build trees unchanged.
 
 ## Known limitations
 

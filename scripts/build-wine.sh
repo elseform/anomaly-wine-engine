@@ -83,7 +83,7 @@ Options:
   --reconfigure      Run configure even when it already ran with the same options
   --skip-renderers   Skip install-renderers.sh (backend cleanup of the install tree)
   --jobs N           Parallel make jobs (default: CPU count)
-  --dry-run          Print commands without executing
+  --dry-run          Preview commands without downloads or filesystem changes
   -h, --help         Show this help
 
 Vulkan examples:
@@ -342,10 +342,10 @@ if [[ ${#VULKAN_LIB_PATHS[@]} -gt 0 ]]; then
 fi
 
 run mkdir -p "$OGOM/install" "$WINE_SRC/build64"
-# Dry-run only prints mkdir; still create dirs so subsequent cd works.
-mkdir -p "$OGOM/install" "$WINE_SRC/build64"
 
-cd "$WINE_SRC"
+# In a preview the source/build trees may not exist yet. Print directory
+# changes too, and use absolute paths for the read-only resume checks below.
+run cd "$WINE_SRC"
 
 # Apply patches/series (CrossOver port, then the engine patches) and regenerate
 # configure. Re-runs skip what the tree already records; see the script.
@@ -365,7 +365,7 @@ else
   echo "Non-git wine tree; skipping make_requests/make_specfiles/make_makefiles/autoreconf"
 fi
 
-cd "$WINE_SRC/build64"
+run cd "$WINE_SRC/build64"
 
 # Bake -mmacosx-version-min into host CFLAGS so incremental `make` without an
 # exported MACOSX_DEPLOYMENT_TARGET still cannot drift to the SDK default (15+).
@@ -423,8 +423,8 @@ echo "host minOS: MACOSX_DEPLOYMENT_TARGET=$ANOMALY_MIN_OS_TARGET ($ANOMALY_MIN_
 # succeeds; a newly applied patch regenerates configure and so invalidates it.
 CONFIGURE_STAMP="$WINE_SRC/build64/.anomaly-configure"
 CONFIGURE_KEY="$(printf '%q ' "${CONFIGURE_CMD[@]}")"
-if [[ "$RECONFIGURE" -eq 0 && -f config.status && -f "$CONFIGURE_STAMP" &&
-      config.status -nt ../configure && "$(cat "$CONFIGURE_STAMP")" == "$CONFIGURE_KEY" ]]; then
+if [[ "$RECONFIGURE" -eq 0 && -f "$WINE_SRC/build64/config.status" && -f "$CONFIGURE_STAMP" &&
+      "$WINE_SRC/build64/config.status" -nt "$WINE_SRC/configure" && "$(cat "$CONFIGURE_STAMP")" == "$CONFIGURE_KEY" ]]; then
   echo "configure already ran with these options; resuming (--reconfigure to force)"
 else
   # The key carries PATH, so a moved toolchain or dependency root lands here.
@@ -433,7 +433,7 @@ else
     echo "configure options or tool paths changed; discarding config.cache"
     run rm -f config.cache
   fi
-  rm -f "$CONFIGURE_STAMP"
+  run rm -f "$CONFIGURE_STAMP"
   run "${CONFIGURE_CMD[@]}"
   [[ "$DRY_RUN" -eq 1 ]] || printf '%s\n' "$CONFIGURE_KEY" >"$CONFIGURE_STAMP"
 fi

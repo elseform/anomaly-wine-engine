@@ -143,7 +143,10 @@ if [[ -d "$HOMEBREW_PREFIX" ]]; then
   export HOMEBREW_CACHE="$HOMEBREW_PREFIX/cache"
   export HOMEBREW_LOGS="$HOMEBREW_PREFIX/logs"
   export HOMEBREW_TEMP="$HOMEBREW_PREFIX/tmp"
-  mkdir -p "$HOMEBREW_CACHE" "$HOMEBREW_LOGS" "$HOMEBREW_TEMP"
+  # Sourced by dry-run entry points as well as real builds.
+  if [[ "${DRY_RUN:-0}" -ne 1 ]]; then
+    mkdir -p "$HOMEBREW_CACHE" "$HOMEBREW_LOGS" "$HOMEBREW_TEMP"
+  fi
 
   _brew_lib_path="$HOMEBREW_PREFIX/lib"
   for _d in "$HOMEBREW_PREFIX"/opt/*/lib; do

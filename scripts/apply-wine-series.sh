@@ -18,10 +18,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=env-x86_64.sh
-source "$SCRIPT_DIR/env-x86_64.sh"
-
-SRC="$WINE_SRC"
+SRC=""
 WITH_VULKAN=0
 DRY_RUN=0
 while [[ $# -gt 0 ]]; do
@@ -44,13 +41,19 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# Parse --dry-run before sourcing the environment: sourcing prepares Brew
+# directories during real runs only.
+# shellcheck source=env-x86_64.sh
+source "$SCRIPT_DIR/env-x86_64.sh"
+SRC="${SRC:-$WINE_SRC}"
+
 PATCHES_DIR="$OGOM/patches"
 SERIES="$PATCHES_DIR/series"
 STAMP="$SRC/.anomaly-series"
 RELEASE_CONFIG="$OGOM/config/engine-release.json"
 
 [[ -f "$SERIES" ]] || { echo "Missing $SERIES" >&2; exit 1; }
-[[ -f "$SRC/configure.ac" ]] || {
+[[ "$DRY_RUN" -eq 1 || -f "$SRC/configure.ac" ]] || {
   echo "No Wine source tree at $SRC; run prepare-build-deps.sh first." >&2
   exit 1
 }
