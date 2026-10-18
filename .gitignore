@@ -25,3 +25,4 @@ renderers/gptk40b2/
 # Python
 __pycache__/
 
+config/build-number
