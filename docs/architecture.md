@@ -95,6 +95,21 @@ Python (no `cabextract` or `7z`), checks every file's SHA-256, and installs them
 into the prefix. `d3dcompiler_47.dll` has no public Microsoft installer; it comes
 from the `mozilla/fxc2` build that winetricks also uses.
 
+### Choosing the HLSL compiler
+
+A wrapper prefix has two `d3dcompiler_47` implementations:
+
+- the Microsoft build from fxc2 in the prefix's `system32` (the default; a
+  native DLL wins over a builtin), and
+- the engine's builtin `lib/wine/x86_64-windows/d3dcompiler_47.dll`, backed by
+  the pinned vkd3d fork (see [building](building.md#vkd3d-shader-compiler)).
+
+Selecting the builtin is the usual Wine DLL override `d3dcompiler_47=b`:
+`WINEDLLOVERRIDES="d3dcompiler_47=b"` in the launch environment, or, per prefix,
+`wine reg add "HKCU\Software\Wine\DllOverrides" /v d3dcompiler_47 /d builtin /f`.
+Removing the override restores the fxc2 DLL. The manifest entry for fxc2 stays
+either way.
+
 Why not winetricks: its verbs install whole packages, running the Visual C++
 installer under Wine and unpacking every D3DX version a package carries
 (`d3dx9` alone is `d3dx9_24` to `d3dx9_43`). The manifest installs only the

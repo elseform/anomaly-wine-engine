@@ -339,6 +339,12 @@ SERIES_ARGS=(--src "$WINE_SRC")
 [[ "$DRY_RUN" -eq 1 ]] && SERIES_ARGS+=(--dry-run)
 "$SCRIPT_DIR/apply-wine-series.sh" "${SERIES_ARGS[@]}"
 
+# Replace Wine's vendored vkd3d shader compiler with the pinned fork (config/
+# engine-release.json "vkd3d"); fxc2 d3dcompiler_47 stays the prefix default.
+OVERLAY_ARGS=(--src "$WINE_SRC")
+[[ "$DRY_RUN" -eq 1 ]] && OVERLAY_ARGS+=(--dry-run)
+"$SCRIPT_DIR/overlay-vkd3d.sh" "${OVERLAY_ARGS[@]}"
+
 # The release tarball is not a git checkout; make_makefiles requires `git ls-files`.
 # Regenerators are only needed when hacking the wine tree as a git worktree.
 if [[ -e "$WINE_SRC/.git" || -n "${GIT_DIR:-}" ]]; then
