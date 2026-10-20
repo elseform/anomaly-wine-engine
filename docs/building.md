@@ -62,7 +62,6 @@ any it finds; pin that function and run `build-wine.sh` again.
 | `install/wine-cx26-x86_64` | The live, uncompressed engine tree | no |
 | `dist/artifacts/` | Packed archives with `.sha256` and `.manifest.json` | no |
 | `build/cache/dxmt/<tag>/` | Downloaded, verified DXMT releases | no |
-| `build/cache/vkd3d/<commit>.tar` | Verified archive of the pinned vkd3d fork | no |
 | `renderers/dxmt/NOTICE` | DXMT's license notice, shipped as `lib/dxmt/NOTICE` | yes |
 | `config/` | Version label, last build number, release metadata, redist manifest, entitlements | yes |
 
@@ -78,8 +77,7 @@ Run the steps in this order.
    (`prepare-build-deps.sh`), applies `patches/series` with
    `apply-wine-series.sh` — the CrossOver 26.3.0 port first, then the engine
    patches (see [patches/README.md](../patches/README.md)) — regenerates
-   `configure` with autoconf, overlays the pinned vkd3d shader compiler
-   (`overlay-vkd3d.sh`, see [vkd3d](#vkd3d-shader-compiler)), configures with
+   `configure` with autoconf, configures with
    `--enable-archs=i386,x86_64` and llvm-mingw, builds and installs into
    `install/wine-cx26-x86_64`, then runs `build-cxcompatdb.sh`,
    `bundle-wine-dylibs.sh` and `install-renderers.sh` (which keeps backend
@@ -169,25 +167,6 @@ Such an archive's manifest records `dxmt.source: "local"`, and
   or reordering one needs a fresh tree (`prepare-build-deps.sh --force`, which
   also deletes `build64`). `config/engine-release.json` must list the same
   patches in the same order; the script refuses otherwise.
-
-## vkd3d shader compiler
-
-Wine's builtin `d3dcompiler_47` compiles HLSL with the vkd3d shader compiler
-vendored in `libs/vkd3d`. The engine replaces that compiler with a pinned fork
-so the builtin carries the fork's HLSL fixes. `scripts/overlay-vkd3d.sh` runs
-after the patch series and before configure/make; it copies the fork's
-`libs/vkd3d-shader`, `vkd3d_shader.h` and two private headers over Wine's copy
-(the D3D12 layer stays Wine's) and rewrites the fork's header names to Wine's.
-
-- The pin is the `vkd3d` block of `config/engine-release.json`: `commit` and
-  `archiveSHA256`, the sha256 of `git archive --format=tar <commit>`. It is also
-  recorded in `engine-manifest.json`.
-- `ANOMALY_VKD3D_SOURCE` names a git checkout of the fork that contains the
-  pinned commit. The archive is made once, cached in `build/cache/vkd3d/` and
-  verified against the pin on every run; a mismatch is fatal.
-- To move the pin: commit in the fork, compute
-  `git archive --format=tar <commit> | shasum -a 256`, update both fields and
-  build. A tree overlaid with an older pin is overlaid again automatically.
 
 ## Maintainer tools
 

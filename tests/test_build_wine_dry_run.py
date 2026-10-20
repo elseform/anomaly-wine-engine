@@ -32,18 +32,14 @@ def build_tree(tmp_path):
     scripts = tmp_path / "scripts"
     scripts.mkdir()
     for name in (
-        "build-wine.sh", "env.sh", "prepare-build-deps.sh", "apply-wine-series.sh",
-        "overlay-vkd3d.sh",
+        "build-wine.sh", "env.sh", "prepare-build-deps.sh", "apply-wine-series.sh"
     ):
         shutil.copy2(REPO / "scripts" / name, scripts / name)
     (tmp_path / "patches").mkdir()
     (tmp_path / "patches/series").write_text("example.patch\n")
     (tmp_path / "patches/example.patch").write_text("fixture patch\n")
     (tmp_path / "config").mkdir()
-    (tmp_path / "config/engine-release.json").write_text(json.dumps({
-        "patches": ["example.patch"],
-        "vkd3d": {"commit": "0" * 40, "archiveSHA256": "0" * 64},
-    }))
+    (tmp_path / "config/engine-release.json").write_text(json.dumps({"patches": ["example.patch"]}))
     (tmp_path / "config/engine-version.txt").write_text("test-version\n")
     # Fail immediately if a preview tries to download, patch, compile or install.
     poison_bin = tmp_path / "poison-bin"

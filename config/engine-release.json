@@ -46,12 +46,5 @@
     "config/redist-manifest.json",
     "runtime/redist-fetch/anomaly_redist.py"
   ],
-  "vkd3d": {
-    "repo": "elseform/vkd3d",
-    "branch": "dev",
-    "commit": "a141a639e78a4c2d70f19982521145a6e5c81afa",
-    "archiveSHA256": "fbd8f149167298e8526b0fe04d315aa3a508dfcf9a617cc57a431061b9963969",
-    "scope": "HLSL shader compiler (libs/vkd3d-shader) only"
-  },
   "notes": "anomaly-wine-engine provides a standalone Wine 11.16 / CrossOver 26.3 engine for Apple Silicon Macs running macOS 26 or newer, with DXMT as its only graphics backend. No WineD3D fallback: cxcompatdb terminates any process whose DXMT payload fails validation."
 }

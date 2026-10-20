@@ -24,15 +24,6 @@ it.
 | `share/anomaly/redist-manifest.json` | The Microsoft runtime files to install |
 | `share/anomaly/redist-fetch/anomaly_redist.py` | Imported by the setup script; must provide `load_manifest(path)`, `install(manifest, system32, cache_dir, search_dirs, log)` returning the installed DLL names, and `RedistError` |
 
-### HLSL compiler selection
-
-The engine ships a builtin `lib/wine/x86_64-windows/d3dcompiler_47.dll` backed by
-its pinned vkd3d fork. The redist manifest still installs the fxc2
-`d3dcompiler_47.dll` into the prefix, and that stays the default. A wrapper that
-wants the builtin sets the DLL override `d3dcompiler_47=b` (for example in
-`WINEDLLOVERRIDES`); nothing else changes. The fork commit is recorded as
-`vkd3d` in `engine-manifest.json`.
-
 ### Optional
 
 | Path | Used for |
