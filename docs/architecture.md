@@ -111,7 +111,7 @@ patch deliberately left out are in [patches/README.md](../patches/README.md).
 ## Conventions
 
 - Every script derives the repository root from its own location; `OGOM` is a
-  legacy name for that root inside `env-x86_64.sh`.
+  legacy name for that root inside `scripts/env.sh`.
 - Environment variables use the `ANOMALY_` prefix.
 - `CrossOver.app` is only used, when present, as an optional MoltenVK source for
   a Vulkan-enabled build; the engine never references it at runtime.

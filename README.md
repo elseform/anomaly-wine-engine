@@ -14,7 +14,7 @@ The engine is packed as `dist/artifacts/CX26-W11-ANOMALY-<N>.tar.xz`. [Anomaly S
 | [Setup Tool Contract](docs/setup-tool-contract.md) | What `anomaly-setup-tool` relies on in an archive, and what it builds |
 | [Graphics Backend](docs/renderers.md) | DXMT, how it is selected and validated |
 | [Patch Set](patches/README.md) | What each Wine patch does, and the one deliberately left out |
-| [Why deps build from source](docs/why-no-prebuilt-deps.md) | The project-local `.brew-x86` |
+| [Why deps build from source](docs/why-no-prebuilt-deps.md) | The external x86_64 Homebrew prefix |
 | [Manual Setup](docs/manual-setup.md) | Creating a prefix by hand, for debugging |
 
 ## Features

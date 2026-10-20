@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/env-x86_64.sh"
+source "$SCRIPT_DIR/env.sh"
 
 TARGET_ROOT="$WINE_INSTALL"
 ENTITLEMENTS="$ENTITLEMENTS_PLIST"
@@ -38,7 +38,7 @@ run() {
 has_developer_id_authority() {
   local path="$1"
   local output=""
-  # Prefer bash matching over PATH grep (env-x86_64 may put non-system tools first).
+  # Prefer bash matching over PATH grep (env.sh may put non-system tools first).
   output="$("$CODESIGN_CMD" -dv --verbose=4 "$path" 2>&1)" || true
   [[ "$output" == *"Authority=Developer ID Application:"* ]]
 }
@@ -73,7 +73,7 @@ if [[ ! -f "$verify_target" ]] || ! "$FILE_CMD" -b "$verify_target" | grep -q 'M
   verify_target="$TARGET_ROOT/bin/wineloader"
 fi
 
-# Clear quarantine only on regular files. Do not follow symlinks into .brew-x86
+# Clear quarantine only on regular files. Do not follow symlinks into the Homebrew prefix
 # (runtime lib links); xattr -cr would try to mutate those and fail with EACCES.
 while IFS= read -r -d '' path; do
   run "$XATTR_CMD" -c "$path" || true

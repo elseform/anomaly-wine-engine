@@ -1,6 +1,6 @@
 # Vendored from homebrew-core gnutls, with the "older clang" GitLab patch
 # removed (gitlab.com/.../*.diff returns 403; Xcode Clang 17+ does not need it).
-# Kept in-repo so clean rebuilds do not depend on an untracked .brew-x86 tap.
+# Kept in-repo so clean rebuilds do not depend on an untracked brew-prefix tap.
 class Gnutls < Formula
   desc "GNU Transport Layer Security (TLS) Library"
   homepage "https://gnutls.org/"

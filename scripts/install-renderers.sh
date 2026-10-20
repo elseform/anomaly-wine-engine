@@ -14,8 +14,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=env-x86_64.sh
-source "$SCRIPT_DIR/env-x86_64.sh"
+# shellcheck source=env.sh
+source "$SCRIPT_DIR/env.sh"
 
 WINE_INSTALL="${1:-${WINE_INSTALL:-}}"
 WINE_BUILD64="${WINE_BUILD64:-$WINE_SRC/build64}"

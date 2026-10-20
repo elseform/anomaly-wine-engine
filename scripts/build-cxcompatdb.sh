@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-source "$SCRIPT_DIR/env-x86_64.sh"
+source "$SCRIPT_DIR/env.sh"
 
 WINE_SRC="${WINE_SRC:-$ROOT/build/wine-11.16/wine}"
 WINE_INSTALL="${WINE_INSTALL:-$ROOT/install/wine-cx26-x86_64}"

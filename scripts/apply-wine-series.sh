@@ -43,8 +43,8 @@ done
 
 # Parse --dry-run before sourcing the environment: sourcing prepares Brew
 # directories during real runs only.
-# shellcheck source=env-x86_64.sh
-source "$SCRIPT_DIR/env-x86_64.sh"
+# shellcheck source=env.sh
+source "$SCRIPT_DIR/env.sh"
 SRC="${SRC:-$WINE_SRC}"
 
 PATCHES_DIR="$OGOM/patches"

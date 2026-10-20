@@ -32,7 +32,7 @@ def build_tree(tmp_path):
     scripts = tmp_path / "scripts"
     scripts.mkdir()
     for name in (
-        "build-wine.sh", "env-x86_64.sh", "prepare-build-deps.sh", "apply-wine-series.sh"
+        "build-wine.sh", "env.sh", "prepare-build-deps.sh", "apply-wine-series.sh"
     ):
         shutil.copy2(REPO / "scripts" / name, scripts / name)
     (tmp_path / "patches").mkdir()
@@ -52,7 +52,7 @@ def build_tree(tmp_path):
     for key in (
         "WINE_SRC", "WINE_INSTALL", "LLVM_MINGW", "HOMEBREW_PREFIX", "GIT_DIR",
         "OGOM_BUILD_DIR", "OGOM_ARCHIVES_DIR", "CROSSOVER_APP", "CROSSOVER_MOLTENVK",
-        "GRAPHICS_INSTALL",
+        "GRAPHICS_INSTALL", "ANOMALY_BREW_PREFIX",
     ):
         env.pop(key, None)
     env.update(OGOM=str(tmp_path), HOME=str(tmp_path / "home"), PATH=f"{poison_bin}:{os.environ['PATH']}")
@@ -72,7 +72,7 @@ def test_build_preview_is_read_only(build_tree, state, options):
         source.mkdir(parents=True)
         (source / "configure.ac").write_text("fixture\n")
         (source / "configure").write_text("fixture\n")
-        (root / ".brew-x86").mkdir()
+        (root / "home/.local/share/anomaly-wine/brew-x86").mkdir(parents=True)
     if state == "configured":
         build = source / "build64"
         build.mkdir()
@@ -95,7 +95,7 @@ def test_build_preview_is_read_only(build_tree, state, options):
 
 def test_patch_preview_does_not_create_brew_directories(build_tree):
     root, env = build_tree
-    (root / ".brew-x86").mkdir()
+    (root / "home/.local/share/anomaly-wine/brew-x86").mkdir(parents=True)
     before = snapshot(root)
     result = subprocess.run(
         ["bash", str(root / "scripts/apply-wine-series.sh"), "--dry-run"],

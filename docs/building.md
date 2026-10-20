@@ -32,9 +32,13 @@ any it finds; pin that function and run `build-wine.sh` again.
 - An Apple Silicon Mac with Rosetta 2 (`softwareupdate --install-rosetta`).
 - Xcode or the Command Line Tools: `clang`, `swiftc`, `codesign`, `otool`,
   `install_name_tool`, `python3`.
-- A project-local x86_64 Homebrew in `.brew-x86/` for build tools and runtime
-  libraries. `build-wine.sh --bootstrap-brew --install-deps` creates it; the
-  libraries are built from source at the build floor, see
+- A dedicated x86_64 Homebrew for build tools and runtime libraries, at a fixed
+  path outside the checkout so moving the repository cannot break it: by default
+  `~/.local/share/anomaly-wine/brew-x86` (`ANOMALY_BREW_PREFIX` overrides it).
+  `build-wine.sh --bootstrap-brew --install-deps` creates it: `--bootstrap-brew`
+  `git clone`s Homebrew/brew at the pinned tag in `ANOMALY_BREW_REF`
+  (`scripts/env.sh`), and never runs `brew update`, which would leave the tag.
+  Runtime libraries are built from source at the build floor, see
   [why-no-prebuilt-deps.md](why-no-prebuilt-deps.md).
 - Network access to dl.winehq.org and GitHub. `prepare-build-deps.sh`
   downloads upstream `wine-11.16.tar.xz` and the llvm-mingw toolchain
@@ -143,7 +147,7 @@ Such an archive's manifest records `dxmt.source: "local"`, and
 - **Archive name** — the version label plus the build number,
   `CX26-W11-ANOMALY-<N>.tar.xz` (builds up to `-19` were named
   `CX26-W11-GAMMA-<N>.tar.xz`, and up to `-18` `CX26W11-GAMMA-DXMT-<N>.tar.xz`, before the rename to
-  Anomaly). Naming lives in `scripts/engine-common.sh`.
+  Anomaly). Naming lives in `scripts/env.sh`.
 - **Build number** — `<N>` is `config/build-number` (the last packed build)
   plus one, or whatever `--build-number N` sets. A successful pack writes `<N>`
   back to `config/build-number`; commit it. It is recorded as `buildNumber` in

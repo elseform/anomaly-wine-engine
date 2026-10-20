@@ -6,9 +6,7 @@ set -euo pipefail
 # tools: a relocated Homebrew Python can retain absolute framework paths.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=engine-common.sh
-source "$SCRIPT_DIR/engine-common.sh"
-source "$SCRIPT_DIR/env-x86_64.sh"
+source "$SCRIPT_DIR/env.sh"
 
 FORCE=0
 DRY_RUN=0

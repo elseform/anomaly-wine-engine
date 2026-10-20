@@ -4,8 +4,9 @@
 
 Homebrew's prebuilt binaries ("bottles") are compiled with a hardcoded
 install path baked into them: `/usr/local` on Intel, `/opt/homebrew` on
-Apple Silicon. Our build uses neither — it installs into
-`anomaly-wine-engine/.brew-x86/`, a project-local x86_64 prefix, on purpose.
+Apple Silicon. Our build uses neither — it installs into a dedicated x86_64
+prefix, `~/.local/share/anomaly-wine/brew-x86` by default (outside the checkout,
+`ANOMALY_BREW_PREFIX` overrides it), on purpose.
 A bottle whose libraries/binaries expect `/usr/local` won't run correctly
 from a different path, so Homebrew refuses to pour the bottle and falls
 back to compiling from source instead. That's the
@@ -19,11 +20,11 @@ message you see for nearly every formula in the build log.
 - `/usr/local` *can* hold an x86_64 Homebrew (the traditional Intel-Mac
   layout, still usable under Rosetta), but that means installing a second,
   system-wide Homebrew that every other tool/shell on the machine could
-  pick up by accident, and that persists outside this repo. That's exactly
-  the ambiguity `env-x86_64.sh` avoids: it explicitly overrides
+  pick up by accident. That's exactly
+  the ambiguity `scripts/env.sh` avoids: it explicitly overrides
   `HOMEBREW_PREFIX` away from `/opt/homebrew` and refuses to default to
   `/usr/local`, keeping the whole x86_64 toolchain scoped to
-  `.brew-x86/` inside this repo — reproducible, gitignored, deletable,
+  its own dedicated prefix — reproducible, deletable,
   and never fighting a real system Homebrew install.
 
 ## Why does it matter for a Wine build specifically
@@ -42,10 +43,10 @@ at once.
 ## The actual cost
 
 - One-time: once a dependency (gettext, gmp, gnutls, …) is built and
-  sitting in `.brew-x86/Cellar/`, `brew_x86`/`brew_x86_install_runtime`
+  sitting in the prefix's `Cellar/`, `brew_x86`/`brew_x86_install_runtime`
   skip it on future runs — this pain is paid once per machine, not once
   per build.
 - Slower first run: expect real compiles (autoreconf + configure + make
   [+ make check]) for anything without a matching-prefix bottle, which on
   this hardware is effectively everything, since no public bottle target
-  matches a `.brew-x86`-style project-local prefix.
+  matches a custom prefix.

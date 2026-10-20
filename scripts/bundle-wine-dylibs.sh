@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Copy Homebrew runtime dylibs into the Wine prefix and rewrite install names
-# to @loader_path so the tree is relocatable (no .brew-x86 required at runtime).
+# to @loader_path so the tree is relocatable (no Homebrew prefix required at runtime).
 set -euo pipefail
 
 # Packaging uses the CLT host Python, independent of the x86 Homebrew build
 # tools: a relocated Homebrew Python can retain absolute framework paths.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/env-x86_64.sh"
+source "$SCRIPT_DIR/env.sh"
 
 WINE_ROOT="${1:-$WINE_INSTALL}"
 UNIX_LIB="$WINE_ROOT/lib/wine/x86_64-unix"
@@ -269,14 +269,14 @@ for consumer in consumers:
     load_commands = subprocess.check_output(["otool", "-l", str(consumer)], text=True)
     rpaths = re.findall(r"\n\s+path (\S+) \(offset \d+\)", load_commands)
     for rpath in rpaths:
-        if ".brew-x86" in rpath:
+        if str(brew) in rpath:
             subprocess.check_call(["install_name_tool", "-delete_rpath", rpath, str(consumer)])
 
-# Verify no remaining references into brew-x86
+# Verify no remaining references into the Homebrew prefix
 bad = []
 for dst in consumers:
     for dep in otool_deps(dst):
-        if ".brew-x86" in dep or str(brew) in dep:
+        if str(brew) in dep:
             bad.append((dst.name, dep))
 
 if bad:

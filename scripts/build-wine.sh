@@ -65,12 +65,15 @@ Usage: $(basename "$0") [options]
 Build the engine's Wine for macOS x86_64 (Rosetta): upstream Wine 11.16 with
 patches/series applied (the CrossOver 26.3.0 port first).
 
+The x86_64 Homebrew prefix lives outside the checkout (default
+~/.local/share/anomaly-wine/brew-x86; override with ANOMALY_BREW_PREFIX).
+
 Options:
   --cx 26         CrossOver release (default: 26)
   --prepare-only     Fetch, verify and extract Wine and llvm-mingw, then exit
   --with-tests       Build Wine regression-test executables (off for runtime builds)
-  --bootstrap-brew   Install project-local x86_64 Homebrew
-  --install-deps     Install build dependencies via .brew-x86
+  --bootstrap-brew   Install x86_64 Homebrew (pinned tag) into the brew prefix
+  --install-deps     Install build dependencies via the brew prefix
   --with-vulkan      Enable Vulkan (Wine configure autodetects MoltenVK)
   --without-vulkan   Disable Vulkan (Wine ./configure --without-vulkan)
   --vulkan-soname-fallback
@@ -137,7 +140,7 @@ if [[ "$VULKAN_SONAME_FALLBACK" -eq 1 && "$VULKAN_MODE" != "without" ]]; then
 fi
 
 export CX_VERSION
-source "$SCRIPT_DIR/env-x86_64.sh"
+source "$SCRIPT_DIR/env.sh"
 
 PREPARE_ARGS=()
 [[ "$DRY_RUN" -eq 1 ]] && PREPARE_ARGS+=(--dry-run)
@@ -148,26 +151,8 @@ if [[ "$PREPARE_ONLY" -eq 1 ]]; then
   exit 0
 fi
 
-bootstrap_brew() {
-  if [[ -x "$HOMEBREW_PREFIX/bin/brew" ]]; then
-    echo "Homebrew already present at $HOMEBREW_PREFIX"
-    return 0
-  fi
-
-  run mkdir -p "$HOMEBREW_PREFIX"
-  if [[ "$DRY_RUN" -eq 1 ]]; then
-    echo "+ curl -L https://github.com/Homebrew/brew/tarball/master | tar xz --strip-components=1 -C $HOMEBREW_PREFIX"
-    return 0
-  fi
-
-  curl -L https://github.com/Homebrew/brew/tarball/master \
-    | tar xz --strip-components=1 -C "$HOMEBREW_PREFIX"
-  # Ensure brew metadata points at the project prefix, not /opt/homebrew.
-  brew_x86 update --force --quiet 2>/dev/null || true
-}
-
 if [[ "$BOOTSTRAP_BREW" -eq 1 ]]; then
-  bootstrap_brew
+  DRY_RUN="$DRY_RUN" brew_x86_bootstrap
 fi
 
 if [[ "$INSTALL_DEPS" -eq 1 ]]; then
