@@ -5,7 +5,7 @@ Wine's builtins but is not user-selectable and is never used as an automatic
 fallback — see [Selection and fallback](#selection-and-fallback). D3DMetal
 (Apple's Game Porting Toolkit) and DXVK are not supported.
 
-DXMT comes from a release of [`elseform/dxmt`](https://github.com/elseform/dxmt),
+DXMT comes from a release of [`elseform/dxmt-wine`](https://github.com/elseform/dxmt-wine),
 downloaded and verified at pack time (see
 [building.md](building.md#the-dxmt-payload)). Selection happens at process
 start in `cxcompatdb.so`, built from `runtime/cxcompatdb/cxcompatdb.c` and
@@ -31,4 +31,4 @@ DXMT selection and payload validation work, but the game has previously
 crashed during startup on a `concrt140` worker thread. This remains a runtime
 validation item. DLSS under DXMT is enabled with `DXMT_ENABLE_NVEXT=1`
 ([Getting Started](getting-started.md#3-changing-settings)); the fixes behind
-it are listed in the DXMT [changelog](https://github.com/elseform/dxmt/blob/release/CHANGELOG.md).
+it are listed in the DXMT [changelog](https://github.com/elseform/dxmt-wine/blob/release/CHANGELOG.md).

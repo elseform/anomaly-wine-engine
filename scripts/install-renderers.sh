@@ -2,7 +2,7 @@
 # Keep graphics-backend files out of the Wine install tree.
 #
 # DXMT is not staged here: pack-engine-artifact.sh takes it from a verified
-# elseform/dxmt release (scripts/fetch-dxmt-release.sh) and puts it into the
+# elseform/dxmt-wine release (scripts/fetch-dxmt-release.sh) and puts it into the
 # archive's lib/dxmt, plus the winemetal.dll copy in lib/wine/x86_64-windows.
 # This script only makes sure the install tree carries Wine's own Direct3D
 # builtins, and none of DXMT's or older layouts' files, so nothing stale can

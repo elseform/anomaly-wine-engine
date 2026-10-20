@@ -90,7 +90,7 @@ manifest["buildNumber"] = int(build_number) if build_number else None
 manifest["ntdllSHA256"] = ntdll_sha
 manifest["artifact"] = artifact or None
 manifest["artifactSHA256"] = artifact_sha or None
-# Where the bundled DXMT came from: a verified elseform/dxmt release, or a
+# Where the bundled DXMT came from: a verified elseform/dxmt-wine release, or a
 # local payload (--dxmt), which publish-release.sh refuses to publish.
 if dxmt_source:
     manifest["dxmt"] = {

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Fetch and verify a DXMT build published as a release of elseform/dxmt.
+# Fetch and verify a DXMT build published as a release of elseform/dxmt-wine.
 #
 #   fetch-dxmt-release.sh [--tag TAG] [--resolve-only]
 #
-# Without --tag, picks the newest release whose tag is anomaly-YYYY.MM.DD or,
+# Without --tag, uses the frozen release PINNED_TAG (ANOMALY_DXMT_TAG overrides
+# it). --tag latest picks the newest release whose tag is anomaly-YYYY.MM.DD or,
 # for a further release on the same day, anomaly-YYYY.MM.DD.N (drafts and
 # prereleases ignored), using the anonymous GitHub API. Each
 # release carries dxmt-macos-x86_64-<tag>.tar.gz, its .sha256, and a
@@ -25,8 +26,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-REPO="${ANOMALY_DXMT_REPO:-elseform/dxmt}"
+REPO="${ANOMALY_DXMT_REPO:-elseform/dxmt-wine}"
 CACHE_ROOT="${ANOMALY_DXMT_CACHE:-$ROOT/build/cache/dxmt}"
+# The Wine engine ships this DXMT release; elseform/dxmt-wine is frozen at it.
+PINNED_TAG="anomaly-2026.09.30"
 
 TAG=""
 RESOLVE_ONLY=0
@@ -59,7 +62,8 @@ EXPECTED_FILES=(
   x86_64-windows/winemetal.dll
 )
 
-if [[ -z "$TAG" ]]; then
+TAG="${TAG:-${ANOMALY_DXMT_TAG:-$PINNED_TAG}}"
+if [[ "$TAG" == latest ]]; then
   TAG="$(curl -fsSL "https://api.github.com/repos/$REPO/releases?per_page=30" | /usr/bin/python3 -c '
 import json, re, sys
 tags = [r["tag_name"] for r in json.load(sys.stdin)

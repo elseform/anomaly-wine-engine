@@ -103,7 +103,7 @@ Run the steps in this order.
    `--dry-run`. `--notes-file PATH` puts your release notes above the generated
    block (archive, checksum, DXMT release). It uploads an existing archive and its sidecars as a GitHub
    release tagged `engine-<engineId>-<N>`; it builds nothing, and refuses an
-   archive whose DXMT did not come from an `elseform/dxmt` release.
+   archive whose DXMT did not come from an `elseform/dxmt-wine` release.
 
 Useful knobs: `ANOMALY_ENGINE_COMPRESS_LEVEL` (compression level),
 `ANOMALY_ENGINE_FORMAT=zstd` or `--zstd` (zstd instead of xz; anomaly-setup-tool does not accept it),
@@ -114,10 +114,11 @@ packed tree), `SIGN_IDENTITY` (a Developer ID instead of ad-hoc signing),
 ## The DXMT payload
 
 DXMT is not stored in this repository. Packing downloads it from a release of
-[`elseform/dxmt`](https://github.com/elseform/dxmt), the maintained fork of
-[DXMT](https://github.com/3Shain/dxmt): by default the newest release tagged
-`anomaly-YYYY.MM.DD` (`anomaly-YYYY.MM.DD.N` for a further release on the same day),
-or the one named by `--dxmt-tag TAG`.
+[`elseform/dxmt-wine`](https://github.com/elseform/dxmt-wine), the fork of
+[DXMT](https://github.com/3Shain/dxmt) the Wine engine uses, frozen at release
+`anomaly-2026.09.30`: by default that release, or the one named by `--dxmt-tag TAG`
+(`latest` for the newest release tagged `anomaly-YYYY.MM.DD`, `anomaly-YYYY.MM.DD.N`
+for a further release on the same day).
 `scripts/fetch-dxmt-release.sh` downloads the release's
 `dxmt-macos-x86_64-<tag>.tar.gz`, `.sha256` and `.manifest.json` into
 `build/cache/dxmt/<tag>/` and verifies them on every pack: the tarball against

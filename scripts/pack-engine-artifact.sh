@@ -72,9 +72,9 @@ Build a compressed engine artifact from install/wine-cx26-x86_64 (or WINE_INSTAL
   xz:   dist/artifacts/CX26-W11-ANOMALY-<N>.tar.xz (default, xz -$XZ_LEVEL)
   zstd: dist/artifacts/CX26-W11-ANOMALY-<N>.tar.zst (--zstd, zstd -$ZSTD_LEVEL;
         not accepted by anomaly-setup-tool)
-DXMT is the only graphics backend. It comes from the latest anomaly-YYYY.MM.DD[.N]
-release of elseform/dxmt (scripts/fetch-dxmt-release.sh, verified and cached
-in build/cache/dxmt/), or from --dxmt-tag TAG. --dxmt DIR packs a local,
+DXMT is the only graphics backend. It comes from the frozen anomaly-2026.09.30
+release of elseform/dxmt-wine (scripts/fetch-dxmt-release.sh, verified and cached
+in build/cache/dxmt/), or from --dxmt-tag TAG (latest for the newest release). --dxmt DIR packs a local,
 unreleased payload (x86_64-windows/ and x86_64-unix/) for testing; its
 manifest says so and publish-release.sh refuses it.
 <N> is config/build-number plus one, or --build-number N. A successful pack
@@ -172,7 +172,7 @@ for obsolete in lib/d3dmetal lib/dxvk lib/external lib/gptk40b1 lib/gptk40b2 lib
   }
 done
 # DXMT never comes from the install tree: packing takes it from a verified
-# elseform/dxmt release (or an explicit local payload) and puts it into the
+# elseform/dxmt-wine release (or an explicit local payload) and puts it into the
 # disposable staging tree below. A dry run only resolves the release.
 DXMT_NOTICE="$OGOM/renderers/dxmt/NOTICE"
 [[ -f "$DXMT_NOTICE" ]] || {
@@ -252,7 +252,7 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   if [[ "$DXMT_SOURCE" == local ]]; then
     echo "  dxmt: local payload $DXMT_PAYLOAD (not publishable)"
   else
-    echo "  dxmt: elseform/dxmt $DXMT_TAG ($([[ "$DXMT_CACHED" == yes ]] && echo cached || echo "not cached, downloaded on pack"))"
+    echo "  dxmt: elseform/dxmt-wine $DXMT_TAG ($([[ "$DXMT_CACHED" == yes ]] && echo cached || echo "not cached, downloaded on pack"))"
   fi
   echo "  output: $ARCHIVE"
   exit 0
@@ -285,7 +285,7 @@ anomaly_write_engine_version_file "$ENGINE_TREE" "$ENGINE_VERSION_LABEL"
 # the only place wineboot looks when it creates system32/winemetal.dll, and the
 # loader refuses a DLL that has no system32 entry. The copy in lib/dxmt is the
 # one that loads.
-echo "==> Staging DXMT ($([[ "$DXMT_SOURCE" == local ]] && echo "local $DXMT_PAYLOAD" || echo "elseform/dxmt $DXMT_TAG"))"
+echo "==> Staging DXMT ($([[ "$DXMT_SOURCE" == local ]] && echo "local $DXMT_PAYLOAD" || echo "elseform/dxmt-wine $DXMT_TAG"))"
 rm -rf "$ENGINE_TREE/lib/dxmt"
 rm -f "$ENGINE_TREE/lib/wine/i386-windows/winemetal.dll"
 mkdir -p "$ENGINE_TREE/lib/dxmt/x86_64-windows" "$ENGINE_TREE/lib/dxmt/x86_64-unix"
