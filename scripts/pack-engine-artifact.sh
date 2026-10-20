@@ -72,7 +72,7 @@ Build a compressed engine artifact from install/wine-cx26-x86_64 (or WINE_INSTAL
   xz:   dist/artifacts/CX26-W11-ANOMALY-<N>.tar.xz (default, xz -$XZ_LEVEL)
   zstd: dist/artifacts/CX26-W11-ANOMALY-<N>.tar.zst (--zstd, zstd -$ZSTD_LEVEL;
         not accepted by anomaly-setup-tool)
-DXMT is the only graphics backend. It comes from the frozen anomaly-2026.09.30
+DXMT is the only graphics backend. It comes from the frozen anomaly-2026.10.10
 release of elseform/dxmt-wine (scripts/fetch-dxmt-release.sh, verified and cached
 in build/cache/dxmt/), or from --dxmt-tag TAG (latest for the newest release). --dxmt DIR packs a local,
 unreleased payload (x86_64-windows/ and x86_64-unix/) for testing; its

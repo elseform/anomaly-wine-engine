@@ -114,7 +114,7 @@ packed tree), `SIGN_IDENTITY` (a Developer ID instead of ad-hoc signing),
 DXMT is not stored in this repository. Packing downloads it from a release of
 [`elseform/dxmt-wine`](https://github.com/elseform/dxmt-wine), the fork of
 [DXMT](https://github.com/3Shain/dxmt) the Wine engine uses, frozen at release
-`anomaly-2026.09.30`: by default that release, or the one named by `--dxmt-tag TAG`
+`anomaly-2026.10.10`: by default that release, or the one named by `--dxmt-tag TAG`
 (`latest` for the newest release tagged `anomaly-YYYY.MM.DD`, `anomaly-YYYY.MM.DD.N`
 for a further release on the same day).
 `scripts/fetch-dxmt-release.sh` downloads the release's

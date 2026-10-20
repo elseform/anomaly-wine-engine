@@ -29,7 +29,7 @@ ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO="${ANOMALY_DXMT_REPO:-elseform/dxmt-wine}"
 CACHE_ROOT="${ANOMALY_DXMT_CACHE:-$ROOT/build/cache/dxmt}"
 # The Wine engine ships this DXMT release; elseform/dxmt-wine is frozen at it.
-PINNED_TAG="anomaly-2026.09.30"
+PINNED_TAG="anomaly-2026.10.10"
 
 TAG=""
 RESOLVE_ONLY=0
